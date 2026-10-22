@@ -1,0 +1,27 @@
+<!--
+  Salandual - a keyboard-first, dual-pane file manager for Windows.
+  Project : https://github.com/TomEvin/salandual
+  Author  : TomEvin (https://github.com/TomEvin)
+  Copyright (C) 2026 TomEvin
+  License : GNU General Public License v3 or later (GPL-3.0-or-later). The full text is in the LICENSE file of the project.
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Source  : tests/Salandual.Platform.Windows.Tests/Salandual.Platform.Windows.Tests.csproj
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Salandual.Platform.Windows\Salandual.Platform.Windows.csproj" />
+  </ItemGroup>
+</Project>

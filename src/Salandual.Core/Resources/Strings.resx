@@ -1,0 +1,679 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Salandual - a keyboard-first, dual-pane file manager for Windows.
+  Project : https://github.com/TomEvin/salandual
+  Author  : TomEvin (https://github.com/TomEvin)
+  Copyright (C) 2026 TomEvin
+  License : GNU General Public License v3 or later (GPL-3.0-or-later). The full text is in the LICENSE file of the project.
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Source  : src/Salandual.Core/Resources/Strings.resx
+-->
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Command_Help_Contents" xml:space="preserve"><value>Help</value></data>
+  <data name="Command_Help_WhatIsThis" xml:space="preserve"><value>What's this?</value></data>
+  <data name="Command_File_QuickRename" xml:space="preserve"><value>Rename</value></data>
+  <data name="Command_File_View" xml:space="preserve"><value>View</value></data>
+  <data name="Command_File_ViewAlternate" xml:space="preserve"><value>Alternate viewer</value></data>
+  <data name="CommandShort_File_ViewAlternate" xml:space="preserve"><value>Alt. viewer</value></data>
+  <data name="Command_File_ViewWith" xml:space="preserve"><value>View with…</value></data>
+  <data name="Command_File_Edit" xml:space="preserve"><value>Edit</value></data>
+  <data name="Command_File_EditNew" xml:space="preserve"><value>Edit new file</value></data>
+  <data name="Command_File_EditWith" xml:space="preserve"><value>Edit with…</value></data>
+  <data name="Command_File_Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Command_File_CopyToEach" xml:space="preserve"><value>Copy into each selected folder</value></data>
+  <data name="CommandShort_File_CopyToEach" xml:space="preserve"><value>Copy to each</value></data>
+  <data name="Command_File_Move" xml:space="preserve"><value>Move</value></data>
+  <data name="Command_File_CreateDirectory" xml:space="preserve"><value>Create directory</value></data>
+  <data name="CommandShort_File_CreateDirectory" xml:space="preserve"><value>New folder</value></data>
+  <data name="Command_File_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Command_File_DeleteInverted" xml:space="preserve"><value>Delete (other Recycle Bin choice)</value></data>
+  <data name="CommandShort_File_DeleteInverted" xml:space="preserve"><value>Delete (bin ⇄)</value></data>
+  <data name="Command_UserMenu_Open" xml:space="preserve"><value>User menu</value></data>
+  <data name="Command_App_Menu" xml:space="preserve"><value>Menu bar</value></data>
+  <data name="CommandShort_App_Menu" xml:space="preserve"><value>Menu</value></data>
+  <data name="Command_Network_ConnectDrive" xml:space="preserve"><value>Connect network drive</value></data>
+  <data name="Command_Network_DisconnectDrive" xml:space="preserve"><value>Disconnect network drive</value></data>
+  <data name="Command_Drive_Info" xml:space="preserve"><value>Drive information</value></data>
+  <data name="CommandShort_Drive_Info" xml:space="preserve"><value>Drive info</value></data>
+  <data name="Command_File_ChangeAttributes" xml:space="preserve"><value>Change attributes</value></data>
+  <data name="CommandShort_File_ChangeAttributes" xml:space="preserve"><value>Attributes</value></data>
+  <data name="Command_Panel_SortByName" xml:space="preserve"><value>Sort by name</value></data>
+  <data name="CommandShort_Panel_SortByName" xml:space="preserve"><value>Sort name</value></data>
+  <data name="Command_Panel_SortByExtension" xml:space="preserve"><value>Sort by extension</value></data>
+  <data name="CommandShort_Panel_SortByExtension" xml:space="preserve"><value>Sort ext</value></data>
+  <data name="Command_Panel_SortByTime" xml:space="preserve"><value>Sort by time</value></data>
+  <data name="CommandShort_Panel_SortByTime" xml:space="preserve"><value>Sort time</value></data>
+  <data name="Command_Panel_SortBySize" xml:space="preserve"><value>Sort by size</value></data>
+  <data name="CommandShort_Panel_SortBySize" xml:space="preserve"><value>Sort size</value></data>
+  <data name="Command_File_ChangeCase" xml:space="preserve"><value>Change case</value></data>
+  <data name="Command_Panel_Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Command_Compare_Directories" xml:space="preserve"><value>Compare directories</value></data>
+  <data name="CommandShort_Compare_Directories" xml:space="preserve"><value>Compare dirs</value></data>
+  <data name="Command_Panel_Maximize" xml:space="preserve"><value>Maximize panel</value></data>
+  <data name="Command_Panel_Filter" xml:space="preserve"><value>Filter</value></data>
+  <data name="Command_Drive_ChangeLeft" xml:space="preserve"><value>Change drive (left)</value></data>
+  <data name="CommandShort_Drive_ChangeLeft" xml:space="preserve"><value>Left drive</value></data>
+  <data name="Command_Drive_ChangeRight" xml:space="preserve"><value>Change drive (right)</value></data>
+  <data name="CommandShort_Drive_ChangeRight" xml:space="preserve"><value>Right drive</value></data>
+  <data name="Command_App_Exit" xml:space="preserve"><value>Exit</value></data>
+  <data name="Command_Archive_Pack" xml:space="preserve"><value>Pack</value></data>
+  <data name="Command_Archive_Unpack" xml:space="preserve"><value>Unpack</value></data>
+  <data name="Command_Find_Files" xml:space="preserve"><value>Search for files</value></data>
+  <data name="CommandShort_Find_Files" xml:space="preserve"><value>Search</value></data>
+  <data name="Command_Find_Duplicates" xml:space="preserve"><value>Find duplicates</value></data>
+  <data name="CommandShort_Find_Duplicates" xml:space="preserve"><value>Duplicates</value></data>
+  <data name="Command_File_OccupiedSpace" xml:space="preserve"><value>Calculate occupied space</value></data>
+  <data name="CommandShort_File_OccupiedSpace" xml:space="preserve"><value>Occupied space</value></data>
+  <data name="Command_Lists_OpenedFiles" xml:space="preserve"><value>List of opened files</value></data>
+  <data name="Command_Lists_WorkingDirectories" xml:space="preserve"><value>List of working directories</value></data>
+  <data name="Command_Panel_OpenInExplorer" xml:space="preserve"><value>Open in Explorer</value></data>
+  <data name="Command_Panel_ChangeDirectory" xml:space="preserve"><value>Change directory</value></data>
+  <data name="CommandShort_Panel_ChangeDirectory" xml:space="preserve"><value>Change dir</value></data>
+  <data name="Command_HotPaths_Menu" xml:space="preserve"><value>Hot paths</value></data>
+  <data name="Command_File_ContextMenu" xml:space="preserve"><value>Context menu</value></data>
+  <data name="Command_Selection_Save" xml:space="preserve"><value>Save selection</value></data>
+  <data name="Command_Selection_Load" xml:space="preserve"><value>Load selection</value></data>
+  <data name="Command_Network_SharedDirectories" xml:space="preserve"><value>Shared directories</value></data>
+  <data name="Command_Panel_CalculateDirectorySizes" xml:space="preserve"><value>Calculate directory sizes</value></data>
+  <data name="Command_App_MaximizeWindow" xml:space="preserve"><value>Maximize window</value></data>
+  <data name="Command_Panel_DirectoryContextMenu" xml:space="preserve"><value>Context menu of the current directory</value></data>
+  <data name="Command_Focus_Previous" xml:space="preserve"><value>Previous item</value></data>
+  <data name="Command_Focus_Next" xml:space="preserve"><value>Next item</value></data>
+  <data name="Command_Focus_Left" xml:space="preserve"><value>Item on the left</value></data>
+  <data name="Command_Focus_Right" xml:space="preserve"><value>Item on the right</value></data>
+  <data name="Command_Focus_PageUp" xml:space="preserve"><value>Page up</value></data>
+  <data name="Command_Focus_PageDown" xml:space="preserve"><value>Page down</value></data>
+  <data name="Command_Focus_First" xml:space="preserve"><value>First item</value></data>
+  <data name="Command_Focus_Last" xml:space="preserve"><value>Last item</value></data>
+  <data name="Command_Focus_FirstFile" xml:space="preserve"><value>First file</value></data>
+  <data name="Command_Focus_PreviousSelected" xml:space="preserve"><value>Previous selected item</value></data>
+  <data name="Command_Focus_NextSelected" xml:space="preserve"><value>Next selected item</value></data>
+  <data name="Command_Focus_FirstSelected" xml:space="preserve"><value>First selected item</value></data>
+  <data name="Command_Focus_LastSelected" xml:space="preserve"><value>Last selected item</value></data>
+  <data name="Command_Panel_ScrollUp" xml:space="preserve"><value>Scroll up</value></data>
+  <data name="Command_Panel_ScrollDown" xml:space="preserve"><value>Scroll down</value></data>
+  <data name="Command_Panel_ScrollLeft" xml:space="preserve"><value>Scroll left</value></data>
+  <data name="Command_Panel_ScrollRight" xml:space="preserve"><value>Scroll right</value></data>
+  <data name="Command_Panel_SwitchActive" xml:space="preserve"><value>Switch panel</value></data>
+  <data name="Command_Navigation_Execute" xml:space="preserve"><value>Open</value></data>
+  <data name="Command_Navigation_Parent" xml:space="preserve"><value>Parent directory</value></data>
+  <data name="Command_Navigation_Root" xml:space="preserve"><value>Root directory</value></data>
+  <data name="Command_Navigation_OpenFocused" xml:space="preserve"><value>Open focused directory or archive</value></data>
+  <data name="Command_Navigation_OpenInOtherPanel" xml:space="preserve"><value>Open in the other panel</value></data>
+  <data name="Command_Navigation_GoToFile" xml:space="preserve"><value>Jump to the file (Search's results)</value></data>
+  <data name="Command_History_Back" xml:space="preserve"><value>Back</value></data>
+  <data name="Command_History_Forward" xml:space="preserve"><value>Forward</value></data>
+  <data name="Command_Navigation_ShortcutTarget" xml:space="preserve"><value>Go to shortcut target</value></data>
+  <data name="Command_Navigation_Documents" xml:space="preserve"><value>Documents folder</value></data>
+  <data name="Command_Navigation_OtherPanelDirectory" xml:space="preserve"><value>Directory of the other panel</value></data>
+  <data name="Command_Network_Open" xml:space="preserve"><value>Network</value></data>
+  <data name="Command_Panel_Swap" xml:space="preserve"><value>Swap panels</value></data>
+  <data name="Command_Panel_ToggleHidden" xml:space="preserve"><value>Show hidden files</value></data>
+  <data name="Command_Panel_SmartNameWidth" xml:space="preserve"><value>Smart name column width</value></data>
+  <data name="Command_Selection_ToggleAndNext" xml:space="preserve"><value>Select and move down</value></data>
+  <data name="Command_Selection_ToggleAndSize" xml:space="preserve"><value>Select and move down (with directory size)</value></data>
+  <data name="Command_Selection_ExtendUp" xml:space="preserve"><value>Extend selection up</value></data>
+  <data name="Command_Selection_ExtendDown" xml:space="preserve"><value>Extend selection down</value></data>
+  <data name="Command_Selection_ExtendLeft" xml:space="preserve"><value>Extend selection left</value></data>
+  <data name="Command_Selection_ExtendRight" xml:space="preserve"><value>Extend selection right</value></data>
+  <data name="Command_Selection_ExtendToFirst" xml:space="preserve"><value>Extend selection to first</value></data>
+  <data name="Command_Selection_ExtendToLast" xml:space="preserve"><value>Extend selection to last</value></data>
+  <data name="Command_Selection_ExtendPageUp" xml:space="preserve"><value>Extend selection one page up</value></data>
+  <data name="Command_Selection_ExtendPageDown" xml:space="preserve"><value>Extend selection one page down</value></data>
+  <data name="Command_Selection_SelectByMask" xml:space="preserve"><value>Select…</value></data>
+  <data name="Command_Selection_UnselectByMask" xml:space="preserve"><value>Unselect…</value></data>
+  <data name="Command_Selection_SelectAll" xml:space="preserve"><value>Select all</value></data>
+  <data name="Command_Selection_UnselectAll" xml:space="preserve"><value>Unselect all</value></data>
+  <data name="Command_Selection_InvertFiles" xml:space="preserve"><value>Invert selection</value></data>
+  <data name="Command_Selection_InvertAll" xml:space="preserve"><value>Invert selection (with folders)</value></data>
+  <data name="Command_Selection_SameExtension" xml:space="preserve"><value>Select same extension</value></data>
+  <data name="Command_Selection_UnselectSameExtension" xml:space="preserve"><value>Unselect same extension</value></data>
+  <data name="Command_Selection_SameName" xml:space="preserve"><value>Select same name</value></data>
+  <data name="Command_Selection_UnselectSameName" xml:space="preserve"><value>Unselect same name</value></data>
+  <data name="Command_Selection_Restore" xml:space="preserve"><value>Restore selection</value></data>
+  <data name="Command_Clipboard_Copy" xml:space="preserve"><value>Copy to clipboard</value></data>
+  <data name="Command_Clipboard_Cut" xml:space="preserve"><value>Cut to clipboard</value></data>
+  <data name="Command_Clipboard_Paste" xml:space="preserve"><value>Paste</value></data>
+  <data name="Command_Clipboard_PasteIntoFocused" xml:space="preserve"><value>Paste into the focused folder</value></data>
+  <data name="Command_Clipboard_PasteShortcut" xml:space="preserve"><value>Paste shortcut</value></data>
+  <data name="Command_Clipboard_CopyFullName" xml:space="preserve"><value>Copy full name</value></data>
+  <data name="Command_Clipboard_CopyName" xml:space="preserve"><value>Copy name</value></data>
+  <data name="Command_Clipboard_CopyPath" xml:space="preserve"><value>Copy path of the current directory</value></data>
+  <data name="Command_Clipboard_CopyUncName" xml:space="preserve"><value>Copy UNC name</value></data>
+  <data name="Command_CommandLine_Toggle" xml:space="preserve"><value>Command line</value></data>
+  <data name="Command_CommandLine_InsertName" xml:space="preserve"><value>Insert name into command line</value></data>
+  <data name="Command_CommandLine_InsertDosName" xml:space="preserve"><value>Insert short name into command line</value></data>
+  <data name="Command_CommandLine_InsertDirectory" xml:space="preserve"><value>Insert directory into command line</value></data>
+  <data name="Command_CommandLine_InsertDirectoryDos" xml:space="preserve"><value>Insert short directory into command line</value></data>
+  <data name="Command_CommandLine_InsertLeftDirectory" xml:space="preserve"><value>Insert left directory into command line</value></data>
+  <data name="Command_CommandLine_InsertLeftDirectoryDos" xml:space="preserve"><value>Insert short left directory into command line</value></data>
+  <data name="Command_CommandLine_InsertRightDirectory" xml:space="preserve"><value>Insert right directory into command line</value></data>
+  <data name="Command_CommandLine_InsertRightDirectoryDos" xml:space="preserve"><value>Insert short right directory into command line</value></data>
+  <data name="Command_Shell_CommandPrompt" xml:space="preserve"><value>Command shell</value></data>
+  <data name="Command_File_Properties" xml:space="preserve"><value>Properties</value></data>
+  <data name="Command_File_MakeList" xml:space="preserve"><value>Make file list</value></data>
+  <data name="Command_File_ConvertText" xml:space="preserve"><value>Convert text files</value></data>
+  <data name="Command_File_Email" xml:space="preserve"><value>Send by email</value></data>
+  <data name="Command_Plugins_RepeatLast" xml:space="preserve"><value>Repeat last tool command</value></data>
+  <data name="Command_Security_Owner" xml:space="preserve"><value>Owner</value></data>
+  <data name="Command_Security_Permissions" xml:space="preserve"><value>Permissions</value></data>
+  <data name="Command_App_WindowMenu" xml:space="preserve"><value>Window menu</value></data>
+  <data name="Command_App_Minimize" xml:space="preserve"><value>Minimize</value></data>
+  <data name="Command_HotPaths_AddCurrent" xml:space="preserve"><value>Add current directory to hot paths</value></data>
+  <data name="Command_App_Options" xml:space="preserve"><value>Options</value></data>
+  <data name="Command_File_Duplicate" xml:space="preserve"><value>Duplicate</value></data>
+  <data name="Command_App_CommandSearch" xml:space="preserve"><value>Search commands</value></data>
+  <data name="Command_App_About" xml:space="preserve"><value>About Salandual</value></data>
+  <data name="Command_View_ToggleMenuBar" xml:space="preserve"><value>Menu bar</value></data>
+  <data name="Command_View_ToggleDriveStrip" xml:space="preserve"><value>Drives strip</value></data>
+  <data name="Command_View_ToggleHotPathBar" xml:space="preserve"><value>Hot paths bar</value></data>
+  <data name="Command_View_ToggleDirectoryLine" xml:space="preserve"><value>Directory line</value></data>
+  <data name="Command_View_ToggleColumnHeader" xml:space="preserve"><value>Column header</value></data>
+  <data name="Command_View_ToggleInformationLine" xml:space="preserve"><value>Information line</value></data>
+  <data name="Command_View_ToggleFunctionKeyBar" xml:space="preserve"><value>Function key bar</value></data>
+  <data name="Command_View_ToggleMiddleToolbar" xml:space="preserve"><value>Middle toolbar</value></data>
+  <data name="CommandCategory_Application" xml:space="preserve"><value>Application</value></data>
+  <data name="CommandCategory_Commands" xml:space="preserve"><value>Commands</value></data>
+  <data name="CommandCategory_Edit" xml:space="preserve"><value>Edit</value></data>
+  <data name="CommandCategory_Files" xml:space="preserve"><value>Files</value></data>
+  <data name="CommandCategory_Help" xml:space="preserve"><value>Help</value></data>
+  <data name="CommandCategory_Navigation" xml:space="preserve"><value>Navigation</value></data>
+  <data name="CommandCategory_Options" xml:space="preserve"><value>Options</value></data>
+  <data name="CommandCategory_Panel" xml:space="preserve"><value>Panel</value></data>
+  <data name="CommandCategory_Tools" xml:space="preserve"><value>Tools</value></data>
+  <data name="Command_View_Mode" xml:space="preserve"><value>View mode {0}</value><comment>{0}: digit 0–9</comment></data>
+  <data name="Command_HotPaths_Define" xml:space="preserve"><value>Define hot path {0}</value><comment>{0}: digit 0–9</comment></data>
+  <data name="Command_HotPaths_Go" xml:space="preserve"><value>Go to hot path {0}</value><comment>{0}: digit 0–9</comment></data>
+  <data name="Command_HotPaths_GoOther" xml:space="preserve"><value>Go to hot path {0} in the other panel</value><comment>{0}: digit 0–9</comment></data>
+  <data name="Command_Drive_Switch" xml:space="preserve"><value>Drive {0}:</value><comment>{0}: drive letter</comment></data>
+  <data name="CommandCategory_View" xml:space="preserve"><value>View</value></data>
+  <data name="Menu_File_QuickRename" xml:space="preserve"><value>Quick _Rename…</value></data>
+  <data name="Menu_File_View" xml:space="preserve"><value>_View</value></data>
+  <data name="Menu_File_ViewAlternate" xml:space="preserve"><value>_Alternate View</value></data>
+  <data name="Menu_File_ViewWith" xml:space="preserve"><value>View _With…</value></data>
+  <data name="Menu_File_Edit" xml:space="preserve"><value>_Edit</value></data>
+  <data name="Menu_File_EditWith" xml:space="preserve"><value>Edit W_ith…</value></data>
+  <data name="Menu_File_EditNew" xml:space="preserve"><value>Edit _New File…</value></data>
+  <data name="Menu_File_Copy" xml:space="preserve"><value>_Copy…</value></data>
+  <data name="Menu_File_Move" xml:space="preserve"><value>_Move/Rename…</value></data>
+  <data name="Menu_File_Duplicate" xml:space="preserve"><value>Duplicate</value></data>
+  <data name="Menu_File_Email" xml:space="preserve"><value>Emai_l…</value></data>
+  <data name="Menu_File_Delete" xml:space="preserve"><value>_Delete</value></data>
+  <data name="Menu_File_Properties" xml:space="preserve"><value>_Properties</value></data>
+  <data name="Menu_Security_Owner" xml:space="preserve"><value>_Owner…</value></data>
+  <data name="Menu_Security_Permissions" xml:space="preserve"><value>_Permissions…</value></data>
+  <data name="Menu_File_ChangeAttributes" xml:space="preserve"><value>Change Attri_butes…</value></data>
+  <data name="Menu_File_ChangeCase" xml:space="preserve"><value>Change Ca_se…</value></data>
+  <data name="Menu_File_ConvertText" xml:space="preserve"><value>C_onvert…</value></data>
+  <data name="Menu_Archive_Pack" xml:space="preserve"><value>Pac_k…</value></data>
+  <data name="Menu_Archive_Unpack" xml:space="preserve"><value>_Unpack…</value></data>
+  <data name="Menu_App_Exit" xml:space="preserve"><value>E_xit</value></data>
+  <data name="Menu_Clipboard_Cut" xml:space="preserve"><value>Cu_t</value></data>
+  <data name="Menu_Clipboard_Copy" xml:space="preserve"><value>_Copy</value></data>
+  <data name="Menu_Clipboard_Paste" xml:space="preserve"><value>_Paste</value></data>
+  <data name="Menu_Clipboard_PasteIntoFocused" xml:space="preserve"><value>Paste into _Focused Folder</value></data>
+  <data name="Menu_Clipboard_PasteShortcut" xml:space="preserve"><value>Paste Sh_ortcut</value></data>
+  <data name="Menu_Clipboard_CopyFullName" xml:space="preserve"><value>Copy Path + _Name as Text</value></data>
+  <data name="Menu_Clipboard_CopyName" xml:space="preserve"><value>Copy Na_me as Text</value></data>
+  <data name="Menu_Clipboard_CopyPath" xml:space="preserve"><value>Copy Pat_h as Text</value></data>
+  <data name="Menu_Clipboard_CopyUncName" xml:space="preserve"><value>Copy _UNC Path + Name as Text</value></data>
+  <data name="Menu_Selection_SelectByMask" xml:space="preserve"><value>_Select…</value></data>
+  <data name="Menu_Selection_UnselectByMask" xml:space="preserve"><value>Unsel_ect…</value></data>
+  <data name="Menu_Selection_InvertFiles" xml:space="preserve"><value>_Invert Selection</value></data>
+  <data name="Menu_Selection_SelectAll" xml:space="preserve"><value>Select _All</value></data>
+  <data name="Menu_Selection_UnselectAll" xml:space="preserve"><value>Unselect A_ll</value></data>
+  <data name="Menu_Selection_Restore" xml:space="preserve"><value>_Restore Selection</value></data>
+  <data name="Menu_Selection_Save" xml:space="preserve"><value>_Save Selection</value></data>
+  <data name="Menu_Selection_Load" xml:space="preserve"><value>_Load Selection…</value></data>
+  <data name="Menu_Selection_SameExtension" xml:space="preserve"><value>Select Same _Extensions</value></data>
+  <data name="Menu_Selection_UnselectSameExtension" xml:space="preserve"><value>Unselect Same E_xtensions</value></data>
+  <data name="Menu_Selection_SameName" xml:space="preserve"><value>Select Same _Names</value></data>
+  <data name="Menu_Selection_UnselectSameName" xml:space="preserve"><value>Unselect Same Na_mes</value></data>
+  <data name="Menu_Focus_PreviousSelected" xml:space="preserve"><value>Go to _Previous Selected Name</value></data>
+  <data name="Menu_Focus_NextSelected" xml:space="preserve"><value>Go to Nex_t Selected Name</value></data>
+  <data name="Menu_File_CreateDirectory" xml:space="preserve"><value>Create _Directory…</value></data>
+  <data name="Menu_Panel_ChangeDirectory" xml:space="preserve"><value>C_hange Directory…</value></data>
+  <data name="Menu_Compare_Directories" xml:space="preserve"><value>Co_mpare Directories…</value></data>
+  <data name="Menu_File_OccupiedSpace" xml:space="preserve"><value>Calculate _Occupied Space</value></data>
+  <data name="Menu_Panel_CalculateDirectorySizes" xml:space="preserve"><value>Calculate Directory Si_zes</value></data>
+  <data name="Menu_Drive_Info" xml:space="preserve"><value>Drive _Information…</value></data>
+  <data name="Menu_Find_Files" xml:space="preserve"><value>_Find Files and Directories…</value></data>
+  <data name="Menu_Find_Duplicates" xml:space="preserve"><value>Find Du_plicates…</value></data>
+  <data name="MenuSub_SavedSearches" xml:space="preserve"><value>Sa_ved Searches</value></data>
+  <data name="Menu_File_MakeList" xml:space="preserve"><value>Make File _List…</value></data>
+  <data name="Menu_Navigation_ShortcutTarget" xml:space="preserve"><value>Go to Shortcut or Link _Target</value></data>
+  <data name="Menu_Lists_OpenedFiles" xml:space="preserve"><value>List of Opened Fil_es</value></data>
+  <data name="Menu_Lists_WorkingDirectories" xml:space="preserve"><value>List of _Working Directories</value></data>
+  <data name="Menu_Network_ConnectDrive" xml:space="preserve"><value>Co_nnect Network Drive…</value></data>
+  <data name="Menu_Network_DisconnectDrive" xml:space="preserve"><value>Dis_connect…</value></data>
+  <data name="Menu_Network_SharedDirectories" xml:space="preserve"><value>Sh_ared Directories…</value></data>
+  <data name="Menu_Shell_CommandPrompt" xml:space="preserve"><value>Command _Shell</value></data>
+  <data name="Menu_UserMenu_Open" xml:space="preserve"><value>_User Menu</value></data>
+  <data name="Menu_Panel_OpenInExplorer" xml:space="preserve"><value>Open Active Folder in E_xplorer</value></data>
+  <data name="Menu_Plugins_RepeatLast" xml:space="preserve"><value>_Last Command</value></data>
+  <data name="Menu_App_Options" xml:space="preserve"><value>_Options…</value></data>
+  <data name="Menu_View_ToggleMenuBar" xml:space="preserve"><value>_Menu Bar</value></data>
+  <data name="Menu_View_ToggleDriveStrip" xml:space="preserve"><value>_Drives Strip</value></data>
+  <data name="Menu_View_ToggleHotPathBar" xml:space="preserve"><value>Hot _Paths Bar</value></data>
+  <data name="Menu_View_ToggleDirectoryLine" xml:space="preserve"><value>Directory _Line</value></data>
+  <data name="Menu_View_ToggleColumnHeader" xml:space="preserve"><value>_Column Header</value></data>
+  <data name="Menu_View_ToggleInformationLine" xml:space="preserve"><value>_Information Line</value></data>
+  <data name="Menu_View_ToggleFunctionKeyBar" xml:space="preserve"><value>_Function Key Bar</value></data>
+  <data name="Menu_View_ToggleMiddleToolbar" xml:space="preserve"><value>Middle _Toolbar</value></data>
+  <data name="Menu_Panel_ToggleHidden" xml:space="preserve"><value>Show _Hidden Files</value></data>
+  <data name="Menu_Help_Contents" xml:space="preserve"><value>_Contents</value></data>
+  <data name="Menu_Help_WhatIsThis" xml:space="preserve"><value>_What is This?</value></data>
+  <data name="Menu_App_About" xml:space="preserve"><value>_About Salandual</value></data>
+  <data name="Menu_History_Back" xml:space="preserve"><value>_Back</value></data>
+  <data name="Menu_History_Forward" xml:space="preserve"><value>_Forward</value></data>
+  <data name="Menu_Navigation_Parent" xml:space="preserve"><value>_Parent Directory</value></data>
+  <data name="Menu_Navigation_Root" xml:space="preserve"><value>_Root Directory</value></data>
+  <data name="Menu_Navigation_OtherPanelDirectory" xml:space="preserve"><value>Path from _Other Panel</value></data>
+  <data name="Menu_Navigation_GoToFile" xml:space="preserve"><value>_Jump to the File</value></data>
+  <data name="Menu_Panel_SortByName" xml:space="preserve"><value>_Name</value></data>
+  <data name="Menu_Panel_SortByExtension" xml:space="preserve"><value>_Extension</value></data>
+  <data name="Menu_Panel_SortByTime" xml:space="preserve"><value>_Time</value></data>
+  <data name="Menu_Panel_SortBySize" xml:space="preserve"><value>_Size</value></data>
+  <data name="Menu_Panel_Maximize" xml:space="preserve"><value>_Maximize/Restore</value></data>
+  <data name="Menu_Panel_Swap" xml:space="preserve"><value>S_wap</value></data>
+  <data name="Menu_Panel_Filter" xml:space="preserve"><value>_Filter…</value></data>
+  <data name="Menu_Panel_Refresh" xml:space="preserve"><value>_Refresh</value></data>
+  <data name="MenuSub_Left" xml:space="preserve"><value>_Left</value></data>
+  <data name="MenuSub_Files" xml:space="preserve"><value>_Files</value></data>
+  <data name="MenuSub_Security" xml:space="preserve"><value>Securi_ty</value></data>
+  <data name="MenuSub_Edit" xml:space="preserve"><value>_Edit</value></data>
+  <data name="MenuSub_Advanced" xml:space="preserve"><value>Ad_vanced</value></data>
+  <data name="MenuSub_Commands" xml:space="preserve"><value>_Commands</value></data>
+  <data name="MenuSub_Tools" xml:space="preserve"><value>_Tools</value></data>
+  <data name="MenuSub_Options" xml:space="preserve"><value>_Options</value></data>
+  <data name="MenuSub_Show" xml:space="preserve"><value>_Show</value></data>
+  <data name="MenuSub_Right" xml:space="preserve"><value>_Right</value></data>
+  <data name="MenuSub_Help" xml:space="preserve"><value>_Help</value></data>
+  <data name="MenuSub_GoTo" xml:space="preserve"><value>_Go To</value></data>
+  <data name="MenuSub_SortBy" xml:space="preserve"><value>_Sort By</value></data>
+  <data name="Menu_Drive_ChangeLeft" xml:space="preserve"><value>Change _Drive…</value></data>
+  <data name="Menu_Drive_ChangeRight" xml:space="preserve"><value>Change _Drive…</value></data>
+  <data name="Job_Copying" xml:space="preserve"><value>Copying {0}</value><comment>{0}: what, e.g. "3 files"</comment></data>
+  <data name="Job_Moving" xml:space="preserve"><value>Moving {0}</value><comment>{0}: what, e.g. "3 files"</comment></data>
+  <data name="Job_Duplicating" xml:space="preserve"><value>Duplicating {0}</value><comment>{0}: what, e.g. "3 files"</comment></data>
+  <data name="Job_Deleting" xml:space="preserve"><value>Deleting {0}</value><comment>{0}: what, e.g. "3 files"</comment></data>
+  <data name="Job_DeletingPermanently" xml:space="preserve"><value>Deleting permanently {0}</value><comment>{0}: what, e.g. "3 files"</comment></data>
+  <data name="Count_Files_One" xml:space="preserve"><value>{0} file</value></data>
+  <data name="Count_Files_Other" xml:space="preserve"><value>{0} files</value></data>
+  <data name="Count_Folders_One" xml:space="preserve"><value>{0} folder</value></data>
+  <data name="Count_Folders_Other" xml:space="preserve"><value>{0} folders</value></data>
+  <data name="Count_FoldersAndFiles" xml:space="preserve"><value>{0} and {1}</value><comment>{0}: "2 folders", {1}: "3 files"</comment></data>
+  <data name="Issue_Gone" xml:space="preserve"><value>It is no longer there.</value></data>
+  <data name="Issue_CopyOntoItself" xml:space="preserve"><value>You can't copy a file onto itself.</value></data>
+  <data name="Issue_FolderCopiedIntoItself" xml:space="preserve"><value>A folder can't be copied into itself.</value></data>
+  <data name="Issue_FolderMovedIntoItself" xml:space="preserve"><value>A folder can't be moved into itself.</value></data>
+  <data name="Issue_FolderLinkLeft" xml:space="preserve"><value>A folder link: left where it is (links aren't moved between disks).</value></data>
+  <data name="Issue_FolderLinkEmpty" xml:space="preserve"><value>A folder link: copied as an empty folder; what it points to was not copied.</value></data>
+  <data name="Issue_TooLargeForFat" xml:space="preserve"><value>Too large for the target: its file system can't hold files of 4 GB or more.</value></data>
+  <data name="Issue_FolderInTarget" xml:space="preserve"><value>A folder with this name is in the target.</value></data>
+  <data name="Issue_FileAndFolderSameName" xml:space="preserve"><value>A file and a folder have the same name here.</value></data>
+  <data name="Issue_NotDeletedBecause" xml:space="preserve"><value>Not deleted: {0}</value><comment>{0}: the reason</comment></data>
+  <data name="Issue_DeletedPermanently" xml:space="preserve"><value>Deleted permanently: Windows couldn't put it in the Recycle Bin.</value></data>
+  <data name="Issue_NotDeleted" xml:space="preserve"><value>Not deleted.</value></data>
+  <data name="Issue_VerifyFailed" xml:space="preserve"><value>The copy is not the same as the original.</value></data>
+  <data name="Color_WindowBackground" xml:space="preserve"><value>Window background</value></data>
+  <data name="Color_PanelBackground" xml:space="preserve"><value>Panel background</value></data>
+  <data name="Color_Text" xml:space="preserve"><value>Text</value></data>
+  <data name="Color_SecondaryText" xml:space="preserve"><value>Secondary text</value></data>
+  <data name="Color_TertiaryText" xml:space="preserve"><value>Quiet text (hints)</value></data>
+  <data name="Color_InformationLineText" xml:space="preserve"><value>Information line: text</value></data>
+  <data name="Color_Hover" xml:space="preserve"><value>Under the pointer</value></data>
+  <data name="Color_Pressed" xml:space="preserve"><value>Pressed</value></data>
+  <data name="Color_Border" xml:space="preserve"><value>Borders</value></data>
+  <data name="Color_BorderStrong" xml:space="preserve"><value>Strong borders</value></data>
+  <data name="Color_Accent" xml:space="preserve"><value>Accent</value></data>
+  <data name="Color_Danger" xml:space="preserve"><value>Errors</value></data>
+  <data name="Color_Warning" xml:space="preserve"><value>Warnings</value></data>
+  <data name="Color_Success" xml:space="preserve"><value>Done</value></data>
+  <data name="Theme_SalandualLight" xml:space="preserve"><value>Salandual Light</value></data>
+  <data name="Theme_SalandualDark" xml:space="preserve"><value>Salandual Dark</value></data>
+  <data name="Theme_ClassicLight" xml:space="preserve"><value>Salamander Classic</value></data>
+  <data name="Theme_ClassicDark" xml:space="preserve"><value>Salamander Classic Dark</value></data>
+  <data name="Theme_ContrastLight" xml:space="preserve"><value>High contrast</value></data>
+  <data name="Theme_ContrastDark" xml:space="preserve"><value>High contrast Dark</value></data>
+  <data name="Theme_Far" xml:space="preserve"><value>Far Manager style</value></data>
+  <data name="Theme_TotalCommander" xml:space="preserve"><value>Total Commander style</value></data>
+  <data name="Theme_NordLight" xml:space="preserve"><value>Nord Light</value></data>
+  <data name="Theme_GruvboxDark" xml:space="preserve"><value>Gruvbox Dark</value></data>
+  <data name="Theme_GruvboxLight" xml:space="preserve"><value>Gruvbox Light</value></data>
+  <data name="Theme_AmberTerminal" xml:space="preserve"><value>Amber terminal</value></data>
+  <data name="Theme_GreenTerminal" xml:space="preserve"><value>Green terminal</value></data>
+  <data name="Theme_SoftGrey" xml:space="preserve"><value>Soft Grey</value></data>
+  <data name="Theme_Graphite" xml:space="preserve"><value>Graphite</value></data>
+  <data name="Theme_Steel" xml:space="preserve"><value>Steel</value></data>
+  <data name="Theme_Gunmetal" xml:space="preserve"><value>Gunmetal</value></data>
+  <data name="Color_SelectedText" xml:space="preserve"><value>Selected text</value></data>
+  <data name="Color_SelectionBackground" xml:space="preserve"><value>Selection background</value></data>
+  <data name="Color_FocusOutline" xml:space="preserve"><value>Focus outline</value></data>
+  <data name="Color_ColumnHeader" xml:space="preserve"><value>Column header</value></data>
+  <data name="Color_InformationLine" xml:space="preserve"><value>Information line</value></data>
+  <data name="Color_CompressedFiles" xml:space="preserve"><value>Compressed files</value></data>
+  <data name="Color_EncryptedFiles" xml:space="preserve"><value>Encrypted files</value></data>
+  <data name="Color_HexZero" xml:space="preserve"><value>Hex: zero bytes (00)</value></data>
+  <data name="Color_HexText" xml:space="preserve"><value>Hex: text bytes (20–7E)</value></data>
+  <data name="Color_HexControl" xml:space="preserve"><value>Hex: control bytes (01–1F, 7F)</value></data>
+  <data name="Color_HexHigh" xml:space="preserve"><value>Hex: high bytes (80–FE)</value></data>
+  <data name="Color_HexFF" xml:space="preserve"><value>Hex: FF bytes</value></data>
+  <data name="Color_ViewerOffsets" xml:space="preserve"><value>Offsets, column numbers</value></data>
+  <data name="Color_ViewerCaret" xml:space="preserve"><value>Caret</value></data>
+  <data name="Color_ViewerMatch" xml:space="preserve"><value>Find matches</value></data>
+  <data name="Color_ViewerCurrentMatch" xml:space="preserve"><value>Current match</value></data>
+  <data name="Color_ViewerLineNumbers" xml:space="preserve"><value>Text: line numbers</value></data>
+  <data name="Color_SyntaxKey" xml:space="preserve"><value>Keys</value></data>
+  <data name="Color_SyntaxString" xml:space="preserve"><value>Strings, values and code</value></data>
+  <data name="Color_SyntaxNumber" xml:space="preserve"><value>Numbers and list marks</value></data>
+  <data name="Color_SyntaxKeyword" xml:space="preserve"><value>true, false, null</value></data>
+  <data name="Color_SyntaxPunctuation" xml:space="preserve"><value>Brackets and punctuation</value></data>
+  <data name="Color_SyntaxComment" xml:space="preserve"><value>Comments</value></data>
+  <data name="Color_SyntaxAttribute" xml:space="preserve"><value>Attributes</value></data>
+  <data name="Color_SyntaxHeading" xml:space="preserve"><value>Markdown headings</value></data>
+  <data name="Color_SyntaxLink" xml:space="preserve"><value>Links</value></data>
+  <data name="Color_SyntaxFunction" xml:space="preserve"><value>Function names</value></data>
+  <data name="Color_SyntaxTag" xml:space="preserve"><value>Tag names</value></data>
+  <data name="Color_SyntaxBackground" xml:space="preserve"><value>Code background</value></data>
+  <data name="Color_SyntaxText" xml:space="preserve"><value>Code text</value></data>
+  <data name="Colors_NotAVsCodeTheme" xml:space="preserve"><value>This isn't a VS Code colour theme (it has no colours).</value></data>
+  <data name="Image_TooBig" xml:space="preserve"><value>The image is too big to show (over 256 million pixels).</value></data>
+  <data name="Image_NoDecoder" xml:space="preserve"><value>No decoder could read this image.</value></data>
+  <data name="Info_Taken" xml:space="preserve"><value>Taken</value></data>
+  <data name="Info_Camera" xml:space="preserve"><value>Camera</value></data>
+  <data name="Info_Lens" xml:space="preserve"><value>Lens</value></data>
+  <data name="Info_Exposure" xml:space="preserve"><value>Exposure</value></data>
+  <data name="Info_FocalLength" xml:space="preserve"><value>Focal length</value></data>
+  <data name="Info_Rating" xml:space="preserve"><value>Rating</value></data>
+  <data name="Info_Keywords" xml:space="preserve"><value>Keywords</value></data>
+  <data name="Info_Caption" xml:space="preserve"><value>Caption</value></data>
+  <data name="Info_Creator" xml:space="preserve"><value>Creator</value></data>
+  <data name="Info_Copyright" xml:space="preserve"><value>Copyright</value></data>
+  <data name="Info_Place" xml:space="preserve"><value>Place</value></data>
+  <data name="Info_Altitude" xml:space="preserve"><value>Altitude</value></data>
+  <data name="Info_Iso" xml:space="preserve"><value>ISO {0}</value></data>
+  <data name="Info_Seconds" xml:space="preserve"><value>{0} s</value></data>
+  <data name="Info_Aperture" xml:space="preserve"><value>f/{0}</value></data>
+  <data name="Info_Metres" xml:space="preserve"><value>{0} m</value></data>
+  <data name="TitlePreset_FolderApp" xml:space="preserve"><value>Folder — Salandual</value></data>
+  <data name="TitlePreset_PathApp" xml:space="preserve"><value>Full path — Salandual</value></data>
+  <data name="TitlePreset_AppPath" xml:space="preserve"><value>Salandual — full path</value></data>
+  <data name="TitlePreset_Folder" xml:space="preserve"><value>Folder only</value></data>
+  <data name="Name_Empty" xml:space="preserve"><value>Type a name.</value></data>
+  <data name="Name_Dots" xml:space="preserve"><value>“.” and “..” are not names.</value></data>
+  <data name="Name_ControlCharacters" xml:space="preserve"><value>Control characters can't be in a name.</value></data>
+  <data name="Name_BadCharacter" xml:space="preserve"><value>A name can't contain {0}  (none of &lt; &gt; : " / \ | ? * are allowed).</value><comment>{0}: the character</comment></data>
+  <data name="Name_TrailingDotOrSpace" xml:space="preserve"><value>A name can't end with a dot or a space: most programs couldn't open it.</value></data>
+  <data name="Name_Reserved" xml:space="preserve"><value>“{0}” is reserved by Windows.</value><comment>{0}: e.g. CON, NUL</comment></data>
+  <data name="Name_TooLong" xml:space="preserve"><value>Names can be at most 255 characters.</value></data>
+  <data name="Name_PartProblem" xml:space="preserve"><value>“{0}”: {1}</value><comment>{0}: one folder of a path, {1}: what is wrong with it</comment></data>
+  <data name="NewFolder_FileHere" xml:space="preserve"><value>A file named “{0}” is already here.</value></data>
+  <data name="NewFolder_FileOnTheWay" xml:space="preserve"><value>A file named “{0}” is already there.</value></data>
+  <data name="Name_FolderExists" xml:space="preserve"><value>A folder named “{0}” is already here.</value></data>
+  <data name="Name_FileExists" xml:space="preserve"><value>A file named “{0}” is already here.</value></data>
+  <data name="NewFolder_AllExist" xml:space="preserve"><value>These folders are all there already.</value></data>
+  <data name="InfoLine_Parent" xml:space="preserve"><value>..: parent folder</value></data>
+  <data name="InfoLine_Folder" xml:space="preserve"><value>Folder</value></data>
+  <data name="Panel_FolderGone" xml:space="preserve"><value>The folder {0} is no longer available.</value></data>
+  <data name="Recycle_NetworkDrive" xml:space="preserve"><value>Network drives have no Recycle Bin.</value></data>
+  <data name="Recycle_RemovableDrive" xml:space="preserve"><value>Removable drives have no Recycle Bin.</value></data>
+  <data name="Recycle_PathTooLong" xml:space="preserve"><value>Its path is longer than 260 characters.</value></data>
+  <data name="Recycle_TrailingDotOrSpace" xml:space="preserve"><value>Its name ends with a dot or a space.</value></data>
+  <data name="Recycle_ReservedName" xml:space="preserve"><value>Its name is reserved by Windows.</value></data>
+  <data name="Recycle_UnreadableName" xml:space="preserve"><value>Windows can't read this name, so it can't go to the Recycle Bin.</value></data>
+  <data name="Win_FolderGone" xml:space="preserve"><value>The folder is no longer there.</value></data>
+  <data name="Win_AccessDenied" xml:space="preserve"><value>Access is denied.</value></data>
+  <data name="Win_NotReady" xml:space="preserve"><value>The drive is not ready.</value></data>
+  <data name="Win_WriteProtected" xml:space="preserve"><value>The disk is write-protected.</value></data>
+  <data name="Win_InUse" xml:space="preserve"><value>It is in use by another program.</value></data>
+  <data name="Win_Locked" xml:space="preserve"><value>Part of it is locked by another program.</value></data>
+  <data name="Win_DiskFull" xml:space="preserve"><value>There is not enough space on the disk.</value></data>
+  <data name="Win_NetworkUnreachable" xml:space="preserve"><value>The network path can't be reached.</value></data>
+  <data name="Win_AlreadyExists" xml:space="preserve"><value>It already exists.</value></data>
+  <data name="Win_InvalidName" xml:space="preserve"><value>The name isn't valid on the target.</value></data>
+  <data name="Win_FolderNotEmpty" xml:space="preserve"><value>The folder is not empty.</value></data>
+  <data name="Win_PathTooLong" xml:space="preserve"><value>The name or path is too long for the target.</value></data>
+  <data name="Win_CantOpenOnlineOnly" xml:space="preserve"><value>It can't be opened (an online-only file that isn't available?).</value></data>
+  <data name="Win_OtherError" xml:space="preserve"><value>{0} (error {1}).</value><comment>{0}: Windows' own message, {1}: the error number</comment></data>
+  <data name="Win_HResult" xml:space="preserve"><value>Windows reported error 0x{0}.</value><comment>{0}: hexadecimal error code</comment></data>
+  <data name="Win_InUseBy" xml:space="preserve"><value>It is in use by {0}.</value><comment>{0}: program names, e.g. "Word and Excel"</comment></data>
+  <data name="Win_RenameDriveNeedsAdmin" xml:space="preserve"><value>Renaming this drive needs administrator rights.</value></data>
+  <data name="List_Separator" xml:space="preserve"><value>, </value><comment>Between items of a list, before the last two</comment></data>
+  <data name="List_LastTwo" xml:space="preserve"><value>{0} and {1}</value><comment>{0}: the earlier items, {1}: the last one</comment></data>
+  <data name="Milestone_Phase" xml:space="preserve"><value>Phase {0}</value><comment>{0}: phase number</comment></data>
+  <data name="RowHeight_Compact" xml:space="preserve"><value>Compact</value></data>
+  <data name="RowHeight_Default" xml:space="preserve"><value>Default</value></data>
+  <data name="RowHeight_Comfortable" xml:space="preserve"><value>Comfortable</value></data>
+  <data name="InfoLine_Selected" xml:space="preserve"><value>{0:N0} of {1:N0} selected · {2}</value><comment>{0}: selected, {1}: all, {2}: their size; keep :N0</comment></data>
+  <data name="InfoLine_Items_One" xml:space="preserve"><value>{0:N0} item · {1}</value><comment>{1}: size of the files</comment></data>
+  <data name="InfoLine_Items_Other" xml:space="preserve"><value>{0:N0} items · {1}</value><comment>{0}: a number, {1}: size of the files</comment></data>
+  <data name="Access_FullControl" xml:space="preserve"><value>Full control</value></data>
+  <data name="Access_Change" xml:space="preserve"><value>Change</value></data>
+  <data name="Access_ReadAndRun" xml:space="preserve"><value>Read and run</value></data>
+  <data name="Access_Read" xml:space="preserve"><value>Read</value></data>
+  <data name="Access_Write" xml:space="preserve"><value>Write</value></data>
+  <data name="Access_Special" xml:space="preserve"><value>Special permissions</value></data>
+  <data name="Command_File_WindowsProperties" xml:space="preserve"><value>Windows properties</value></data>
+  <data name="Media_Codec" xml:space="preserve"><value>Codec</value></data>
+  <data name="Media_Size" xml:space="preserve"><value>Size</value></data>
+  <data name="Media_Pixels" xml:space="preserve"><value>{0} × {1}</value></data>
+  <data name="Media_FrameRate" xml:space="preserve"><value>Frame rate</value></data>
+  <data name="Media_Fps" xml:space="preserve"><value>{0} fps</value></data>
+  <data name="Media_Variable" xml:space="preserve"><value>{0} (variable)</value></data>
+  <data name="Media_BitRate" xml:space="preserve"><value>Bit rate</value></data>
+  <data name="Media_BitDepth" xml:space="preserve"><value>Bit depth</value></data>
+  <data name="Media_Bits" xml:space="preserve"><value>{0}-bit</value></data>
+  <data name="Media_Hdr" xml:space="preserve"><value>HDR</value></data>
+  <data name="Media_StreamTitle" xml:space="preserve"><value>Title</value></data>
+  <data name="Media_Video" xml:space="preserve"><value>Video</value></data>
+  <data name="Media_VideoNumber" xml:space="preserve"><value>Video {0}</value></data>
+  <data name="Media_Audio" xml:space="preserve"><value>Audio</value></data>
+  <data name="Media_AudioNumber" xml:space="preserve"><value>Audio {0}</value></data>
+  <data name="Media_KHz" xml:space="preserve"><value>{0} kHz</value></data>
+  <data name="Media_Kbps" xml:space="preserve"><value>{0} kb/s</value></data>
+  <data name="Media_Mono" xml:space="preserve"><value>mono</value></data>
+  <data name="Media_Stereo" xml:space="preserve"><value>stereo</value></data>
+  <data name="Media_ChannelCount" xml:space="preserve"><value>{0} channels</value></data>
+  <data name="Media_Default" xml:space="preserve"><value>default</value></data>
+  <data name="Media_NoLanguage" xml:space="preserve"><value>no language</value></data>
+  <data name="Media_SubtitleGroup" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Media_Subtitles" xml:space="preserve"><value>Subtitles</value></data>
+  <data name="Media_Chapters" xml:space="preserve"><value>Chapters</value></data>
+  <data name="Media_SubtitlesAndChapters" xml:space="preserve"><value>Subtitles and chapters</value></data>
+  <data name="Media_Tags" xml:space="preserve"><value>Tags</value></data>
+  <data name="Media_Title" xml:space="preserve"><value>Title</value></data>
+  <data name="Media_Artist" xml:space="preserve"><value>Artist</value></data>
+  <data name="Media_Album" xml:space="preserve"><value>Album</value></data>
+  <data name="Media_TrackNumber" xml:space="preserve"><value>Track</value></data>
+  <data name="Media_OfTotal" xml:space="preserve"><value>{0} of {1}</value></data>
+  <data name="Media_Genre" xml:space="preserve"><value>Genre</value></data>
+  <data name="Media_Recorded" xml:space="preserve"><value>Recorded</value></data>
+  <data name="Media_Encoder" xml:space="preserve"><value>Encoder</value></data>
+  <data name="Media_Comment" xml:space="preserve"><value>Comment</value></data>
+  <data name="Media_Copyright" xml:space="preserve"><value>Copyright</value></data>
+  <data name="Media_Hms" xml:space="preserve"><value>{0} h {1} min {2} s</value></data>
+  <data name="Media_Ms" xml:space="preserve"><value>{0} min {1} s</value></data>
+  <data name="Media_S" xml:space="preserve"><value>{0} s</value></data>
+  <data name="Md_WebImage" xml:space="preserve"><value>Web image · {0}</value><comment>A picture from the internet that isn't loaded; {0} is its site</comment></data>
+  <data name="Md_ShowWebImages" xml:space="preserve"><value>Show web images</value></data>
+  <data name="Nb_In" xml:space="preserve"><value>In [{0}]:</value><comment>A code cell's prompt, as Jupyter; {0} the run's number, or a space when it never ran</comment></data>
+  <data name="Nb_Out" xml:space="preserve"><value>Out[{0}]:</value><comment>A result's prompt, as Jupyter</comment></data>
+  <data name="Nb_Cells_One" xml:space="preserve"><value>{0} cell: {1} code, {2} Markdown</value></data>
+  <data name="Nb_Cells_Other" xml:space="preserve"><value>{0} cells: {1} code, {2} Markdown</value></data>
+  <data name="Nb_Saved" xml:space="preserve"><value>Outputs as saved in the file · nothing runs here</value></data>
+  <data name="Nb_OutputsLeftOut" xml:space="preserve"><value>Over 50 MB: the outputs are left out</value></data>
+  <data name="Nb_OutputTooBig" xml:space="preserve"><value>An output of {0:N1} MB is left out (over 5 MB).</value></data>
+  <data name="Nb_MoreLines_One" xml:space="preserve"><value>… {0:N0} more line</value></data>
+  <data name="Nb_MoreLines_Other" xml:space="preserve"><value>… {0:N0} more lines</value></data>
+  <data name="Nb_AllLines" xml:space="preserve"><value>All {0:N0} lines</value></data>
+  <data name="Nb_ShowAll" xml:space="preserve"><value>Show all</value></data>
+  <data name="Nb_Fold" xml:space="preserve"><value>Fold</value></data>
+  <data name="Nb_Widget" xml:space="preserve"><value>Interactive output (a widget) isn't shown:</value></data>
+  <data name="Nb_Interactive" xml:space="preserve"><value>Interactive output isn't shown:</value><comment>HTML with a script, JavaScript, an interactive chart</comment></data>
+  <data name="Nb_NeverRuns" xml:space="preserve"><value>Salandual never runs a notebook.</value></data>
+  <data name="Nb_TextForm" xml:space="preserve"><value>Its text form:</value></data>
+  <data name="Nb_UnknownOutput" xml:space="preserve"><value>An output Salandual can't show: {0}</value><comment>{0} the output's types, e.g. application/x-thing</comment></data>
+  <data name="Nb_UnknownKernel" xml:space="preserve"><value>Unknown kernel</value></data>
+  <data name="Nb_NoCells" xml:space="preserve"><value>it has no cells</value><comment>Ends "Not a Jupyter notebook: …"</comment></data>
+  <data name="ThemeMain_Window" xml:space="preserve"><value>Window</value></data>
+  <data name="ThemeMain_Panels" xml:space="preserve"><value>Panels</value></data>
+  <data name="ThemeMain_Text" xml:space="preserve"><value>Text</value></data>
+  <data name="ThemeMain_Accent" xml:space="preserve"><value>Accent</value></data>
+  <data name="ThemeMain_Selection" xml:space="preserve"><value>Selection</value></data>
+  <data name="Theme_CopyName" xml:space="preserve"><value>{0} (copy)</value><comment>{0} the theme copied, e.g. Salandual Dark (copy)</comment></data>
+  <data name="Theme_NewName" xml:space="preserve"><value>New theme</value></data>
+  <data name="ThemeFiles_BadTheme" xml:space="preserve"><value>This theme can't hold files.</value></data>
+  <data name="ThemeFiles_NotFound" xml:space="preserve"><value>The image wasn't found.</value></data>
+  <data name="ThemeFiles_TooLarge" xml:space="preserve"><value>The image is larger than {0} MB.</value><comment>{0} the largest size, e.g. 64</comment></data>
+  <data name="Editor_Utf8Bom" xml:space="preserve"><value>UTF-8 with BOM</value></data>
+  <data name="ThemeFile_NotFound" xml:space="preserve"><value>The file wasn't found.</value></data>
+  <data name="ThemeFile_TooLarge" xml:space="preserve"><value>The file is larger than {0} MB, too large for a theme.</value><comment>{0} the largest size, e.g. 80</comment></data>
+  <data name="ThemeFile_NotATheme" xml:space="preserve"><value>This isn't a theme: not a Salandual theme file, a VS Code colour theme or a colour file from Options.</value></data>
+  <data name="ThemeFile_Damaged" xml:space="preserve"><value>The theme file is damaged.</value></data>
+  <data name="ThemeFile_Newer" xml:space="preserve"><value>The theme file was made by a newer Salandual.</value></data>
+  <data name="ThemeFile_NoColors" xml:space="preserve"><value>The colour file has no colours.</value></data>
+  <data name="ThemeFile_ColorFileLight" xml:space="preserve"><value>{0} (light)</value><comment>{0} the colour file's name: the theme made from its light colours</comment></data>
+  <data name="ThemeFile_ColorFileDark" xml:space="preserve"><value>{0} (dark)</value><comment>{0} the colour file's name: the theme made from its dark colours</comment></data>
+  <data name="ThemeFile_GoneFromVsCode" xml:space="preserve"><value>This theme isn't in your VS Code any more.</value></data>
+  <data name="Json_Comment" xml:space="preserve"><value>Comments aren't allowed in a .json file (they are in .jsonc).</value></data>
+  <data name="Json_CommentOpen" xml:space="preserve"><value>This comment isn't closed: */ is missing.</value></data>
+  <data name="Json_StringOpen" xml:space="preserve"><value>This text in quotes isn't closed on its line: a " is missing.</value></data>
+  <data name="Json_ControlChar" xml:space="preserve"><value>A tab or another control character in text in quotes is written as \t or \u0009.</value></data>
+  <data name="Json_BadEscape" xml:space="preserve"><value>{0} isn't an escape JSON knows; a backslash itself is written \\.</value><comment>{0} the escape as written, e.g. \x</comment></data>
+  <data name="Json_SingleQuote" xml:space="preserve"><value>Text is written in double quotes (") in JSON, not single ones.</value></data>
+  <data name="Json_BadNumber" xml:space="preserve"><value>{0} isn't a number JSON can read.</value></data>
+  <data name="Json_BadWord" xml:space="preserve"><value>{0} isn't JSON: names and text go in double quotes, and the only words are true, false and null, in lower case.</value></data>
+  <data name="Json_BadChar" xml:space="preserve"><value>{0} doesn't belong here.</value></data>
+  <data name="Json_ExpectedValue" xml:space="preserve"><value>A value is missing here: text in quotes, a number, true, false, null, { } or [ ].</value></data>
+  <data name="Json_ExpectedName" xml:space="preserve"><value>A name in double quotes is expected here, as in "name": value.</value></data>
+  <data name="Json_MissingColon" xml:space="preserve"><value>A colon (:) is missing after the name {0}.</value></data>
+  <data name="Json_MissingComma" xml:space="preserve"><value>A comma is missing after {0} on line {1}, before {2}.</value><comment>{0} what comes before (e.g. }), {1} its line, {2} what comes after (e.g. "followWindowsAccent")</comment></data>
+  <data name="Json_TrailingComma" xml:space="preserve"><value>Nothing comes after this comma: remove it, or add a value (a comma before } or ] is allowed only in .jsonc).</value></data>
+  <data name="Json_Unclosed" xml:space="preserve"><value>The {0} on line {1} is never closed: {2} is missing.</value><comment>{0} { or [, {1} its line, {2} } or ]</comment></data>
+  <data name="Json_Mismatch" xml:space="preserve"><value>{0} doesn't close the {1} on line {2}: {3} is expected first.</value><comment>{0} the closing bracket found, {1} the open one, {2} its line, {3} the bracket that closes it</comment></data>
+  <data name="Json_NothingToClose" xml:space="preserve"><value>This {0} has nothing to close.</value></data>
+  <data name="Json_AfterEnd" xml:space="preserve"><value>The JSON value has already ended; {0} comes after it.</value></data>
+  <data name="Json_Duplicate" xml:space="preserve"><value>The name {0} is used twice in this object (also on line {1}).</value></data>
+  <data name="Yaml_Unreadable" xml:space="preserve"><value>The YAML can't be read from here on: a [ or { may not be closed, or a quote.</value></data>
+  <data name="Xml_NoRoot" xml:space="preserve"><value>The file has no XML element.</value></data>
+  <data name="Yaml_Duplicate" xml:space="preserve"><value>The key {0} is used twice in this mapping (also on line {1}).</value></data>
+  <data name="Svg_NotSvg" xml:space="preserve"><value>This XML isn't an SVG picture: its first element isn't &lt;svg&gt;.</value></data>
+  <data name="Find_HexQuote" xml:space="preserve"><value>A quote is not closed: text in hex goes between two quotes, like 01 02 "text" 00.</value></data>
+  <data name="Find_HexDigits" xml:space="preserve"><value>Type pairs of hex digits (0–9, A–F), like 4D 5A, with text in quotes if you like: 01 02 "text" 00.</value></data>
+  <data name="Find_LogSkippedFolder" xml:space="preserve"><value>Skipped: it is on the list of skipped folders.</value></data>
+  <data name="Find_LogLink" xml:space="preserve"><value>Not looked into: it is a link to another folder.</value></data>
+  <data name="Find_LogOnlineOnly" xml:space="preserve"><value>Content not read: the file is only in the cloud, and reading it would download it.</value></data>
+  <data name="Find_LogTooBigInZip" xml:space="preserve"><value>Content not read: the file inside the ZIP file is bigger than 64 MB.</value></data>
+  <data name="Regex_AnyCharacter" xml:space="preserve"><value>Any character</value></data>
+  <data name="Regex_LineStart" xml:space="preserve"><value>Beginning of the line</value></data>
+  <data name="Regex_LineEnd" xml:space="preserve"><value>End of the line</value></data>
+  <data name="Regex_OneOf" xml:space="preserve"><value>One of these characters</value></data>
+  <data name="Regex_NoneOf" xml:space="preserve"><value>Any character but these</value></data>
+  <data name="Regex_Range" xml:space="preserve"><value>A character in a range</value></data>
+  <data name="Regex_ZeroOrMore" xml:space="preserve"><value>The one before: 0 or more times</value></data>
+  <data name="Regex_OneOrMore" xml:space="preserve"><value>The one before: 1 or more times</value></data>
+  <data name="Regex_Optional" xml:space="preserve"><value>The one before: optional</value></data>
+  <data name="Regex_Or" xml:space="preserve"><value>This or that</value></data>
+  <data name="Regex_Group" xml:space="preserve"><value>A group (around the selection)</value></data>
+  <data name="Regex_Literal" xml:space="preserve"><value>The next character as it is (\. is a dot)</value></data>
+  <data name="Regex_Word" xml:space="preserve"><value>A word</value></data>
+  <data name="Regex_Number" xml:space="preserve"><value>A number</value></data>
+  <data name="Regex_Id" xml:space="preserve"><value>An ID like ABC-123</value></data>
+  <data name="Regex_Guid" xml:space="preserve"><value>A GUID</value></data>
+  <data name="Regex_Date" xml:space="preserve"><value>A date like 2026-10-17</value></data>
+  <data name="Regex_Email" xml:space="preserve"><value>An e-mail address</value></data>
+  <data name="Regex_Ip" xml:space="preserve"><value>An IPv4 address</value></data>
+  <data name="Regex_Link" xml:space="preserve"><value>A web link</value></data>
+  <data name="Regex_EmptyLine" xml:space="preserve"><value>An empty line</value></data>
+  <data name="Regex_Todo" xml:space="preserve"><value>TODO and the rest of the line</value></data>
+  <data name="Regex_WholeMatch" xml:space="preserve"><value>The whole match</value></data>
+  <data name="Regex_GroupNumber" xml:space="preserve"><value>Group {0}</value><comment>{0} the group's number, 1 to 3</comment></data>
+  <data name="Regex_NamedGroup" xml:space="preserve"><value>A named group, (?&lt;name&gt;…) in Find</value></data>
+  <data name="Regex_Dollar" xml:space="preserve"><value>A $ sign</value></data>
+  <data name="Color_CompareRemoved" xml:space="preserve"><value>Compare: removed lines</value></data>
+  <data name="Color_CompareAdded" xml:space="preserve"><value>Compare: added lines</value></data>
+  <data name="Color_CompareChangedText" xml:space="preserve"><value>Compare: changed</value></data>
+  <data name="Color_CompareMinorText" xml:space="preserve"><value>Compare: spacing or case</value></data>
+  <data name="Color_CompareCopied" xml:space="preserve"><value>Compare: copied across</value></data>
+  <data name="Command_Compare_Files" xml:space="preserve"><value>Compare files</value></data>
+  <data name="CommandShort_Compare_Files" xml:space="preserve"><value>Compare files</value></data>
+  <data name="Menu_Compare_Files" xml:space="preserve"><value>Compa_re Files…</value></data>
+  <data name="FileList_Unclosed" xml:space="preserve"><value>{0} needs a {1} after the name.</value></data>
+  <data name="FileList_NoEnvironment" xml:space="preserve"><value>There is no environment variable {0}.</value></data>
+  <data name="FileList_LoneDollar" xml:space="preserve"><value>A $ starts a variable: $(…) or $[…]. Write $$ for a dollar.</value></data>
+  <data name="FileList_UnknownVariable" xml:space="preserve"><value>There is no variable {0}.</value></data>
+  <data name="FileList_BadWidth" xml:space="preserve"><value>After the : comes a width from 1 to 9999, or max.</value></data>
+  <data name="FileList_FolderSize" xml:space="preserve"><value>Folder</value></data>
+  <data name="FileList_TypeFile" xml:space="preserve"><value>File</value></data>
+  <data name="FileList_TypeFolder" xml:space="preserve"><value>Folder</value></data>
+  <data name="FileList_Names" xml:space="preserve"><value>Names</value></data>
+  <data name="FileList_FullNames" xml:space="preserve"><value>Full names</value></data>
+  <data name="FileList_NameSizeDate" xml:space="preserve"><value>Name, size, date</value></data>
+  <data name="FileList_Csv" xml:space="preserve"><value>CSV</value></data>
+  <data name="FileList_CsvHeading" xml:space="preserve"><value>Name;Size;Date;Folder</value></data>
+  <data name="FileList_Markdown" xml:space="preserve"><value>Markdown table</value></data>
+  <data name="FileList_MarkdownHeading" xml:space="preserve"><value>| Name | Size | Date |</value></data>
+  <data name="Transfer_FileName" xml:space="preserve"><value>Salandual settings {0}</value><comment>{0}: the date, 2026-10-19</comment></data>
+  <data name="Transfer_TooBig" xml:space="preserve"><value>The file is too big to be a settings file.</value></data>
+  <data name="Transfer_NotSettings" xml:space="preserve"><value>The file isn't a Salandual settings file.</value></data>
+  <data name="Transfer_Broken" xml:space="preserve"><value>The file isn't valid (a mistake on line {0}).</value><comment>{0}: a line number</comment></data>
+  <data name="Transfer_None" xml:space="preserve"><value>—</value></data>
+  <data name="Transfer_Added" xml:space="preserve"><value>added</value></data>
+  <data name="Transfer_Before" xml:space="preserve"><value>as it is</value></data>
+  <data name="Transfer_Changed" xml:space="preserve"><value>changed</value></data>
+  <data name="Transfer_EditorFor" xml:space="preserve"><value>Editor for {0}</value><comment>{0}: a mask, *.md</comment></data>
+  <data name="Transfer_Items_One" xml:space="preserve"><value>{0} item</value></data>
+  <data name="Transfer_Items_Other" xml:space="preserve"><value>{0} items</value></data>
+  <data name="Transfer_On" xml:space="preserve"><value>on</value></data>
+  <data name="Transfer_Off" xml:space="preserve"><value>off</value></data>
+  <data name="Command_Options_ExportSettings" xml:space="preserve"><value>Export settings…</value></data>
+  <data name="Command_Options_ImportSettings" xml:space="preserve"><value>Import settings…</value></data>
+  <data name="Command_Options_ResetAllSettings" xml:space="preserve"><value>Reset all settings…</value></data>
+  <data name="Transfer_CompareUseProgram" xml:space="preserve"><value>Compare in another program</value></data>
+  <data name="Transfer_CompareProgram" xml:space="preserve"><value>The other compare program</value></data>
+  <data name="Transfer_CompareArguments" xml:space="preserve"><value>Its arguments</value></data>
+  <data name="Menu_Options_ExportSettings" xml:space="preserve"><value>_Export settings…</value></data>
+  <data name="Menu_Options_ImportSettings" xml:space="preserve"><value>_Import settings…</value></data>
+  <data name="Menu_Options_ResetAllSettings" xml:space="preserve"><value>Reset _all settings…</value></data>
+  <data name="KeyMap_NotYet_CustomColumns" xml:space="preserve"><value>Custom columns</value></data>
+  <data name="KeyMap_NotYet_CreateShortcuts" xml:space="preserve"><value>Create shortcuts</value></data>
+  <data name="KeyMap_NotYet_MoveToArchive" xml:space="preserve"><value>Move into an archive</value></data>
+  <data name="KeyMap_NotYet_TestArchives" xml:space="preserve"><value>Test archives</value></data>
+  <data name="KeyMap_NotYet_CommandHistory" xml:space="preserve"><value>Command line history</value></data>
+  <data name="KeyMap_NotYet_DirectoryTree" xml:space="preserve"><value>Directory tree</value></data>
+  <data name="KeyMap_NotYet_BriefView" xml:space="preserve"><value>Brief view</value></data>
+  <data name="KeyMap_NotYet_FullView" xml:space="preserve"><value>Full view</value></data>
+  <data name="KeyMap_NotYet_Thumbnails" xml:space="preserve"><value>Thumbnails</value></data>
+  <data name="KeyMap_NotYet_CommentsView" xml:space="preserve"><value>Comments view</value></data>
+  <data name="KeyMap_NotYet_Unsorted" xml:space="preserve"><value>Unsorted</value></data>
+  <data name="KeyMap_NotYet_TreePanel" xml:space="preserve"><value>Tree in the panel</value></data>
+  <data name="KeyMap_NotYet_Print" xml:space="preserve"><value>Print</value></data>
+  <data name="KeyMap_NotYet_AllFiles" xml:space="preserve"><value>Show all files</value></data>
+  <data name="KeyMap_NotYet_Programs" xml:space="preserve"><value>Show programs only</value></data>
+  <data name="KeyMap_NotYet_QuickFilter" xml:space="preserve"><value>Quick filter</value></data>
+  <data name="KeyMap_NotYet_MultiRename" xml:space="preserve"><value>Multi-rename</value></data>
+  <data name="KeyMap_NotYet_QuickView" xml:space="preserve"><value>Quick view</value></data>
+  <data name="KeyMap_NotYet_NewTab" xml:space="preserve"><value>New tab</value></data>
+  <data name="KeyMap_NotYet_NewTabBehind" xml:space="preserve"><value>New tab in the background</value></data>
+  <data name="KeyMap_NotYet_CloseTab" xml:space="preserve"><value>Close the tab</value></data>
+  <data name="KeyMap_NotYet_CloseAllTabs" xml:space="preserve"><value>Close all tabs</value></data>
+  <data name="KeyMap_NotYet_NextTab" xml:space="preserve"><value>Next tab</value></data>
+  <data name="KeyMap_NotYet_PreviousTab" xml:space="preserve"><value>Previous tab</value></data>
+  <data name="KeyMap_NotYet_OpenInNewTab" xml:space="preserve"><value>Open in a new tab</value></data>
+  <data name="KeyMap_NotYet_OpenInNewTabOther" xml:space="preserve"><value>Open in a new tab of the other panel</value></data>
+  <data name="KeyMap_NotYet_SwapWithTabs" xml:space="preserve"><value>Swap the panels with their tabs</value></data>
+  <data name="KeyMap_NotYet_Comment" xml:space="preserve"><value>File comment</value></data>
+  <data name="KeyMap_NotYet_FtpConnect" xml:space="preserve"><value>Connect to FTP</value></data>
+  <data name="KeyMap_NotYet_FtpDisconnect" xml:space="preserve"><value>Disconnect from FTP</value></data>
+  <data name="KeyMap_NotYet_FtpNew" xml:space="preserve"><value>New FTP connection</value></data>
+  <data name="KeyMap_NotYet_BranchView" xml:space="preserve"><value>Branch view</value></data>
+  <data name="KeyMap_Salamander" xml:space="preserve"><value>Salamander</value></data>
+  <data name="KeyMap_TotalCommander" xml:space="preserve"><value>Total Commander</value></data>
+  <data name="Command_Help_FirstSteps" xml:space="preserve"><value>First steps</value></data>
+  <data name="Menu_Help_FirstSteps" xml:space="preserve"><value>_First steps…</value></data>
+</root>

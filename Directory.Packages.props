@@ -1,0 +1,44 @@
+<!--
+  Salandual - a keyboard-first, dual-pane file manager for Windows.
+  Project : https://github.com/TomEvin/salandual
+  Author  : TomEvin (https://github.com/TomEvin)
+  Copyright (C) 2026 TomEvin
+  License : GNU General Public License v3 or later (GPL-3.0-or-later). The full text is in the LICENSE file of the project.
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Source  : Directory.Packages.props
+-->
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <AvaloniaVersion>12.1.3</AvaloniaVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Avalonia" Version="$(AvaloniaVersion)" />
+    <PackageVersion Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
+    <PackageVersion Include="Avalonia.Themes.Simple" Version="$(AvaloniaVersion)" />
+    <PackageVersion Include="Avalonia.Headless" Version="$(AvaloniaVersion)" />
+    <PackageVersion Include="Avalonia.Headless.XUnit" Version="$(AvaloniaVersion)" />
+    <PackageVersion Include="Avalonia.Skia" Version="$(AvaloniaVersion)" />
+
+    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.335" />
+
+    <PackageVersion Include="Magick.NET-Q8-x64" Version="14.17.1" />
+    <PackageVersion Include="BCnEncoder.Net" Version="2.3.0" />
+    <PackageVersion Include="MetadataExtractor" Version="2.9.3" />
+    <PackageVersion Include="MediaInfoDLL" Version="26.1.0" />
+    <PackageVersion Include="bblanchon.PDFium.Win32" Version="156.0.8066" />
+
+    <PackageVersion Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
+    <PackageVersion Include="AvaloniaEdit.TextMate" Version="12.0.0" />
+    <PackageVersion Include="YamlDotNet" Version="18.1.0" />
+
+    <PackageVersion Include="Markdig" Version="1.4.0" />
+    <PackageVersion Include="Markdown.Avalonia" Version="12.0.0-a3" />
+    <PackageVersion Include="Avalonia.Controls.WebView" Version="12.1.0" />
+
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+</Project>

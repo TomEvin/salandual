@@ -1,0 +1,28 @@
+<!--
+  Salandual - a keyboard-first, dual-pane file manager for Windows.
+  Project : https://github.com/TomEvin/salandual
+  Author  : TomEvin (https://github.com/TomEvin)
+  Copyright (C) 2026 TomEvin
+  License : GNU General Public License v3 or later (GPL-3.0-or-later). The full text is in the LICENSE file of the project.
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Source  : Directory.Build.props
+-->
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <SatelliteResourceLanguages>en;hu</SatelliteResourceLanguages>
+    <NeutralLanguage>en</NeutralLanguage>
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <Product>Salandual</Product>
+    <Company>Salandual contributors</Company>
+    <Copyright>Copyright © 2026 Salandual contributors. GPL-3.0-or-later.</Copyright>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+</Project>

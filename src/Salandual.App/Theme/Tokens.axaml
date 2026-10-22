@@ -1,0 +1,33 @@
+<!--
+  Salandual - a keyboard-first, dual-pane file manager for Windows.
+  Project : https://github.com/TomEvin/salandual
+  Author  : TomEvin (https://github.com/TomEvin)
+  Copyright (C) 2026 TomEvin
+  License : GNU General Public License v3 or later (GPL-3.0-or-later). The full text is in the LICENSE file of the project.
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Source  : src/Salandual.App/Theme/Tokens.axaml
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Double x:Key="Space.1">4</x:Double>
+  <x:Double x:Key="Space.2">8</x:Double>
+  <x:Double x:Key="Space.3">12</x:Double>
+  <x:Double x:Key="Space.4">16</x:Double>
+  <x:Double x:Key="Space.5">24</x:Double>
+  <x:Double x:Key="Space.6">32</x:Double>
+
+  <CornerRadius x:Key="Radius.S">4</CornerRadius>
+  <CornerRadius x:Key="Radius.M">8</CornerRadius>
+  <CornerRadius x:Key="Radius.Full">999</CornerRadius>
+
+  <x:Double x:Key="Type.Caption">12</x:Double>
+  <x:Double x:Key="Type.Body">14</x:Double>
+  <x:Double x:Key="Type.Subtitle">16</x:Double>
+  <x:Double x:Key="Type.Title">20</x:Double>
+
+  <x:Double x:Key="Size.Bar">32</x:Double>
+  <x:Double x:Key="Size.Control">32</x:Double>
+  <x:Double x:Key="Size.Icon">16</x:Double>
+  <x:Double x:Key="Size.DialogS">480</x:Double>
+  <x:Double x:Key="Size.DialogM">640</x:Double>
+</ResourceDictionary>

@@ -1,0 +1,64 @@
+<!--
+  Salandual - a keyboard-first, dual-pane file manager for Windows.
+  Project : https://github.com/TomEvin/salandual
+  Author  : TomEvin (https://github.com/TomEvin)
+  Copyright (C) 2026 TomEvin
+  License : GNU General Public License v3 or later (GPL-3.0-or-later). The full text is in the LICENSE file of the project.
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Source  : src/Salandual.App/MainWindow.axaml
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:core="using:Salandual.Core"
+        xmlns:controls="using:Salandual.App.Controls"
+        xmlns:panels="using:Salandual.App.Panels"
+        x:Class="Salandual.App.MainWindow"
+        Title="{x:Static core:ProductInfo.DisplayName}"
+        Width="1280" Height="800" MinWidth="640" MinHeight="400"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.WindowBackground}">
+  <Window.Styles>
+    <Style Selector="Border#Notice Button">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.PanelBackground}" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.PanelBackground}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource Radius.S}" />
+      <Setter Property="Padding" Value="10,2" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Border#Notice Button:pointerover /template/ ContentPresenter#PART_ContentPresenter, Border#Notice Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Brush.PanelBackground}" />
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.PanelBackground}" />
+    </Style>
+  </Window.Styles>
+  <Panel>
+    <controls:BackgroundLayer />
+    <DockPanel x:Name="RootDock">
+      <Menu x:Name="MainMenuBar" DockPanel.Dock="Top" Padding="4,2" />
+      <Grid x:Name="BottomRow" DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto">
+        <controls:FunctionKeyBar x:Name="FunctionKeys" />
+      </Grid>
+      <panels:DriveStrip x:Name="HotPathBar" DockPanel.Dock="Top" Margin="8,4,8,0" />
+      <panels:DriveStrip x:Name="SharedStrip" DockPanel.Dock="Top" IsVisible="False" Margin="8,4,8,0" />
+      <Grid x:Name="PanelsGrid" ColumnDefinitions="*,Auto,*" Margin="8,4,8,0">
+        <controls:PanelSplitter x:Name="Splitter" Grid.Column="1" />
+        <Border x:Name="SplitBadge" Grid.ColumnSpan="3" IsVisible="False" IsHitTestVisible="False"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Padding="10,4"
+                CornerRadius="{StaticResource Radius.Full}"
+                Background="{DynamicResource Brush.Accent}">
+          <TextBlock x:Name="SplitBadgeText" FontWeight="SemiBold" Foreground="{DynamicResource Brush.OnAccent}" />
+        </Border>
+        <Border x:Name="Notice" Grid.ColumnSpan="3" IsVisible="False" IsHitTestVisible="False"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,48" Padding="14,8"
+                CornerRadius="{StaticResource Radius.M}" Background="{DynamicResource Brush.Text}">
+          <StackPanel Orientation="Horizontal" Spacing="14">
+            <TextBlock x:Name="NoticeText" Foreground="{DynamicResource Brush.PanelBackground}" TextWrapping="Wrap" MaxWidth="560" VerticalAlignment="Center" />
+            <StackPanel x:Name="NoticeActions" Orientation="Horizontal" Spacing="6" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </DockPanel>
+  </Panel>
+</Window>

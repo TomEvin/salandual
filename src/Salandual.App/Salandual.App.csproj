@@ -1,0 +1,65 @@
+<!--
+  Salandual - a keyboard-first, dual-pane file manager for Windows.
+  Project : https://github.com/TomEvin/salandual
+  Author  : TomEvin (https://github.com/TomEvin)
+  Copyright (C) 2026 TomEvin
+  License : GNU General Public License v3 or later (GPL-3.0-or-later). The full text is in the LICENSE file of the project.
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Source  : src/Salandual.App/Salandual.App.csproj
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>salandual</AssemblyName>
+    <RootNamespace>Salandual.App</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/salandual.ico</ApplicationIcon>
+    <ApplicationIcon Condition="'$(Configuration)' == 'Debug'">Assets/salandual-dev.ico</ApplicationIcon>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Controls.WebView" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Salandual.Core\Salandual.Core.csproj" />
+    <ProjectReference Include="..\Salandual.Platform.Windows\Salandual.Platform.Windows.csproj" />
+    <ProjectReference Include="..\Salandual.Imaging\Salandual.Imaging.csproj" />
+    <ProjectReference Include="..\Salandual.Archives\Salandual.Archives.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Salandual.App.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Magick.NET-Q8-x64" />
+    <TrimmerRootAssembly Include="Magick.NET.Core" />
+    <TrimmerRootAssembly Include="BCnEncoder" />
+    <TrimmerRootAssembly Include="MetadataExtractor" />
+    <TrimmerRootAssembly Include="XmpCore" />
+    <TrimmerRootAssembly Include="AvaloniaEdit" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/salandual.ico" />
+    <AvaloniaResource Include="Assets/salandual-dev.ico" />
+    <AvaloniaResource Include="Assets/salandual-192.png" />
+    <AvaloniaResource Include="Assets/salandual-dev-192.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\AppStrings.resx">
+      <StronglyTypedFileName>$(IntermediateOutputPath)AppStrings.Designer.cs</StronglyTypedFileName>
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>Salandual.App.Resources</StronglyTypedNamespace>
+      <StronglyTypedClassName>AppStrings</StronglyTypedClassName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <Target Name="RemovePdbsFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+</Project>

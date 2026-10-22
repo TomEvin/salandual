@@ -1,0 +1,35 @@
+<!--
+  Salandual - a keyboard-first, dual-pane file manager for Windows.
+  Project : https://github.com/TomEvin/salandual
+  Author  : TomEvin (https://github.com/TomEvin)
+  Copyright (C) 2026 TomEvin
+  License : GNU General Public License v3 or later (GPL-3.0-or-later). The full text is in the LICENSE file of the project.
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Source  : src/Salandual.Imaging/Salandual.Imaging.csproj
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Magick.NET-Q8-x64" />
+    <PackageReference Include="BCnEncoder.Net" />
+    <PackageReference Include="MetadataExtractor" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
+    <PackageReference Include="MediaInfoDLL" ExcludeAssets="all" GeneratePathProperty="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(PkgMediaInfoDLL)\lib\netstandard2.1\x64\MediaInfo.dll" Link="MediaInfo.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Salandual.Core\Salandual.Core.csproj" />
+    <InternalsVisibleTo Include="Salandual.Imaging.Tests" />
+  </ItemGroup>
+
+  <Target Name="CheckMediaInfoDll" BeforeTargets="Build">
+    <GetFileHash Files="$(PkgMediaInfoDLL)\lib\netstandard2.1\x64\MediaInfo.dll" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="MediaInfoDllHash" />
+    </GetFileHash>
+    <Error Condition="'$(MediaInfoDllHash)' != '35E040DDBC0BBEC2495AF938C084D98A3418F5928569EBD4C50237BC2CA98EEB'" Text="MediaInfo.dll is not MediaArea's 26.01 x64 build (SHA-256 $(MediaInfoDllHash))." />
+  </Target>
+</Project>
