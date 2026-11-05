@@ -142,6 +142,33 @@ public sealed class OptionsWindowTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Confirmations_EnterForEachGroup()
+    {
+        var w = Open("confirm");
+        ToggleButton Choice(string row, string label) => Find<TextBlock>(w.Page).First(t => t.Text == row).GetLogicalAncestors().OfType<Grid>().First()
+            .GetLogicalDescendants().OfType<ToggleButton>().First(b => b.Content as string == label);
+        Assert.True(Choice("Creating, moving, copying", "OK").IsChecked);
+        Assert.True(Choice("Saving, editing", "OK").IsChecked);
+        Assert.True(Choice("Deleting", "Cancel").IsChecked);
+        Assert.True(Choice("Closing", "OK").IsChecked);
+        if (Environment.GetEnvironmentVariable("SALANDUAL_CAPTURE_DIR") is { Length: > 0 } dir)
+        {
+            w.Width = 980;
+            w.Height = 900;
+            Dispatcher.UIThread.RunJobs();
+            Directory.CreateDirectory(dir);
+            w.CaptureRenderedFrame()!.Save(Path.Combine(dir, "options-confirm-enter.png"), PngBitmapEncoderOptions.Default);
+        }
+
+        Choice("Creating, moving, copying", "Cancel").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Choice("Deleting", "OK").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(Settings.Current.Confirmations.EnterCreate);
+        Assert.True(Settings.Current.Confirmations.EnterDelete);
+        w.Close();
+    }
+
+    [AvaloniaFact]
     public void ACustomMapSite_IsUsedOnlyOnceItHasANameAndAnAddress()
     {
         var w = Open("viewers");
@@ -187,6 +214,50 @@ public sealed class OptionsWindowTests : IDisposable
 
         w.Close();
     }
+
+    [AvaloniaTheory]
+    [InlineData(1000)]
+    [InlineData(760)]
+    public void NothingGoesOutsideItsCard(double width)
+    {
+        Settings.Update(s => s with { UserMenu = s.UserMenu with { Items = SampleMenu } });
+        var w = new OptionsWindow { Width = width, Height = 740 };
+        w.Show();
+        var outside = new List<string>();
+        foreach (var id in w.Categories)
+        {
+            w.ShowCategory(id);
+            Dispatcher.UIThread.RunJobs();
+            w.UpdateLayout();
+            foreach (var card in w.Page.Children.OfType<StackPanel>().Select(s => s.Children.LastOrDefault()).OfType<Border>())
+            {
+                foreach (var c in Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(card).OfType<Control>())
+                {
+                    if (!c.IsEffectivelyVisible || c.Bounds.Width <= 0
+                        || Avalonia.VisualTree.VisualExtensions.GetVisualAncestors(c).TakeWhile(v => v != card).Any(v => v is Avalonia.Controls.Presenters.ScrollContentPresenter))
+                    {
+                        continue;
+                    }
+
+                    var right = c.TranslatePoint(new Point(c.Bounds.Width, 0), card)!.Value.X;
+                    if (right > card.Bounds.Width + 0.5)
+                    {
+                        outside.Add($"{id}: {c.GetType().Name} {(c as TextBlock)?.Text ?? (c as ContentControl)?.Content as string ?? c.Name} ends at {right:0} of {card.Bounds.Width:0}");
+                    }
+                }
+            }
+        }
+
+        w.Close();
+        Assert.True(outside.Count == 0, string.Join(" | ", outside.Distinct().Where(o => !o.Contains("PART_") && !o.Contains("AccessText")).Take(40)));
+    }
+
+    internal static List<Core.UserMenu.UserMenuItem> SampleMenu =>
+    [
+        new() { Name = "&Play in the player with a long name", Program = "player.exe", Key = "Ctrl+Alt+P", InBar = true },
+        new() { Kind = Core.UserMenu.UserMenuItemKind.Separator },
+        new() { Name = "Tools", Kind = Core.UserMenu.UserMenuItemKind.Submenu, Items = [new() { Name = "SHA-256 of the files", Kind = Core.UserMenu.UserMenuItemKind.Script, Script = "Get-FileHash $args" }] },
+    ];
 
     [AvaloniaFact]
     public void ViewerMaskTable_Reflows_WhenNarrow()
@@ -240,10 +311,47 @@ public sealed class OptionsWindowTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Panels_has_the_views_thumbnails_and_tiles()
+    {
+        var w = Open("views");
+        RowControl<ToggleSwitch>(w.Page, "Alt+wheel goes through the views").IsChecked = false;
+        Assert.False(Settings.Current.Panels.AltWheelViews);
+        RowControl<ToggleSwitch>(w.Page, "The view button in the directory line").IsChecked = false;
+        Assert.False(Settings.Current.Panels.ViewButton);
+        Segment(w.Page, "Pictures and videos").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(ThumbnailFiles.PicturesAndVideos, Settings.Current.Panels.ThumbnailsOf);
+        Segment(w.Page, "Type and size").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(TileLines.TypeAndSize, Settings.Current.Panels.TileLines);
+        RowControl<Slider>(w.Page, "Size").Value = 160;
+        Assert.Equal(160, Settings.Current.Panels.ThumbnailSize);
+
+        foreach (var word in new[] { "view", "brief", "icons", "thumbnails", "tiles" })
+        {
+            Assert.Contains(w.Find(word), i => i.Title is "A new panel shows" or "Alt+wheel goes through the views" or "Size" or "Thumbnails of" or "Under the name" or "The view button in the directory line");
+        }
+
+        Assert.Contains(w.Find("cloud"), i => i.Title == "Thumbnails of");
+        Assert.Contains(w.Find("cache"), i => i.Title == "Thumbnails of");
+        Assert.DoesNotContain(w.Find("cloud"), i => i.Title is "Online-only files" or "Kept on this PC");
+
+        if (Environment.GetEnvironmentVariable("SALANDUAL_CAPTURE_DIR") is { Length: > 0 } dir)
+        {
+            w.Width = 980;
+            w.Height = 900;
+            Dispatcher.UIThread.RunJobs();
+            w.CaptureRenderedFrame()!.Save(Path.Combine(dir, "options-views.png"), PngBitmapEncoderOptions.Default);
+        }
+
+        w.Close();
+    }
+
+    [AvaloniaFact]
     public void Search_FindsAcrossCategories_AndEnterOpensThePage()
     {
         var w = Open();
-        w.SearchBox.Text = "row";
+        w.SearchBox.Text = "row height";
         w.SearchNow();
 
         Assert.True(w.IsSearching);
@@ -289,12 +397,42 @@ public sealed class OptionsWindowTests : IDisposable
     public void RowHeightSlider_ChangesTheSetting()
     {
         var w = Open("layout");
-        var slider = Find<Slider>(w.Page).First();
+        var slider = Find<Slider>(w.Page).First(s => s.Maximum == LayoutSettings.MaxRowHeight);
         slider.Value = 28;
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal(28, Settings.Current.Layout.RowHeight);
         Assert.Contains(Find<TextBlock>(w.Page), t => t.Text == "28 px · Comfortable");
+        w.Close();
+    }
+
+    [AvaloniaFact]
+    public void FoldersKeptSlider_ChangesTheSetting()
+    {
+        var w = Open("layout");
+        var slider = Find<Slider>(w.Page).First(s => s.Maximum == Core.Panels.WorkingDirectories.MaxLimit);
+        slider.Value = 40;
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(40, Settings.Current.Layout.DirectoryLine.FoldersKept);
+        Assert.Contains(Find<TextBlock>(w.Page), t => t.Text == "40 folders");
+        w.Close();
+    }
+
+    [AvaloniaFact]
+    public void BackAndForward_WhereTheButtonsAre_TheList_AndStepsKept()
+    {
+        var w = Open("layout");
+        Segment(w.Page, "Both").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Segment(w.Page, "Holding the button").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Find<ToggleButton>(w.Page).Last(b => b.Content as string == "Both panels").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        var slider = Find<Slider>(w.Page).First(s => s.Maximum == BackForwardSettings.MaxStepsKept);
+        slider.Value = 120;
+        Dispatcher.UIThread.RunJobs();
+
+        var b = Settings.Current.Layout.BackForward;
+        Assert.Equal((BackForwardPlace.Both, StepsListOpens.Hold, StepsListed.BothPanels, 120), (b.Place, b.ListOpens, b.Listed, b.StepsKept));
+        Assert.Contains(Find<TextBlock>(w.Page), t => t.Text == "120 steps");
         w.Close();
     }
 
@@ -475,7 +613,7 @@ public sealed class OptionsWindowTests : IDisposable
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("--diff \"$(Left)\" \"$(Right)\"", Settings.Current.Compare.Files.ProgramArguments);
 
-        RowControl<ToggleSwitch>(w.Page, "Text in code colours").IsChecked = false;
+        RowControl<ToggleSwitch>(w.Page, "Text in code colors").IsChecked = false;
         RowControl<ToggleSwitch>(w.Page, "Ignore case").IsChecked = true;
         RowControl<ToggleSwitch>(w.Page, "Start with only the differences").IsChecked = true;
         var context = RowControl<TextBox>(w.Page, "Start with only the differences");
@@ -517,7 +655,7 @@ public sealed class OptionsWindowTests : IDisposable
         var create = RowControl<ToggleSwitch>(w.Page, "Creating a target folder that doesn't exist");
         Assert.False(create.IsChecked);
         Assert.False(RowControl<ToggleSwitch>(w.Page, "Closing Salandual").IsChecked);
-        Assert.False(RowControl<ToggleSwitch>(w.Page, "Adding files to an existing archive").IsEnabled);
+        Assert.DoesNotContain(Find<TextBlock>(w.Page), t => t.Text == "Adding files to an existing archive");
         Assert.DoesNotContain(Find<TextBlock>(w.Page), t => t.Text == "Replacing files");
         create.IsChecked = true;
         RowControl<ToggleSwitch>(w.Page, "Deleting files and folders").IsChecked = false;
@@ -626,7 +764,7 @@ public sealed class OptionsCaptureTests : IDisposable
             Settings.Update(s => s with { Appearance = s.Appearance with { Schedule = AppearanceSettings.Fixed(dark ? ThemeCatalog.SalandualDarkId : ThemeCatalog.SalandualLightId).Schedule } });
             Dispatcher.UIThread.RunJobs();
             var suffix = dark ? "dark" : "light";
-            foreach (var id in new[] { "appearance", "layout", "panels", "keyboard", "operations", "advanced" })
+            foreach (var id in new[] { "appearance", "layout", "panels", "keyboard", "operations", "advanced", MainWindow.CommandLinePage })
             {
                 w.ShowCategory(id);
                 Dispatcher.UIThread.RunJobs();
@@ -635,18 +773,15 @@ public sealed class OptionsCaptureTests : IDisposable
 
             w.ShowCategory("layout");
             Dispatcher.UIThread.RunJobs();
-            w.Page.Children[^2].BringIntoView();
+            w.Page.Children[1].BringIntoView();
             Dispatcher.UIThread.RunJobs();
             Save(w, $"options-layout-titlebar-{suffix}.png");
-            w.Page.Children[^1].BringIntoView();
+            w.Page.Children[2].BringIntoView();
             Dispatcher.UIThread.RunJobs();
-            Save(w, $"options-layout-bars-{suffix}.png");
+            Save(w, $"options-layout-panel-{suffix}.png");
             w.PageScroll.Offset = new Vector(0, w.PageScroll.Extent.Height);
             Dispatcher.UIThread.RunJobs();
             Save(w, $"options-layout-bars-end-{suffix}.png");
-            w.Page.Children[^2].BringIntoView();
-            Dispatcher.UIThread.RunJobs();
-            Save(w, $"options-layout-title-{suffix}.png");
 
             w.ShowCategory("appearance");
             Dispatcher.UIThread.RunJobs();
@@ -662,6 +797,17 @@ public sealed class OptionsCaptureTests : IDisposable
             w.PageScroll.Offset = new Vector(0, w.PageScroll.Extent.Height);
             Dispatcher.UIThread.RunJobs();
             Save(w, $"options-viewers-end-{suffix}.png");
+
+            Settings.Update(s => s with { UserMenu = s.UserMenu with { Items = OptionsWindowTests.SampleMenu } });
+            w.ShowCategory("usermenu");
+            Dispatcher.UIThread.RunJobs();
+            Save(w, $"options-usermenu-{suffix}.png");
+            w.Width = 760;
+            Dispatcher.UIThread.RunJobs();
+            Save(w, $"options-usermenu-narrow-{suffix}.png");
+            w.Width = 1000;
+            Settings.Update(s => s with { UserMenu = new() });
+            Dispatcher.UIThread.RunJobs();
 
             w.SearchBox.Text = "row";
             w.SearchNow();

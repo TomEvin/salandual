@@ -7,6 +7,7 @@
 // Source  : src/Salandual.Core/Listing/DisplayFormat.cs
 
 using System.Globalization;
+using Salandual.Core.Resources;
 using Salandual.Core.Settings;
 
 namespace Salandual.Core.Listing;
@@ -18,14 +19,21 @@ public sealed class DisplayFormat
     private static readonly string[] _decimalUnits = ["kB", "MB", "GB", "TB", "PB", "EB"];
 
     private readonly SizeUnits _units;
-    private readonly CultureInfo _numbers;
+    private readonly SizeStyle _style;
+    private readonly bool _infoAsPanel;
+    private readonly bool _relative;
+    private readonly IFormatProvider _numbers;
     private readonly CultureInfo? _dates;
     private readonly TimeFormat _time;
     private readonly CultureInfo _current;
 
-    public DisplayFormat(SizeUnits units, string dateFormat, CultureInfo current, TimeFormat time = TimeFormat.Windows)
+    public DisplayFormat(SizeUnits units, string dateFormat, CultureInfo current, TimeFormat time = TimeFormat.Windows,
+        SizeStyle style = SizeStyle.Short, DigitGrouping grouping = DigitGrouping.Windows, bool infoAsPanel = false)
     {
         _units = units;
+        _style = style;
+        _infoAsPanel = infoAsPanel;
+        _relative = dateFormat == PanelSettings.DateFormatRelative;
         _time = time;
         _current = current;
         _dates = dateFormat switch
@@ -34,14 +42,61 @@ public sealed class DisplayFormat
             PanelSettings.DateFormatSystem => current,
             _ => TryCulture(dateFormat) ?? null,
         };
-        _numbers = _dates ?? current;
+        _numbers = Grouped((_dates ?? current).NumberFormat, grouping);
+    }
+
+    private static NumberFormatInfo Grouped(NumberFormatInfo numbers, DigitGrouping grouping)
+    {
+        if (grouping == DigitGrouping.Windows)
+        {
+            return numbers;
+        }
+
+        var n = (NumberFormatInfo)numbers.Clone();
+        n.NumberGroupSeparator = grouping == DigitGrouping.Space ? "\u00A0" : "";
+        return n;
     }
 
     public static DisplayFormat Default { get; } = new(SizeUnits.Windows, PanelSettings.DateFormatIso, CultureInfo.InvariantCulture);
 
-    public static DisplayFormat From(PanelSettings panels, CultureInfo current) => new(panels.SizeUnits, panels.DateFormat, current, panels.TimeFormat);
+    public static DisplayFormat From(PanelSettings panels, CultureInfo current)
+        => new(panels.SizeUnits, panels.DateFormat, current, panels.TimeFormat, panels.SizeStyle, panels.DigitGrouping, panels.InfoSizesAsPanel);
 
-    public string Size(long bytes)
+    public bool IsRelative => _relative;
+
+    public string ColumnSize(long bytes) => _style switch
+    {
+        SizeStyle.Kilobytes => Kilobytes(bytes),
+        SizeStyle.Bytes => bytes.ToString("N0", _numbers),
+        _ => ShortSize(bytes),
+    };
+
+    public string Number(long n) => n.ToString("N0", _numbers);
+
+    public string ColumnDate(DateTime local, DateTime now)
+    {
+        if (!_relative)
+        {
+            return DateAndTime(local);
+        }
+
+        var ago = now - local;
+        var days = (now.Date - local.Date).Days;
+        return ago.Ticks < 0 ? DateAndTime(local)
+            : ago.TotalMinutes < 1 ? Strings.Date_JustNow
+            : ago.TotalMinutes < 2 ? Strings.Date_MinuteAgo
+            : ago.TotalHours < 1 ? string.Format(CultureInfo.CurrentCulture, Strings.Date_MinutesAgo, (int)ago.TotalMinutes)
+            : ago.TotalHours < 2 ? Strings.Date_HourAgo
+            : ago.TotalHours < 6 ? string.Format(CultureInfo.CurrentCulture, Strings.Date_HoursAgo, (int)ago.TotalHours)
+            : days == 0 ? string.Format(CultureInfo.CurrentCulture, Strings.Date_Today, Time(local))
+            : days == 1 ? string.Format(CultureInfo.CurrentCulture, Strings.Date_Yesterday, Time(local))
+            : days < 7 ? local.ToString("ddd", _current) + " " + Time(local)
+            : DateAndTime(local);
+    }
+
+    public string Size(long bytes) => _infoAsPanel ? ColumnSize(bytes) : ShortSize(bytes);
+
+    public string ShortSize(long bytes)
     {
         if (_units == SizeUnits.Bytes)
         {
@@ -128,14 +183,15 @@ public sealed class DisplayFormat
     };
 
 
-    public (string Size, string Date, string Time) Samples
+    public (string Size, string Date, string Time, string Relative) Samples
     {
         get
         {
             var wide = new DateTime(2026, 12, 28, 22, 58, 0, DateTimeKind.Local);
             double k = _units == SizeUnits.Decimal ? 1000 : 1024;
-            var size = _units == SizeUnits.Bytes ? Size(99_999_999_999) : Size((long)(999.9 * k * k));
-            return (size, Date(wide), Time(wide));
+            var size = _style == SizeStyle.Bytes || _units == SizeUnits.Bytes ? ColumnSize(99_999_999_999) : _style == SizeStyle.Kilobytes ? ColumnSize((long)(99_999 * k)) : ShortSize((long)(999.9 * k * k));
+            var relative = new[] { string.Format(CultureInfo.CurrentCulture, Strings.Date_Yesterday, Time(wide)), string.Format(CultureInfo.CurrentCulture, Strings.Date_MinutesAgo, 58), DateAndTime(wide) }.MaxBy(s => s.Length)!;
+            return (size, Date(wide), Time(wide), relative);
         }
     }
 

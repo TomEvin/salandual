@@ -23,7 +23,7 @@ using Salandual.Core.Settings;
 
 namespace Salandual.App.Dialogs;
 
-public sealed record DeleteRequest(bool Recycle, bool? RefusedPermanently, bool ToQueue);
+public sealed record DeleteRequest(bool Recycle, bool? RefusedPermanently, bool ToQueue, DeleteChecks Checks);
 
 public sealed class DeleteDialog : Window
 {
@@ -35,16 +35,21 @@ public sealed class DeleteDialog : Window
     private readonly string _folder;
     private readonly OperationSettings _settings;
     private readonly List<(string Path, string Reason)> _refused = [];
+    private readonly DeleteChecks _checks;
+    private readonly List<string> _hidden = [];
+    private List<string>? _nonEmpty;
     private readonly StackPanel _body = new() { Spacing = 14, Margin = new Thickness(20, 6, 20, 16) };
     private readonly Button _go, _queue;
     private readonly CancellationTokenSource _counting = new();
+    private readonly bool _enterDeletes;
     private bool _permanent;
     private bool _refusedPermanently = true;
     private (int Files, int Folders, long Bytes, bool Complete)? _totals;
     private readonly Dictionary<string, (int Files, long Bytes)> _perFolder = new(StringComparer.OrdinalIgnoreCase);
 
-    public DeleteDialog(IReadOnlyList<OperationSource> sources, IReadOnlyDictionary<string, long> sizes, string folder, bool permanent, IOperationFileSystem fs, DisplayFormat format, OperationSettings settings)
+    public DeleteDialog(IReadOnlyList<OperationSource> sources, IReadOnlyDictionary<string, long> sizes, string folder, bool permanent, IOperationFileSystem fs, DisplayFormat format, OperationSettings settings, DeleteChecks? checks = null)
     {
+        _checks = checks ?? DeleteChecks.None;
         _sources = sources;
         _sizes = sizes;
         _fs = fs;
@@ -52,7 +57,6 @@ public sealed class DeleteDialog : Window
         _folder = folder;
         _settings = settings;
         _permanent = permanent;
-        Title = AppStrings.Delete_Title;
         Width = 560;
         SizeToContent = SizeToContent.Height;
         CanResize = false;
@@ -66,9 +70,15 @@ public sealed class DeleteDialog : Window
             {
                 _refused.Add((source.Path, reason));
             }
+
+            if (_checks.HiddenOrSystem && fs.Stat(source.Path) is { } info && (info.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0)
+            {
+                _hidden.Add(source.Path);
+            }
         }
 
-        var cancel = new Button { Content = AppStrings.Common_Cancel, MinWidth = 84, Padding = new Thickness(14, 5), HorizontalContentAlignment = HorizontalAlignment.Center };
+        _enterDeletes = App.EnterActs(ConfirmGroup.Delete);
+        var cancel = CancelButton = new Button { Content = _enterDeletes ? AppStrings.Common_Cancel : AppStrings.Common_CancelEnter, MinWidth = 84, Padding = new Thickness(14, 5), HorizontalContentAlignment = HorizontalAlignment.Center };
         cancel.Click += (_, _) => Close(null);
         var queueFirst = settings.Enter == EnterAction.AddToQueue;
         _queue = new Button { Content = queueFirst ? AppStrings.Copy_StartNowShift : AppStrings.Copy_AddToQueueShift, Padding = new Thickness(14, 5) };
@@ -89,7 +99,13 @@ public sealed class DeleteDialog : Window
         Content = TitleBarParts.ForDialog(this, root);
         Render();
         Counting = CountAsync();
-        Opened += (_, _) => _go.Focus();
+        if (!_enterDeletes)
+        {
+            cancel.Classes.Add("accent");
+        }
+
+        DialogButtons.ArrowsAcross(this, () => [cancel, _queue, _go]);
+        Opened += (_, _) => DialogButtons.FocusShown(_enterDeletes ? _go : cancel);
         Closed += (_, _) => _counting.Cancel();
     }
 
@@ -97,9 +113,15 @@ public sealed class DeleteDialog : Window
 
     internal Button Go => _go;
 
+    internal Button CancelButton { get; }
+
     internal Task Counting { get; }
 
     internal IReadOnlyList<(string Path, string Reason)> Refused => _refused;
+
+    internal IReadOnlyList<string>? NonEmpty => _nonEmpty;
+
+    internal IReadOnlyList<string> Hidden => _hidden;
 
     internal void SetPermanent(bool permanent)
     {
@@ -119,8 +141,11 @@ public sealed class DeleteDialog : Window
         var sources = _sources;
         var fs = _fs;
         var perFolder = new Dictionary<string, (int, long)>(StringComparer.OrdinalIgnoreCase);
+        var nonEmpty = new List<string>();
+        var looked = false;
         var result = await Task.Run(() =>
         {
+            looked = LookInside(sources, fs, nonEmpty, token);
             int files = 0, folders = 0;
             long bytes = 0;
             var complete = true;
@@ -195,8 +220,38 @@ public sealed class DeleteDialog : Window
             _perFolder[path] = value;
         }
 
+        _nonEmpty = looked ? nonEmpty : null;
         _totals = result;
         Render();
+    }
+
+    private static bool LookInside(IReadOnlyList<OperationSource> sources, IOperationFileSystem fs, List<string> nonEmpty, CancellationToken token)
+    {
+        foreach (var source in sources.Where(s => s.IsDirectory))
+        {
+            if (token.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            try
+            {
+                if (fs.Stat(source.Path) is { IsDirectory: true, IsLink: false } && fs.List(source.Path, token).Count > 0)
+                {
+                    nonEmpty.Add(source.Path);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                nonEmpty.Add(source.Path);
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void Render()
@@ -208,10 +263,10 @@ public sealed class DeleteDialog : Window
         {
             Width = 40,
             Height = 40,
-            CornerRadius = new CornerRadius(8),
+            CornerRadius = new CornerRadius(4),
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(0, 0, 14, 0),
-            Child = AppIcons.Glyph(BinGlyph, 24, 24).Also(g => g.HorizontalAlignment = HorizontalAlignment.Center),
+            Child = new Viewbox { Width = 22, Height = 22, Child = AppIcons.Glyph(BinGlyph, 16, 16) },
         }.Res(Border.BackgroundProperty, _permanent ? "Brush.DangerBackground" : "Brush.Hover");
         var table = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Margin = new Thickness(0, 6, 0, 0) };
         var rows = new List<(string, string)> { (AppStrings.Delete_Selected, FileOperations.Count(_sources)) };
@@ -235,11 +290,12 @@ public sealed class DeleteDialog : Window
             table.Children.Add(value);
         }
 
-        var heading = OptionsUi.Text(_permanent ? AppStrings.Delete_PermanentlyQ : AppStrings.Delete_ToBinQ, 18, FontWeight.SemiBold);
+        Title = _permanent ? AppStrings.Delete_PermanentlyQ : AppStrings.Delete_ToBinQ;
+        table.Margin = new Thickness(0, 2, 0, 0);
         var summary = new DockPanel();
         DockPanel.SetDock(icon, Dock.Left);
         summary.Children.Add(icon);
-        summary.Children.Add(new StackPanel { Children = { heading, table } });
+        summary.Children.Add(table);
         _body.Children.Add(summary);
 
         var list = new StackPanel { Margin = new Thickness(0, 3) };
@@ -285,6 +341,22 @@ public sealed class DeleteDialog : Window
             }.Res(Border.BackgroundProperty, "Brush.DangerBackground"));
         }
 
+        var notes = new StackPanel { Spacing = 4 };
+        if (_checks.NonEmptyFolders && _nonEmpty is { Count: > 0 } full)
+        {
+            notes.Children.Add(Note(full, AppStrings.Check_NonEmpty_Text, AppStrings.Delete_NonEmptyMany, Strings.Count_Folders_One, AppStrings.Count_Folders_N0));
+        }
+
+        if (_hidden.Count > 0)
+        {
+            notes.Children.Add(Note(_hidden, AppStrings.Check_Hidden_Text, AppStrings.Delete_HiddenMany, AppStrings.Count_Items_One, AppStrings.Count_Items_Other));
+        }
+
+        if (notes.Children.Count > 0)
+        {
+            _body.Children.Add(new Border { Padding = new Thickness(12, 9), CornerRadius = new CornerRadius(4), Child = notes }.Res(Border.BackgroundProperty, "Brush.Hover"));
+        }
+
         var bin = Segment(AppStrings.Delete_RecycleBin, !_permanent, () => SetPermanent(false));
         var perm = Segment(AppStrings.Delete_Permanently, _permanent, () => SetPermanent(true));
         var hint = OptionsUi.Text(_permanent ? AppStrings.Delete_CantUndo : AppStrings.Delete_CanRestore, 12, brush: _permanent ? "Brush.Danger" : "Brush.TertiaryText");
@@ -300,20 +372,34 @@ public sealed class DeleteDialog : Window
             },
         });
 
-        _go.Content = _permanent ? AppStrings.Delete_PermanentlyEnter : AppStrings.Delete_Enter;
+        _go.Content = _enterDeletes
+            ? _permanent ? AppStrings.Delete_PermanentlyEnter : AppStrings.Delete_Enter
+            : _permanent ? AppStrings.Delete_PermanentlyGo : AppStrings.Delete_Go;
         _go.Classes.Remove("accent");
         _go.Classes.Remove("danger");
-        if (_permanent)
+        if (_permanent && _enterDeletes)
         {
             _go.Classes.Add("danger");
-            _go.Res(Button.BackgroundProperty, "Brush.Danger").Res(Button.ForegroundProperty, "Brush.PanelBackground");
+            _go.Res(Button.BackgroundProperty, "Brush.DangerFill").Res(Button.ForegroundProperty, "Brush.OnDanger");
         }
         else
         {
             _go.ClearValue(Button.BackgroundProperty);
             _go.ClearValue(Button.ForegroundProperty);
-            _go.Classes.Add("accent");
+            if (_enterDeletes)
+            {
+                _go.Classes.Add("accent");
+            }
         }
+    }
+
+    private static TextBlock Note(IReadOnlyList<string> paths, string one, string many, string countOne, string countMany)
+    {
+        var text = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 13 };
+        text.Res(TextBlock.ForegroundProperty, "Brush.Text");
+        Rich.Add(text.Inlines!, paths.Count == 1 ? one : many, null,
+            new Run(paths.Count == 1 ? Path.GetFileName(paths[0]) : Loc.Plural(paths.Count, countOne, countMany)) { FontWeight = FontWeight.SemiBold });
+        return text;
     }
 
     private static Button Segment(string text, bool on, Action click)
@@ -333,7 +419,8 @@ public sealed class DeleteDialog : Window
     }
 
     private void Accept(bool toQueue)
-        => Close(new DeleteRequest(!_permanent, !_permanent && _refused.Count > 0 ? _refusedPermanently : null, toQueue));
+        => Close(new DeleteRequest(!_permanent, !_permanent && _refused.Count > 0 ? _refusedPermanently : null, toQueue,
+            _nonEmpty is null ? _checks with { HiddenOrSystem = false } : DeleteChecks.None));
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
@@ -344,6 +431,11 @@ public sealed class DeleteDialog : Window
         }
 
         if (e.Key == Key.Escape)
+        {
+            Close(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Enter && !_enterDeletes && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
             Close(null);
             e.Handled = true;

@@ -84,7 +84,7 @@ internal sealed partial class ViewerWindow
             return null;
         }
 
-        var instead = kind == ViewerKind.Image ? ViewerKind.Hex : ViewerKind.Text;
+        var instead = kind is ViewerKind.Image or ViewerKind.Torrent ? ViewerKind.Hex : ViewerKind.Text;
         var format = DisplayFormat.From(_settings.Current.Panels, CultureInfo.CurrentCulture);
         var what = kind switch
         {
@@ -92,6 +92,7 @@ internal sealed partial class ViewerWindow
             ViewerKind.Notebook => AppStrings.Viewer_LimitNotebook,
             ViewerKind.Tree => AppStrings.Viewer_LimitTree,
             ViewerKind.Html => AppStrings.Viewer_LimitHtml,
+            ViewerKind.Torrent => AppStrings.Viewer_LimitTorrent,
             _ => AppStrings.Viewer_LimitMarkdown,
         };
         _limitText.Text = Loc.Format(AppStrings.Viewer_OverLimit, instead == ViewerKind.Hex ? AppStrings.ViewerKind_Hex : AppStrings.ViewerKind_Text, format.Size(size), what, format.Size(limit));

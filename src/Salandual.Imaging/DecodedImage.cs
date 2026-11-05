@@ -41,6 +41,31 @@ public sealed class DecodedImage
 
     public bool IsReduced => Width < FullWidth || Height < FullHeight;
 
+    private int _transparency = -1;
+
+    public bool HasTransparency
+    {
+        get
+        {
+            if (_transparency < 0)
+            {
+                var found = 0;
+                for (var i = 3; i < Pixels.Length; i += 4)
+                {
+                    if (Pixels[i] != 255)
+                    {
+                        found = 1;
+                        break;
+                    }
+                }
+
+                _transparency = found;
+            }
+
+            return _transparency == 1;
+        }
+    }
+
     public double Density => Math.Min(1, (double)Width / FullWidth);
 }
 

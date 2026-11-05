@@ -105,14 +105,32 @@ internal sealed class BarsPreview : Border
             Top(menu, "menu");
         }
 
-        if (bars.HotPathBar)
+        var drivesShared = bars.DriveStrip && layout.Strip == StripMode.Shared;
+        var arrangement = layout.Blocks.Arrange(b => b switch { BarBlock.HotPaths => bars.HotPathBar, BarBlock.UserMenu => bars.UserMenuBar, _ => layout.BackForward.InBar }, drivesShared);
+        static string Name(BarBlock b) => b switch { BarBlock.HotPaths => "hot paths bar", BarBlock.UserMenu => "user menu bar", _ => "back and forward bar" };
+        static double Opacity(BarBlock b) => b switch { BarBlock.HotPaths => 0.4, BarBlock.UserMenu => 0.3, _ => 0.25 };
+        Control Row(IEnumerable<(double Opacity, bool Fill)> parts)
         {
-            Top(Bar(6, 0.4, new Thickness(0, 0, 0, 3)), "hot paths bar");
+            var grid = new Grid { ColumnSpacing = 3, Margin = new Thickness(0, 0, 0, 3) };
+            foreach (var (opacity, fill) in parts)
+            {
+                grid.ColumnDefinitions.Add(new ColumnDefinition(fill ? 2 : 1, GridUnitType.Star));
+                var part = Bar(6, opacity, default);
+                Grid.SetColumn(part, grid.ColumnDefinitions.Count - 1);
+                grid.Children.Add(part);
+            }
+
+            return grid;
         }
 
-        if (bars.DriveStrip && layout.Strip == StripMode.Shared)
+        foreach (var row in arrangement.Rows)
         {
-            Top(Bar(6, 0.55, new Thickness(0, 0, 0, 3)), "shared strip");
+            Top(Row(row.Select(b => (Opacity(b), b == BarBlock.HotPaths))), string.Join(" + ", row.Select(Name)));
+        }
+
+        if (drivesShared)
+        {
+            Top(Row([(0.55, true), .. arrangement.WithDrives.Select(b => (Opacity(b), false))]), string.Join(" + ", ["shared strip", .. arrangement.WithDrives.Select(Name)]));
         }
 
         if (bars.FunctionKeyBar)

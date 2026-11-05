@@ -7,6 +7,7 @@
 // Source  : src/Salandual.Core/Settings/ViewerSettings.cs
 
 using Salandual.Core.Listing;
+using Salandual.Core.Viewer;
 
 namespace Salandual.Core.Settings;
 
@@ -27,6 +28,8 @@ public enum ViewerKind
     Tree,
 
     Html,
+
+    Torrent,
 }
 
 public enum ViewerOpenAs { Automatic, Text, Hex }
@@ -40,6 +43,8 @@ public enum SizeFormat { Hex, Decimal, Units }
 public enum ByteColors { Two, ByKind }
 
 public enum CanvasColor { Dark, Black, Grey, Magenta, Theme, Custom }
+
+public enum TransparentParts { CheckerLight, CheckerDark, Canvas, White, Black, Custom }
 
 public enum ImageZoom { Fit, Width, Actual }
 
@@ -86,14 +91,18 @@ public sealed record ViewerSettings
         NotebookMask(),
         .. TreeMasks(),
         HtmlMask(),
+        TorrentMask(),
         new() { Mask = "*.*" },
     ];
+
+    public static ViewerMask TorrentMask() => new() { Mask = "*.torrent", View = ViewerKind.Torrent, Alternate = ViewerKind.Hex };
 
     public static long DefaultLargestMB(ViewerKind kind, string? nameOrMask = null) => kind switch
     {
         ViewerKind.Image => 500,
         ViewerKind.Markdown => 10,
         ViewerKind.Notebook => 200,
+        ViewerKind.Torrent => (int)(TorrentInfo.MaxBytes / (1024 * 1024)),
         ViewerKind.Html => 5,
         ViewerKind.Tree => IsYaml(nameOrMask) ? 20 : 50,
         _ => 0,
@@ -157,6 +166,10 @@ public sealed record ViewerSettings
     public CanvasColor ImageCanvas { get; set; } = CanvasColor.Dark;
 
     public string CanvasCustom { get; set; } = "#1C1C1C";
+
+    public TransparentParts ImageTransparent { get; set; } = TransparentParts.CheckerLight;
+
+    public string TransparentCustom { get; set; } = "#FFFFFF";
 
     public ImageZoom ImageZoom { get; set; } = ImageZoom.Fit;
 
@@ -276,6 +289,8 @@ public sealed record ViewerSettings
         SizeFormat = Enum.IsDefined(SizeFormat) ? SizeFormat : SizeFormat.Hex,
         HexByteColors = Enum.IsDefined(HexByteColors) ? HexByteColors : ByteColors.Two,
         ImageCanvas = Enum.IsDefined(ImageCanvas) ? ImageCanvas : CanvasColor.Dark,
+        ImageTransparent = Enum.IsDefined(ImageTransparent) ? ImageTransparent : TransparentParts.CheckerLight,
+        TransparentCustom = ColorMath.TryParseHex(TransparentCustom, out var transparent) ? ColorMath.ToHex(transparent) : "#FFFFFF",
         PhotoInfoPlace = Enum.IsDefined(PhotoInfoPlace) ? PhotoInfoPlace : InfoPlace.Panel,
         MapSite = Enum.IsDefined(MapSite) ? MapSite : MapSite.OpenStreetMap,
         MapCustomName = (MapCustomName ?? "").Trim(),

@@ -29,6 +29,10 @@ public sealed partial class OptionsWindow
     private string _editorTab = "colors";
     private string? _backgroundError;
 
+    private readonly Dictionary<string, bool> _colorGroupsOpen = new(StringComparer.Ordinal);
+
+    internal List<Expander> ThemeColorGroups { get; } = [];
+
     internal ThemePreview? ThemeLivePreview { get; private set; }
 
     internal Dictionary<string, (Button Swatch, TextBox Hex, Button Reset)> ThemeColorRows { get; } = new(StringComparer.Ordinal);
@@ -120,7 +124,7 @@ public sealed partial class OptionsWindow
     }
 
     private void ChangeTheme(string id, Func<ColorTheme, ColorTheme> change)
-        => UpdateAppearance(a => ThemeEditing.Change(a, id, change));
+        => TryAppearance(a => ThemeEditing.Change(a, id, change));
 
     private Button NewThemeCard()
     {
@@ -165,6 +169,7 @@ public sealed partial class OptionsWindow
         var readOnly = theme.ReadOnly;
         var panel = new StackPanel { Spacing = 12 };
         ThemeColorRows.Clear();
+        ThemeColorGroups.Clear();
 
         var head = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), RowDefinitions = new RowDefinitions("Auto,Auto"), ColumnSpacing = 12, RowSpacing = 8 };
         head.Children.Add(Text(AppStrings.Themes_Ed_Theme, 12.5, brush: "Brush.SecondaryText").Also(t => t.VerticalAlignment = VerticalAlignment.Center));
@@ -193,7 +198,7 @@ public sealed partial class OptionsWindow
             var renamed = ThemeEditing.Rename(current, name.Text ?? "", Current.Appearance);
             if (renamed.Name != current.Name)
             {
-                ChangeTheme(theme.Id, _ => renamed);
+                UpdateAppearance(a => ThemeEditing.Change(a, theme.Id, t => t with { Name = renamed.Name }));
             }
 
             name.Text = renamed.Name;
@@ -267,7 +272,7 @@ public sealed partial class OptionsWindow
             "settings" => SettingsEditor(theme, Refresh),
             _ => ColorsEditor(theme, Refresh),
         };
-        if (readOnly)
+        if (readOnly && _editorTab != "colors")
         {
             body.IsEnabled = false;
             body.Opacity = 0.55;
@@ -349,8 +354,9 @@ public sealed partial class OptionsWindow
         for (var i = 0; i < ThemeEditing.Main.Count; i++)
         {
             var (token, label) = ThemeEditing.Main[i];
-            var hex = new TextBlock { Text = ColorMath.ToHex(colors[token]), FontSize = 11.5, FontFamily = new FontFamily("Cascadia Mono, Consolas") }.Res(TextBlock.ForegroundProperty, "Brush.Text");
+            var hex = new TextBlock { Text = ColorMath.ToHex(colors[token]), FontSize = 11.5, FontFamily = Salandual.App.Options.OptionsUi.MonoFamily }.Res(TextBlock.ForegroundProperty, "Brush.Text");
             var swatch = ColorButton(() => Colors()[token], c => Set(token, c), label, 36);
+            ShowOnly(swatch, theme.ReadOnly);
             swatch.HorizontalAlignment = HorizontalAlignment.Stretch;
             swatch.HorizontalContentAlignment = HorizontalAlignment.Stretch;
             swatch.Content = Swatch(colors[token], 36).Also(s => s.Width = double.NaN);
@@ -368,6 +374,7 @@ public sealed partial class OptionsWindow
         });
         fill.HorizontalAlignment = HorizontalAlignment.Left;
         fill.Margin = new Thickness(0, 4, 0, 0);
+        fill.IsEnabled = !theme.ReadOnly;
         panel.Children.Add(fill);
         panel.Children.Add(Secondary(AppStrings.Themes_Ed_Fill_Note, 12));
 
@@ -377,6 +384,7 @@ public sealed partial class OptionsWindow
             (AppStrings.Themes_Ed_Group_Viewers, ColorTokens.Viewer, false),
             (AppStrings.Themes_Ed_Group_Code, ColorTokens.Syntax, false),
             (AppStrings.Themes_Ed_Group_Compare, ColorTokens.Compare, false),
+            (AppStrings.Themes_Ed_Group_Git, ColorTokens.Git, false),
         })
         {
             var rows = new StackPanel { Spacing = 2 };
@@ -392,17 +400,30 @@ public sealed partial class OptionsWindow
             var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             header.Children.Add(Text(title, 13, FontWeight.SemiBold, "Brush.SecondaryText"));
             header.Children.Add(Text(Loc.Format(AppStrings.Themes_Ed_Count, tokens.Count), 12, brush: "Brush.TertiaryText").Also(t => t.VerticalAlignment = VerticalAlignment.Center));
-            panel.Children.Add(new Expander
+            var group = new Expander
             {
                 Header = header,
                 Content = rows,
-                IsExpanded = open,
+                IsExpanded = _colorGroupsOpen.GetValueOrDefault(title, open),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Margin = new Thickness(0, 6, 0, 0),
-            });
+            };
+            group.Expanded += (_, _) => _colorGroupsOpen[title] = true;
+            group.Collapsed += (_, _) => _colorGroupsOpen[title] = false;
+            ThemeColorGroups.Add(group);
+            panel.Children.Add(group);
         }
 
         return panel;
+    }
+
+    private static void ShowOnly(Button swatch, bool readOnly)
+    {
+        if (readOnly)
+        {
+            swatch.IsHitTestVisible = false;
+            swatch.Focusable = false;
+        }
     }
 
     private Control ColorRow(ColorTheme theme, string token, string label, Rgb color, Action<string, Rgb> set, Action reset)
@@ -414,9 +435,10 @@ public sealed partial class OptionsWindow
             t.TextTrimming = TextTrimming.CharacterEllipsis;
         }));
         var swatch = ColorButton(() => ResolveTheme(ThemeCatalog.Find(Current.Appearance, theme.Id))[token], c => set(token, c), label, 18);
+        ShowOnly(swatch, theme.ReadOnly);
         Grid.SetColumn(swatch, 1);
         row.Children.Add(swatch);
-        var hex = new TextBox { Text = ColorMath.ToHex(color), Width = 86, MinWidth = 0, FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 12 };
+        var hex = new TextBox { Text = ColorMath.ToHex(color), Width = 86, MinWidth = 0, FontFamily = Salandual.App.Options.OptionsUi.MonoFamily, FontSize = 12, IsReadOnly = theme.ReadOnly };
         Avalonia.Automation.AutomationProperties.SetName(hex, label);
         void Commit()
         {

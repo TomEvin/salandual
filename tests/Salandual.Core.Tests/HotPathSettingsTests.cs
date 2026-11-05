@@ -133,7 +133,7 @@ public sealed class HotPathSettingsTests : IDisposable
         var settings = new AppSettings
         {
             HotPaths = Sample() with { ShiftDigits = true },
-            DriveMenu = new DriveMenuSettings { HiddenDrives = "A", SeparatorsAfter = "D", FreeSpace = false },
+            DriveMenu = new DriveMenuSettings { HiddenDrives = "A", SeparatorsAfter = "D", FreeSpace = false, RowSpacing = MenuRowSpacing.Closer, HotPathsInMenu = false, HiddenClouds = [@"C:\Users\you\Box"], AddedClouds = [new("Work files", @"E:\Work files")] },
         }.Normalize();
         store.Save(settings);
 
@@ -142,7 +142,30 @@ public sealed class HotPathSettingsTests : IDisposable
         Assert.Equal(settings.HotPaths.Paths, back.HotPaths.Paths);
         Assert.Equal("A", back.DriveMenu.HiddenDrives);
         Assert.Equal("D", back.DriveMenu.SeparatorsAfter);
-        Assert.False(back.DriveMenu.FreeSpace);
+        Assert.Equal(DriveSpaceShown.Nothing, back.DriveMenu.SpaceShown);
+        Assert.True(back.DriveMenu.FreeSpace);
+        Assert.Equal(MenuRowSpacing.Closer, back.DriveMenu.RowSpacing);
+        Assert.False(back.DriveMenu.HotPathsInMenu);
+        Assert.True(back.DriveMenu.FoldersInMenu);
+        Assert.False(back.DriveMenu.IsCloudShown(@"c:\users\you\box"));
+        Assert.Equal([new AddedCloud("Work files", @"E:\Work files")], back.DriveMenu.AddedClouds);
         Assert.Equal(settings.DriveMenu.Places, back.DriveMenu.Places);
+    }
+
+    [Fact]
+    public void DriveMenuServers_OpenOnesFirst_ThenTheOnesUsedLast()
+    {
+        var day = new DateTimeOffset(2026, 11, 4, 9, 0, 0, TimeSpan.Zero);
+        ServerBookmark B(string name, int? daysAgo) => new() { Name = name, Host = name.ToLowerInvariant() + ".example.org", LastUsed = daysAgo is { } d ? day.AddDays(-d) : null };
+        var servers = new ServerSettings { Bookmarks = [B("Shop", null), B("Garden", 0), B("Photos", 1), B("Build", 2), B("Blog", 30), B("Mirror", null)] }.Normalize();
+        Assert.Equal(3, servers.InDriveMenu);
+
+        Assert.Equal(["Garden", "Photos", "Build"], servers.ForDriveMenu(_ => false).Select(b => b.Name));
+        Assert.Equal(["Blog", "Garden", "Photos"], servers.ForDriveMenu(b => b.Name == "Blog").Select(b => b.Name));
+        Assert.Equal(["Garden", "Photos", "Build", "Blog", "Shop", "Mirror"], (servers with { InDriveMenu = 20 }).ForDriveMenu(_ => false).Select(b => b.Name));
+        Assert.Equal(["Shop"], (servers with { InDriveMenu = 0 }).ForDriveMenu(b => b.Name == "Shop").Select(b => b.Name));
+        Assert.Empty((servers with { InDriveMenu = 0 }).ForDriveMenu(_ => false));
+        Assert.Equal(20, (servers with { InDriveMenu = 99 }).Normalize().InDriveMenu);
+        Assert.Equal(0, (servers with { InDriveMenu = -1 }).Normalize().InDriveMenu);
     }
 }

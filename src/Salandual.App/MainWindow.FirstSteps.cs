@@ -78,6 +78,10 @@ public partial class MainWindow
 
         (Avalonia.Application.Current as App)?.Theme.Apply(_services.Settings.Current.Appearance);
         StartWithWindows(result.Choices.StartWithWindows);
+        if (_services.Settings.Current.General.Language != _services.Language.Id)
+        {
+            RestartForLanguage();
+        }
     }
 
     private void StartWithWindows(bool on)

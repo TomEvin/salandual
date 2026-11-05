@@ -44,9 +44,16 @@ public partial class MainWindow
             Dispatcher.UIThread.VerifyAccess();
             var ops = _operations = new OperationsService { Window = () => _hwnd };
             ops.Files.OwnerWindow = () => _hwnd;
+            ops.Queue.WaitsOn = DriveMedia.WaitsOn;
+            ops.Queue.SameDisk = _services.Settings.Current.Operations.SameDisk;
+            EventHandler<SettingsChangedEventArgs> sameDisk = (_, _) => ops.Queue.SameDisk = _services.Settings.Current.Operations.SameDisk;
+            _services.Settings.Changed += sameDisk;
+            Closed += (_, _) => _services.Settings.Changed -= sameDisk;
             ops.Changed += (_, _) => OnOperationsChanged();
             ops.DialogQuestion += (_, job) => ShowConflictDialog(job);
             ops.Finished += (_, job) => OnJobFinished(job);
+            ops.Started += (_, job) => OnJobStarted(job);
+            ops.WindowWanted += (_, job) => ShowProgressWindow(job);
             ops.QueueDone += (_, choice) => _ = OnQueueDoneAsync(choice);
             _chip = new OperationsChip();
             Grid.SetColumn(_chip, 1);
@@ -114,7 +121,8 @@ public partial class MainWindow
         var context = new CopyMoveContext(kind, sources, sourceFolder, known, target,
             s.HotPaths.Paths, s.History.CopyTargets, s.Operations, host.Panel.ShowHidden, s.Confirmations.CreateTargetFolder);
         var dialog = new CopyMoveDialog(context, Operations.Files, CurrentFormat(),
-            defaults => _services.Settings.Update(x => x with { Operations = defaults }));
+            defaults => _services.Settings.Update(x => x with { Operations = defaults }),
+            on => _services.Settings.Update(x => x with { Operations = x.Operations with { CloseWhenDone = on } }));
         _operationDialog = dialog;
         CopyMoveRequest? request;
         try
@@ -197,7 +205,7 @@ public partial class MainWindow
             return quick;
         }
 
-        var dialog = new DeleteDialog(sources, sizes, folder, permanent, Operations.Files, CurrentFormat(), s);
+        var dialog = new DeleteDialog(sources, sizes, folder, permanent, Operations.Files, CurrentFormat(), s, confirm.DeleteChecks);
         _operationDialog = dialog;
         DeleteRequest? request;
         try
@@ -214,7 +222,7 @@ public partial class MainWindow
             return null;
         }
 
-        var job = FileOperations.Delete(Operations.Files, sources, request.Recycle, request.RefusedPermanently, _services.Settings.Current.Confirmations.DeleteChecks);
+        var job = FileOperations.Delete(Operations.Files, sources, request.Recycle, request.RefusedPermanently, request.Checks);
         Operations.Add(job, request.ToQueue);
         if (request.ToQueue)
         {
@@ -370,7 +378,7 @@ public partial class MainWindow
         ConflictChoice? choice;
         try
         {
-            choice = await dialog.ShowDialog<ConflictChoice?>(this);
+            choice = await dialog.ShowDialog<ConflictChoice?>(_progressWindows.TryGetValue(job, out var progress) ? progress : this);
         }
         finally
         {
@@ -401,13 +409,14 @@ public partial class MainWindow
 
     private void OnJobFinished(OperationJob job)
     {
+        FoldersMovedBy(job);
         foreach (var host in _panels)
         {
             _ = host.Panel.RefreshAsync();
         }
 
         NotifyIfAway(job);
-        if (job.State == JobState.DoneWithIssues && _opsPanel is { IsVisible: false })
+        if (job.State == JobState.DoneWithIssues && _opsPanel is { IsVisible: false } && job.Kind is not (OperationKind.Unpack or OperationKind.Test or OperationKind.Pack or OperationKind.Change))
         {
             ShowNotice(Loc.Format(AppStrings.Notice_NotDone, job.Title, job.Issues.Count), (AppStrings.Common_Show, () => ToggleOperationsPanel()));
         }
@@ -423,12 +432,12 @@ public partial class MainWindow
 
     private void NotifyIfAway(OperationJob job)
     {
-        if (IsActive || job.Elapsed < TimeSpan.FromSeconds(10) || !_services.Settings.Current.Operations.NotifyWhenDone || job.State == JobState.Cancelled)
+        if (IsActive || job.Elapsed < TimeSpan.FromSeconds(10) || !_services.Settings.Current.Operations.NotifyWhenDone || job.State == JobState.Cancelled || job.Kind == OperationKind.Run)
         {
             return;
         }
 
-        var verb = job.Kind switch { OperationKind.Copy => AppStrings.Notify_Copy, OperationKind.Move => AppStrings.Notify_Move, _ => AppStrings.Notify_Delete };
+        var verb = job.Kind switch { OperationKind.Git => job.Title, OperationKind.Copy => AppStrings.Notify_Copy, OperationKind.Move => AppStrings.Notify_Move, OperationKind.Unpack => AppStrings.Notify_Unpack, OperationKind.Test => AppStrings.Notify_Test, OperationKind.Pack => AppStrings.Notify_Pack, OperationKind.Change => AppStrings.Notify_Change, _ => AppStrings.Notify_Delete };
         var title = job.State switch
         {
             JobState.DoneWithIssues => Loc.Format(AppStrings.Notify_FinishedWithIssues, verb, Ui.Items(job.Issues.Count)),
@@ -577,8 +586,8 @@ public partial class MainWindow
         }
 
         var dialog = askJobs
-            ? new ConfirmDialog(AppStrings.Close_Title, message, AppStrings.Close_CancelAndClose, AppStrings.Close_KeepRunning)
-            : new ConfirmDialog(AppStrings.Close_Title, message, AppStrings.Common_Close, AppStrings.Common_Cancel);
+            ? new ConfirmDialog(AppStrings.Close_Title, message, AppStrings.Close_CancelAndClose, AppStrings.Close_KeepRunning, group: Core.Settings.ConfirmGroup.Close)
+            : new ConfirmDialog(AppStrings.Close_Title, message, AppStrings.Common_Close, AppStrings.Common_Cancel, group: Core.Settings.ConfirmGroup.Close);
         OpenCloseQuestion = dialog;
         bool close;
         try
@@ -595,6 +604,10 @@ public partial class MainWindow
             _closingConfirmed = true;
             _operations?.Dispose();
             Close();
+        }
+        else
+        {
+            Program.RestartAfterClose = false;
         }
     }
 

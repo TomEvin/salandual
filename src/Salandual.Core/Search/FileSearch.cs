@@ -7,7 +7,6 @@
 // Source  : src/Salandual.Core/Search/FileSearch.cs
 
 using System.Diagnostics;
-using System.IO.Compression;
 using Salandual.Core.Listing;
 using Salandual.Core.Resources;
 using Salandual.Core.Vfs;
@@ -27,17 +26,19 @@ public sealed class SearchCallbacks
 
 public sealed class FileSearch
 {
-    public const long ZipEntryLimit = 64L * 1024 * 1024;
+    public const long ArchiveEntryLimit = 64L * 1024 * 1024;
 
     private const FileAttributes OnlineOnly = (FileAttributes)0x00400000 | (FileAttributes)0x00040000 | FileAttributes.Offline;
 
     private readonly IFileSystemProvider _files;
     private readonly Func<string, Stream> _open;
+    private readonly IArchiveSearch _archives;
 
-    public FileSearch(IFileSystemProvider files, Func<string, Stream> open)
+    public FileSearch(IFileSystemProvider files, Func<string, Stream> open, IArchiveSearch? archives = null)
     {
         _files = files;
         _open = open;
+        _archives = archives ?? new ZipSearch(open);
     }
 
     public async Task<SearchSummary> RunAsync(SearchCriteria criteria, SearchCallbacks callbacks, CancellationToken token = default)
@@ -67,10 +68,34 @@ public sealed class FileSearch
             return (hit.Attributes & OnlineOnly) != 0 ? null : _open(hit.FullPath);
         }
 
-        using var stream = _open(hit.Archive);
-        using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
-        var inner = hit.FullPath[(hit.Archive.Length + 1)..].Replace('\\', '/');
-        return zip.GetEntry(inner) is { } entry && entry.Length <= ZipEntryLimit ? Run.Unpack(entry) : null;
+        return ReadEntry(hit, CancellationToken.None, out _);
+    }
+
+    private MemoryStream? ReadEntry(SearchHit hit, CancellationToken token, out string? why)
+    {
+        using var reader = _archives.Open(hit.Archive!, token);
+        var inner = hit.FullPath[(hit.Archive!.Length + 1)..];
+        if (reader.Entries.FirstOrDefault(e => !e.IsDirectory && string.Equals(e.Path, inner, StringComparison.OrdinalIgnoreCase)) is not { } entry)
+        {
+            throw new FileNotFoundException(hit.FullPath);
+        }
+
+        if (entry.Encrypted || entry.Size > ArchiveEntryLimit)
+        {
+            why = entry.Encrypted ? Strings.Find_LogEncrypted : Strings.Find_LogTooBigInArchive;
+            return null;
+        }
+
+        MemoryStream? content = null;
+        string? problem = null;
+        reader.Read([entry.Index], ArchiveEntryLimit, (_, stream) =>
+        {
+            content = new MemoryStream();
+            stream.CopyTo(content);
+            content.Position = 0;
+        }, (_, message) => problem = message, token);
+        why = problem;
+        return content;
     }
 
     public IReadOnlyList<SearchHit> Filter(SearchCriteria criteria, IEnumerable<SearchHit> items, SearchCallbacks callbacks, CancellationToken token = default)
@@ -191,9 +216,9 @@ public sealed class FileSearch
                         }
                     }
 
-                    if (_criteria.InsideZip && entry.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && (entry.Attributes & OnlineOnly) == 0)
+                    if (_criteria.InsideZip && _search._archives.IsArchive(entry.Name) && (entry.Attributes & OnlineOnly) == 0)
                     {
-                        SearchZip(path);
+                        SearchArchive(path);
                     }
                 }
 
@@ -263,9 +288,11 @@ public sealed class FileSearch
 
             try
             {
-                using var stream = item.Archive is null ? _search._open(item.FullPath) : OpenInZip(item);
+                string? why = null;
+                using var stream = item.Archive is null ? _search._open(item.FullPath) : _search.ReadEntry(item, _token, out why);
                 if (stream is null)
                 {
+                    Log(SearchLogKind.NotRead, item.FullPath, why ?? Strings.Find_LogNotUnpacked);
                     return null;
                 }
 
@@ -283,52 +310,64 @@ public sealed class FileSearch
             }
         }
 
-        private void SearchZip(string zipPath)
+        private void SearchArchive(string archivePath)
         {
             try
             {
-                using var stream = _search._open(zipPath);
-                using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
-                foreach (var entry in zip.Entries)
+                using var reader = _search._archives.Open(archivePath, _token);
+                var toRead = new Dictionary<int, SearchHit>();
+                foreach (var entry in reader.Entries)
                 {
                     _token.ThrowIfCancellationRequested();
-                    var inner = entry.FullName.Replace('/', '\\').TrimEnd('\\');
+                    var inner = entry.Path;
                     if (inner.Length == 0 || inner.Split('\\').Contains(".."))
                     {
                         continue;
                     }
 
-                    var isDirectory = entry.FullName.EndsWith('/');
                     var slash = inner.LastIndexOf('\\');
                     var name = slash < 0 ? inner : inner[(slash + 1)..];
-                    var folder = slash < 0 ? zipPath : zipPath + "\\" + inner[..slash];
                     if (!_mask.IsMatch(name))
                     {
                         continue;
                     }
 
-                    var attributes = isDirectory ? FileAttributes.Directory : FileAttributes.Archive;
-                    var hit = new SearchHit(folder, name, isDirectory ? 0 : entry.Length, entry.LastWriteTime.UtcDateTime.Ticks, attributes, zipPath);
-                    if (isDirectory)
+                    var folder = slash < 0 ? archivePath : archivePath + "\\" + inner[..slash];
+                    var attributes = entry.IsDirectory ? FileAttributes.Directory : FileAttributes.Archive;
+                    var hit = new SearchHit(folder, name, entry.IsDirectory ? 0 : entry.Size, entry.LastWriteUtcTicks, attributes, archivePath);
+                    if ((entry.IsDirectory && _criteria.HasTexts) || !Passes(hit.Size, hit.LastWriteUtcTicks, attributes, entry.IsDirectory))
                     {
-                        if (!_criteria.HasTexts && Passes(0, hit.LastWriteUtcTicks, attributes, isDirectory: true))
+                        continue;
+                    }
+
+                    if (entry.IsDirectory || _content is null)
+                    {
+                        _callbacks.Found?.Invoke(hit);
+                    }
+                    else if (entry.Encrypted)
+                    {
+                        Log(SearchLogKind.NotRead, hit.FullPath, Strings.Find_LogEncrypted);
+                    }
+                    else if (entry.Size > ArchiveEntryLimit)
+                    {
+                        Log(SearchLogKind.NotRead, hit.FullPath, Strings.Find_LogTooBigInArchive);
+                    }
+                    else
+                    {
+                        toRead[entry.Index] = hit;
+                    }
+                }
+
+                if (toRead.Count > 0)
+                {
+                    reader.Read([.. toRead.Keys.Order()], ArchiveEntryLimit, (index, stream) =>
+                    {
+                        var result = _content!.Match(stream, _token);
+                        if (result.IsMatch)
                         {
-                            _callbacks.Found?.Invoke(hit);
+                            _callbacks.Found?.Invoke(toRead[index] with { Line = result.Line });
                         }
-
-                        continue;
-                    }
-
-                    if (_content is not null && entry.Length > ZipEntryLimit)
-                    {
-                        Log(SearchLogKind.NotRead, hit.FullPath, Strings.Find_LogTooBigInZip);
-                        continue;
-                    }
-
-                    if (TestEntry(hit, entry) is { } found)
-                    {
-                        _callbacks.Found?.Invoke(found);
-                    }
+                    }, (index, message) => Log(SearchLogKind.NotRead, toRead[index].FullPath, message), _token);
                 }
             }
             catch (OperationCanceledException)
@@ -337,52 +376,8 @@ public sealed class FileSearch
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
             {
-                Log(SearchLogKind.Error, zipPath, ex.Message);
+                Log(SearchLogKind.Error, archivePath, ex.Message);
             }
-        }
-
-        private SearchHit? TestEntry(SearchHit hit, ZipArchiveEntry entry)
-        {
-            if (!Passes(hit.Size, hit.LastWriteUtcTicks, hit.Attributes, isDirectory: false))
-            {
-                return null;
-            }
-
-            if (_content is null)
-            {
-                return hit;
-            }
-
-            using var memory = Unpack(entry);
-            var result = _content.Match(memory, _token);
-            return result.IsMatch ? hit with { Line = result.Line } : null;
-        }
-
-        private MemoryStream? OpenInZip(SearchHit item)
-        {
-            using var stream = _search._open(item.Archive!);
-            using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
-            var inner = item.FullPath[(item.Archive!.Length + 1)..].Replace('\\', '/');
-            return zip.GetEntry(inner) is { } entry && entry.Length <= ZipEntryLimit ? Unpack(entry) : null;
-        }
-
-        internal static MemoryStream Unpack(ZipArchiveEntry entry)
-        {
-            using var source = entry.Open();
-            var memory = new MemoryStream();
-            var buffer = new byte[81920];
-            int read;
-            while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
-            {
-                memory.Write(buffer, 0, read);
-                if (memory.Length > ZipEntryLimit)
-                {
-                    throw new InvalidDataException(Strings.Find_LogTooBigInZip);
-                }
-            }
-
-            memory.Position = 0;
-            return memory;
         }
     }
 }

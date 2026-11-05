@@ -150,14 +150,14 @@ public sealed class SelectionDialogTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task CtrlW_BringsBackTheSelection()
+    public async Task RestoreSelection_BringsBackTheSelection()
     {
         var w = await Open();
         Press(w, Key.A, RawInputModifiers.Control);
         Press(w, Key.D, RawInputModifiers.Control);
         Assert.Empty(Selected(w));
 
-        Press(w, Key.W, RawInputModifiers.Control);
+        w.Run("Selection.Restore", Core.Commands.PanelTarget.Active);
         Assert.Equal(5, Selected(w).Length);
         w.CloseNow();
     }

@@ -117,13 +117,15 @@ public sealed class ColorTokensTests
             (ColorTokens.Text, ColorTokens.SuccessBackground, 4.5), (ColorTokens.Text, ColorTokens.InfoBackground, 4.5),
             (ColorTokens.Accent, ColorTokens.PanelBackground, 3), (ColorTokens.Accent, ColorTokens.WindowBackground, 3),
             (ColorTokens.FocusOutline, ColorTokens.PanelBackground, 3), (ColorTokens.FocusOutline, ColorTokens.SelectionBackground, 3),
-            (ColorTokens.OnAccent, ColorTokens.Accent, 4.4),
+            (ColorTokens.OnAccent, ColorTokens.AccentFill, 4.5), (ColorTokens.OnDanger, ColorTokens.DangerFill, 4.5),
             (ColorTokens.HexZero, ColorTokens.PanelBackground, 3), (ColorTokens.ViewerOffsets, ColorTokens.PanelBackground, 3), (ColorTokens.ViewerLineNumbers, ColorTokens.PanelBackground, 3),
             (ColorTokens.Text, ColorTokens.ViewerMatch, 3), (ColorTokens.Text, ColorTokens.ViewerCurrentMatch, 3),
             (ColorTokens.SyntaxText, ColorTokens.ViewerMatch, 3), (ColorTokens.SyntaxText, ColorTokens.ViewerCurrentMatch, 3),
             (ColorTokens.SyntaxText, ColorTokens.SyntaxBackground, 4.5),
             (ColorTokens.SyntaxText, ColorTokens.CompareRemoved, 3), (ColorTokens.SyntaxText, ColorTokens.CompareAdded, 3), (ColorTokens.SyntaxText, ColorTokens.CompareChangedText, 3),
             (ColorTokens.SyntaxText, ColorTokens.CompareMinorText, 3), (ColorTokens.SyntaxText, ColorTokens.CompareCopied, 3),
+            (ColorTokens.GitChanged, ColorTokens.PanelBackground, 4.5), (ColorTokens.GitStaged, ColorTokens.PanelBackground, 4.5), (ColorTokens.GitNew, ColorTokens.PanelBackground, 4.5),
+            (ColorTokens.GitDeleted, ColorTokens.PanelBackground, 4.5), (ColorTokens.GitConflicted, ColorTokens.PanelBackground, 4.5), (ColorTokens.GitIgnored, ColorTokens.PanelBackground, 4.5),
         };
 
         foreach (var t in ThemeCatalog.BuiltIn.Concat(ThemeCatalog.Shipped))
@@ -132,6 +134,36 @@ public sealed class ColorTokensTests
             foreach (var (fore, back, ratio) in pairs)
             {
                 Assert.True(ColorMath.Contrast(c[fore], c[back]) >= ratio - 0.005, $"{t.Id}: {fore} on {back} is {ColorMath.Contrast(c[fore], c[back]):F2} : 1, needs {ratio}");
+            }
+        }
+    }
+
+    [Fact]
+    public void ButtonText_IsLightInADarkTheme_AndDarkInALightOne()
+    {
+        foreach (var t in ThemeCatalog.BuiltIn.Concat(ThemeCatalog.Shipped))
+        {
+            var c = ColorTokens.Resolve(t);
+            var k = ControlColors.From(c);
+            var dark = ColorMath.Luminance(c[ColorTokens.PanelBackground]) < 0.2;
+            foreach (var (name, label) in new[] { ("OnAccent", c[ColorTokens.OnAccent]), ("OnDanger", c[ColorTokens.OnDanger]), ("primary button", k.Accent.Label) })
+            {
+                if (dark)
+                {
+                    Assert.True(ColorMath.Luminance(label) > 0.6, $"{t.Id}: {name} is {ColorMath.ToHex(label)}, too dark for a dark theme");
+                }
+            }
+
+            var text = k.Label;
+            Assert.True(dark ? ColorMath.Luminance(text) > 0.35 : ColorMath.Luminance(text) < 0.1, $"{t.Id}: button text {ColorMath.ToHex(text)}");
+            foreach (var fill in new[] { k.Fill, k.FillHover, k.FillPressed })
+            {
+                Assert.True(ColorMath.Contrast(text, fill) >= 4.5 - 0.005, $"{t.Id}: button text is {ColorMath.Contrast(text, fill):F2} : 1 on {ColorMath.ToHex(fill)}");
+            }
+
+            foreach (var fill in new[] { k.Accent.Fill, k.Accent.FillHover, k.Accent.FillPressed })
+            {
+                Assert.True(ColorMath.Contrast(k.Accent.Label, fill) >= 4.5 - 0.005, $"{t.Id}: the primary button's text is {ColorMath.Contrast(k.Accent.Label, fill):F2} : 1");
             }
         }
     }
@@ -251,8 +283,8 @@ public sealed class ColorTokensTests
                 Assert.True(ColorMath.Contrast(k.DisabledText, surface) >= 3, $"{t.Id}: disabled text");
             }
 
-            Assert.True(ColorMath.Contrast(c[ColorTokens.Text], k.Fill) >= 4.5, $"{t.Id}: button text");
-            Assert.True(ColorMath.Contrast(c[ColorTokens.Text], k.FillPressed) >= 4.5, $"{t.Id}: pressed button text");
+            Assert.True(ColorMath.Contrast(k.Label, k.Fill) >= 4.5, $"{t.Id}: button text");
+            Assert.True(ColorMath.Contrast(k.Label, k.FillPressed) >= 4.5, $"{t.Id}: pressed button text");
             Assert.True(ColorMath.Contrast(k.DisabledText, c[ColorTokens.PanelBackground]) < ColorMath.Contrast(c[ColorTokens.Text], c[ColorTokens.PanelBackground]), $"{t.Id}: disabled is dimmer");
         }
 
@@ -268,7 +300,8 @@ public sealed class ColorTokensTests
         Assert.Equal(ColorMath.Mix(new Rgb(0, 0, 0), Hex("#FFD000"), 0.22), c[ColorTokens.SelectionBackground]);
         Assert.Equal(ColorMath.Mix(new Rgb(0, 0, 0), new Rgb(255, 255, 255), 0.14), c[ColorTokens.Border]);
         Assert.Equal(Hex("#FFD000"), c[ColorTokens.SyntaxKey]);
-        Assert.Equal(new Rgb(10, 10, 10), c[ColorTokens.OnAccent]);
+        Assert.Equal(ColorMath.White, c[ColorTokens.OnAccent]);
+        Assert.Equal(new Rgb(10, 10, 10), ColorTokens.Resolve(mine with { Dark = false, Colors = new() { [ColorTokens.Accent] = "#FFD000" } })[ColorTokens.OnAccent]);
 
         Assert.Equal(ColorMath.Lighten(Hex("#0078D4"), 0.35), ColorTokens.Resolve(mine with { Accent = ThemeAccent.Windows }, Hex("#0078D4"))[ColorTokens.Accent]);
         Assert.Equal(Hex("#C239B3"), ColorTokens.Resolve(mine with { Accent = ThemeAccent.Custom, CustomAccent = "#C239B3" })[ColorTokens.Accent]);
@@ -334,5 +367,44 @@ public sealed class ColorTokensTests
         Assert.False(a.IsEquivalentTo(AppearanceSettings.Fixed("dracula").Normalize()));
         var withTheme = a with { Themes = [new() { Id = "mine", Colors = new() { [ColorTokens.Text] = "#111111" } }] };
         Assert.False(withTheme.IsEquivalentTo(a with { Themes = [new() { Id = "mine", Colors = new() { [ColorTokens.Text] = "#222222" } }] }));
+    }
+
+    [Fact]
+    public void FocusBackground_IsSeen_ApartFromTheSelection_AndReadable()
+    {
+        static double Distance(Rgb a, Rgb b) => Math.Sqrt(((a.R - b.R) * (a.R - b.R)) + ((a.G - b.G) * (a.G - b.G)) + ((a.B - b.B) * (a.B - b.B)));
+        var light = ColorTokens.Resolve(ThemeCatalog.BuiltIn[0]);
+        Assert.Equal(Hex("#E6E6E6"), light[ColorTokens.FocusBackground]);
+        Assert.Equal(Hex("#F2F2F2"), light[ColorTokens.FocusBackgroundInactive]);
+        Assert.Equal(Hex("#3D3D3D"), ColorTokens.Resolve(ThemeCatalog.BuiltIn[1])[ColorTokens.FocusBackground]);
+        Assert.Contains(ColorTokens.Window, t => t.Token == ColorTokens.FocusBackground);
+        Assert.All([.. ThemeCatalog.BuiltIn, .. ThemeCatalog.Shipped], theme =>
+        {
+            var c = ColorTokens.Resolve(theme);
+            var focus = c[ColorTokens.FocusBackground];
+            Assert.True(ColorMath.Contrast(focus, c[ColorTokens.PanelBackground]) >= 1.08, theme.Name + " seen");
+            Assert.True(Distance(focus, c[ColorTokens.SelectionBackground]) >= 16, theme.Name + " apart " + ColorMath.ToHex(focus) + " " + ColorMath.ToHex(c[ColorTokens.SelectionBackground]));
+            Assert.True(ColorMath.Contrast(c[ColorTokens.Text], focus) >= 3, theme.Name + " read");
+        });
+    }
+
+    [Fact]
+    public void GitColors_FollowTheStatusColors_UntilAThemeSetsThem()
+    {
+        var light = ColorTokens.Resolve(ThemeCatalog.BuiltIn[0]);
+        Assert.Equal(light[ColorTokens.Warning], light[ColorTokens.GitChanged]);
+        Assert.Equal(light[ColorTokens.Success], light[ColorTokens.GitStaged]);
+        Assert.Equal(light[ColorTokens.Accent], light[ColorTokens.GitNew]);
+        Assert.Equal(light[ColorTokens.Danger], light[ColorTokens.GitDeleted]);
+        Assert.Equal(light[ColorTokens.Danger], light[ColorTokens.GitConflicted]);
+        Assert.Equal(light[ColorTokens.TertiaryText], light[ColorTokens.GitIgnored]);
+        Assert.Equal(6, ColorTokens.Git.Count);
+        Assert.All(ColorTokens.Git, t => Assert.Contains(ColorTokens.All, a => a.Token == t.Token));
+
+        var mine = ThemeCatalog.BuiltIn[0] with { Colors = new(ThemeCatalog.BuiltIn[0].Colors) { [ColorTokens.GitChanged] = "#8250DF", [ColorTokens.GitNew] = "#FFFF00" } };
+        var c = ColorTokens.Resolve(mine);
+        Assert.Equal(Hex("#8250DF"), c[ColorTokens.GitChanged]);
+        Assert.Equal(c[ColorTokens.Warning], light[ColorTokens.Warning]);
+        Assert.True(ColorMath.Contrast(c[ColorTokens.GitNew], c[ColorTokens.PanelBackground]) >= 4.5);
     }
 }

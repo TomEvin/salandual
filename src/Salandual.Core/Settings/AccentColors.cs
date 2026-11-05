@@ -20,14 +20,8 @@ public sealed record AccentColors(Rgb Fill, Rgb FillHover, Rgb FillPressed, Rgb 
         var window = c[ColorTokens.WindowBackground];
         var black = new Rgb(0, 0, 0);
 
-        var rest = dark ? ColorMath.Mix(accent, black, 0.3) : accent;
-        var label = ColorMath.OnColor(rest);
+        var (fill, label) = FillAndLabel(accent, dark);
         var away = label == ColorMath.White ? black : ColorMath.White;
-        var fill = rest;
-        for (var t = 0.0; t <= 1.0 && ColorMath.Contrast(label, fill) < LabelRatio; t += 0.01)
-        {
-            fill = ColorMath.Mix(rest, away, t);
-        }
 
         var seen = ColorMath.Contrast(fill, surface) >= EdgeRatio && ColorMath.Contrast(fill, window) >= EdgeRatio;
         var text = c[ColorTokens.Text];
@@ -40,5 +34,20 @@ public sealed record AccentColors(Rgb Fill, Rgb FillHover, Rgb FillPressed, Rgb 
             Mark: accent,
             MarkHover: ColorMath.Mix(accent, text, 0.18),
             MarkPressed: ColorMath.Mix(accent, text, 0.32));
+    }
+
+    public static (Rgb Fill, Rgb Label) FillAndLabel(Rgb accent, bool dark)
+    {
+        var black = new Rgb(0, 0, 0);
+        var rest = dark ? ColorMath.Mix(accent, black, 0.3) : accent;
+        var label = dark ? ColorMath.White : ColorMath.OnColor(rest);
+        var away = label == ColorMath.White ? black : ColorMath.White;
+        var fill = rest;
+        for (var t = 0.0; t <= 1.0 && ColorMath.Contrast(label, fill) < LabelRatio; t += 0.01)
+        {
+            fill = ColorMath.Mix(rest, away, t);
+        }
+
+        return (fill, label);
     }
 }

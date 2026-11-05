@@ -11,7 +11,20 @@ using Salandual.Core.Vfs;
 
 namespace Salandual.Core.Panels;
 
-public sealed record PanelResults(string What, string ReturnPath, string? ReturnFocus);
+public sealed record PanelResults(string What, string ReturnPath, string? ReturnFocus)
+{
+    public PanelChanges? Changes { get; init; }
+
+    public PanelHistory? History { get; init; }
+
+    public PanelCommit? Commit { get; init; }
+
+    public PanelTree? Tree { get; init; }
+
+    public PanelTags? Tags { get; init; }
+
+    public PanelFlat? Flat { get; init; }
+}
 
 public sealed partial class FilePanel
 {
@@ -20,7 +33,7 @@ public sealed partial class FilePanel
 
     public PanelResults? Results { get; private set; }
 
-    public void ShowResults(string root, IReadOnlyList<FileEntry> entries, string what, Func<string, FileEntry?> stat, bool keepOrder = false)
+    public void ShowResults(string root, IReadOnlyList<FileEntry> entries, string what, Func<string, FileEntry?> stat, bool keepOrder = false, Func<PanelResults, PanelResults>? mark = null)
     {
         _loadCts?.Cancel();
         ++_loadVersion;
@@ -42,7 +55,7 @@ public sealed partial class FilePanel
         _pendingSelect = null;
         _stat = stat;
         _keepOrder = keepOrder;
-        Results = new PanelResults(what, back.Item1, back.Item2);
+        Results = mark is null ? new PanelResults(what, back.Item1, back.Item2) : mark(new PanelResults(what, back.Item1, back.Item2));
         Path = root;
         HasUpEntry = false;
         _items = [.. entries];
@@ -60,11 +73,11 @@ public sealed partial class FilePanel
     }
 
     public Task<bool> LeaveResultsAsync()
-        => Results is { } results ? NavigateAsync(results.ReturnPath, results.ReturnFocus) : Task.FromResult(false);
+        => TryGitBack(out var going) ? going : Results is { } results ? NavigateAsync(results.ReturnPath, results.ReturnFocus) : Task.FromResult(false);
 
     public Task<bool> GoToResultAsync()
     {
-        if (Results is null || FocusedEntry is not { } entry)
+        if (Results is null || IsTree || IsTags || FocusedEntry is not { } entry)
         {
             return Task.FromResult(false);
         }

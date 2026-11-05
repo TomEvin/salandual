@@ -28,7 +28,7 @@ internal sealed class PreviewPanel : Border
     private readonly FilePanelView _view;
     private readonly InformationLineView _info;
 
-    public PreviewPanel(SettingsService settings, int rows = 6, bool showInfo = true)
+    public PreviewPanel(SettingsService settings, int rows = 6, bool showInfo = true, bool focusApart = false)
     {
         _settings = settings;
         _panel = new FilePanel(new SampleFiles(), EntrySorter.ForCurrentCulture(numericSort: true), a => a());
@@ -41,7 +41,8 @@ internal sealed class PreviewPanel : Border
             }
         }
 
-        _panel.SetFocus(Enumerable.Range(0, _panel.Count).First(i => _panel.Items[i].Name == "IMG_0413.HEIC"));
+        var focus = Enumerable.Range(0, _panel.Count).First(i => _panel.Items[i].Name == "IMG_0413.HEIC");
+        _panel.SetFocus(focusApart ? Math.Min(focus + 1, _panel.Count - 1) : focus);
         _view = new FilePanelView { Panel = _panel, Focusable = false, IsHitTestVisible = false, IsActivePanel = true };
         _info = new InformationLineView { IsVisible = showInfo };
         Rows = rows;
@@ -82,6 +83,16 @@ internal sealed class PreviewPanel : Border
         _view.RowHeight = s.Layout.RowHeight;
         _view.ShowHeader = true;
         _view.Format = format;
+        _view.ViewColumns = s.Panels.ColumnViews;
+        _view.FolderSize = s.Panels.FolderSize;
+        _view.ColumnAlignment = s.Panels.ColumnAlignment;
+        _view.LongNames = s.Panels.LongNames;
+        _view.RowStripes = s.Panels.RowStripes;
+        _view.Highlighter = new Highlighter(s.Highlighting.Effective);
+        _view.FocusLook = s.Panels.FocusLook;
+        _view.SelectionLook = s.Panels.SelectionLook;
+        _view.FocusBackground = s.Panels.FocusBackground;
+        _view.FocusBackgroundLook = s.Panels.FocusBackgroundLook;
         _view.Height = s.Layout.RowHeight * (Rows + 1);
         var focused = _panel.FocusedEntry!.Value;
         _info.Set(InformationLine.Expand(s.Panels.InformationLine, focused, isUp: false, format), InformationLine.Summary(_panel, format, CultureInfo.CurrentCulture));

@@ -178,6 +178,7 @@ internal sealed partial class ViewerWindow
         _hexMode = false;
         _imageMode = false;
         _mediaMode = false;
+        _torrentPage = TorrentPage.None;
         LeavePage();
         _message.IsVisible = false;
         _content.IsVisible = true;
@@ -257,7 +258,7 @@ internal sealed partial class ViewerWindow
 
     internal async Task ShowInTextAsync()
     {
-        if (_treeView.Selected is not { } node)
+        if (_treeView.Selected is not { } node || Tree?.Format == DataFormat.Bencode)
         {
             return;
         }
@@ -311,8 +312,8 @@ internal sealed partial class ViewerWindow
             DataFormat.Yaml => AppStrings.Viewer_CopyBranchYaml,
             DataFormat.Xml => AppStrings.Viewer_CopyBranchXml,
             _ => AppStrings.Viewer_CopyBranchJson,
-        }, null, CopyTreeBranch, can && node!.IsBranch);
-        Item(AppStrings.Viewer_ShowInText, "Ctrl+Enter", () => _ = ShowInTextAsync(), node is not null);
+        }, null, CopyTreeBranch, can && node!.IsBranch && tree!.Format != DataFormat.Bencode);
+        Item(AppStrings.Viewer_ShowInText, "Ctrl+Enter", () => _ = ShowInTextAsync(), node is not null && tree?.Format != DataFormat.Bencode);
         if (withFolding)
         {
             items.Add(new Separator());
@@ -465,6 +466,7 @@ internal sealed partial class ViewerWindow
         DataFormat.JsonLines => AppStrings.Viewer_FormatJsonLines,
         DataFormat.Yaml => AppStrings.Viewer_FormatYaml,
         DataFormat.Xml => AppStrings.Viewer_FormatXml,
+        DataFormat.Bencode => AppStrings.Viewer_FormatBencode,
         _ => AppStrings.Viewer_Json,
     };
 

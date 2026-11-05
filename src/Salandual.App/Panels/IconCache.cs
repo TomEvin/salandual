@@ -10,7 +10,9 @@ using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using Salandual.Archives;
 using Salandual.Core.Vfs;
+using Salandual.Platform.Windows.FileSystem;
 using Salandual.Platform.Windows.Shell;
 
 namespace Salandual.App.Panels;
@@ -19,6 +21,7 @@ public sealed class IconCache : IDisposable
 {
     private const int MaxOwnIcons = 2000;
     private const string FolderKey = "/";
+    private const int MaxSizes = 4;
 
     private static readonly HashSet<string> _perFile = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -27,18 +30,15 @@ public sealed class IconCache : IDisposable
 
     private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> _perFileLookup = _perFile.GetAlternateLookup<ReadOnlySpan<char>>();
 
-    private readonly Dictionary<string, Bitmap?> _shared = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Bitmap?>.AlternateLookup<ReadOnlySpan<char>> _sharedLookup;
+    private readonly Dictionary<string, bool> _bareArchives = new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly Dictionary<string, Bitmap?> _own = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<int, SizeStore> _sizes = [];
     private readonly ShellIconLoader _loader = new();
-    private int _size;
     private bool _changePosted;
     private bool _started;
 
     public IconCache()
     {
-        _sharedLookup = _shared.GetAlternateLookup<ReadOnlySpan<char>>();
         _loader.Loaded += (key, size, pixels) => Dispatcher.UIThread.Post(() => Store(key, size, pixels));
     }
 
@@ -55,19 +55,33 @@ public sealed class IconCache : IDisposable
 
     public Bitmap? Get(string folder, in FileEntry entry, int sizePx)
     {
-        if (sizePx != _size)
+        if (Remote.ServerAddress.IsServerPath(folder))
         {
-            _shared.Clear();
-            _own.Clear();
-            _size = sizePx;
+            folder = ServerItems;
+        }
+
+        if (!_sizes.TryGetValue(sizePx, out var store))
+        {
+            if (_sizes.Count >= MaxSizes)
+            {
+                _sizes.Clear();
+            }
+
+            _sizes[sizePx] = store = new SizeStore();
         }
 
         if (!HasOwnIcon(entry))
         {
             var ext = entry.IsDirectory ? FolderKey.AsSpan() : entry.Extension;
-            if (_sharedLookup.TryGetValue(ext, out var icon))
+            if (store.SharedLookup.TryGetValue(ext, out var icon))
             {
                 return icon;
+            }
+
+            if (!entry.IsDirectory && IsBareArchive(entry.Name))
+            {
+                Request("s:" + ext.ToString(), folder, "archive.zip", sizePx, ThumbnailRequest.ByName);
+                return null;
             }
 
             Request("s:" + ext.ToString(), folder, entry.Name, sizePx);
@@ -75,7 +89,7 @@ public sealed class IconCache : IDisposable
         }
 
         var path = Path.Join(folder, entry.Name);
-        if (_own.TryGetValue(path, out var own))
+        if (store.Own.TryGetValue(path, out var own))
         {
             return own;
         }
@@ -84,22 +98,60 @@ public sealed class IconCache : IDisposable
         return null;
     }
 
+    public Bitmap? GetAt(string path, in FileEntry entry, int sizePx)
+    {
+        if (!_sizes.TryGetValue(sizePx, out var store))
+        {
+            return Get(Path.GetDirectoryName(path) ?? path, entry, sizePx);
+        }
+
+        if (store.Own.TryGetValue(path, out var own))
+        {
+            return own;
+        }
+
+        if (_started && Path.IsPathFullyQualified(path))
+        {
+            _loader.Request("p:" + path, path, sizePx, ThumbnailRequest.None);
+        }
+
+        return null;
+    }
+
+    private static readonly string ServerItems = Path.Combine(Path.GetTempPath(), "salandual-server-items");
+
     internal static bool HasOwnIcon(in FileEntry entry)
         => entry.IsDirectory
             ? (entry.Attributes & (FileAttributes.ReadOnly | FileAttributes.System)) != 0
             : _perFileLookup.Contains(entry.Extension);
 
-    private void Request(string key, string folder, string name, int sizePx)
+    private void Request(string key, string folder, string name, int sizePx, ThumbnailRequest how = ThumbnailRequest.None)
     {
         if (_started && Path.IsPathFullyQualified(folder))
         {
-            _loader.Request(key, Path.Join(folder, name), sizePx);
+            _loader.Request(key, Path.Join(folder, name), sizePx, how);
         }
+    }
+
+    private bool IsBareArchive(string name)
+    {
+        if (!_started || !ArchivePaths.IsArchiveName(name))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(name);
+        if (!_bareArchives.TryGetValue(ext, out var bare))
+        {
+            _bareArchives[ext] = bare = FileDetailsReader.IsUnknownType(ext);
+        }
+
+        return bare;
     }
 
     private void Store(string key, int size, IconPixels? pixels)
     {
-        if (size != _size)
+        if (!_sizes.TryGetValue(size, out var store))
         {
             return;
         }
@@ -113,16 +165,16 @@ public sealed class IconCache : IDisposable
         var icon = pixels is null ? null : ToBitmap(pixels);
         if (shared)
         {
-            _shared[key[2..]] = icon;
+            store.Shared[key[2..]] = icon;
         }
         else
         {
-            if (_own.Count >= MaxOwnIcons)
+            if (store.Own.Count >= MaxOwnIcons)
             {
-                _own.Clear();
+                store.Own.Clear();
             }
 
-            _own[key[2..]] = icon;
+            store.Own[key[2..]] = icon;
         }
 
         if (!_changePosted)
@@ -149,4 +201,15 @@ public sealed class IconCache : IDisposable
     }
 
     public void Dispose() => _loader.Dispose();
+
+    private sealed class SizeStore
+    {
+        public SizeStore() => SharedLookup = Shared.GetAlternateLookup<ReadOnlySpan<char>>();
+
+        public Dictionary<string, Bitmap?> Shared { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, Bitmap?>.AlternateLookup<ReadOnlySpan<char>> SharedLookup { get; }
+
+        public Dictionary<string, Bitmap?> Own { get; } = new(StringComparer.OrdinalIgnoreCase);
+    }
 }

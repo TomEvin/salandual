@@ -25,12 +25,15 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Controls.WebView" />
     <PackageReference Include="Avalonia.AvaloniaEdit" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Salandual.Core\Salandual.Core.csproj" />
     <ProjectReference Include="..\Salandual.Platform.Windows\Salandual.Platform.Windows.csproj" />
     <ProjectReference Include="..\Salandual.Imaging\Salandual.Imaging.csproj" />
     <ProjectReference Include="..\Salandual.Archives\Salandual.Archives.csproj" />
+    <ProjectReference Include="..\Salandual.Remote\Salandual.Remote.csproj" />
+    <ProjectReference Include="..\Salandual.Git\Salandual.Git.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Salandual.App.Tests" />
@@ -42,12 +45,24 @@
     <TrimmerRootAssembly Include="MetadataExtractor" />
     <TrimmerRootAssembly Include="XmpCore" />
     <TrimmerRootAssembly Include="AvaloniaEdit" />
+    <TrimmerRootAssembly Include="FluentFTP" />
+    <TrimmerRootAssembly Include="Renci.SshNet" />
+    <TrimmerRootAssembly Include="LibGit2Sharp" />
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets/salandual.ico" />
     <AvaloniaResource Include="Assets/salandual-dev.ico" />
     <AvaloniaResource Include="Assets/salandual-192.png" />
     <AvaloniaResource Include="Assets/salandual-dev-192.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets/Licences/*.txt" LogicalName="Licences/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../LICENSE" LogicalName="Licences/GPL-3.0.txt" />
+    <EmbeddedResource Include="../../third-party/7-Zip/License.txt" LogicalName="Licences/7-Zip.txt" />
+    <EmbeddedResource Include="$(NuGetPackageRoot)libgit2sharp.nativebinaries/2.0.323/libgit2/libgit2.license.txt" LogicalName="Licences/libgit2.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="languages/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Update="Resources\AppStrings.resx">

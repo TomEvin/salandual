@@ -30,16 +30,21 @@ public partial class MainWindow : Window
 {
     private static readonly HashSet<string> _windowCommands =
     [
-        "App.Exit", "App.Minimize", "App.MaximizeWindow", "App.Menu", "App.Options", "Help.FirstSteps", "Options.ExportSettings", "Options.ImportSettings", "Options.ResetAllSettings", "Panel.SwitchActive", "View.ToggleMenuBar", "App.WindowMenu",
+        "App.CommandSearch", "App.Exit", "App.Minimize", "App.MaximizeWindow", "App.Menu", "App.Options", "App.About", "Help.FirstSteps", "Help.Logs", "Options.ExportSettings", "Options.ImportSettings", "Options.ImportSalamander", "Options.ResetAllSettings", "Panel.SwitchActive", "View.ToggleMenuBar", "App.WindowMenu",
         "Panel.Swap", "Panel.Maximize", "Panel.ChangeDirectory", "Lists.WorkingDirectories", "Drive.Info", "Navigation.OtherPanelDirectory", "Navigation.OpenInOtherPanel",
         "Selection.SelectByMask", "Selection.UnselectByMask",
-        "View.ToggleDriveStrip", "View.ToggleHotPathBar", "View.ToggleDirectoryLine", "View.ToggleColumnHeader", "View.ToggleInformationLine", "View.ToggleFunctionKeyBar",
+        "View.ToggleDriveStrip", "View.ToggleHotPathBar", "View.ToggleUserMenuBar", "View.ToggleBackForwardBar", "View.ToggleDirectoryLine", "View.ToggleColumnHeader", "View.ToggleInformationLine", "View.ToggleFunctionKeyBar",
         "Panel.ScrollUp", "Panel.ScrollDown", "Panel.ScrollLeft", "Panel.ScrollRight",
         "File.Copy", "File.Move", "File.Delete", "File.DeleteInverted", "File.CreateDirectory", "File.QuickRename", "File.Duplicate", "View.ToggleMiddleToolbar",
         "Clipboard.Copy", "Clipboard.Cut", "Clipboard.Paste", "Clipboard.PasteIntoFocused", "Clipboard.CopyFullName", "Clipboard.CopyName", "Clipboard.CopyPath", "Clipboard.CopyUncName",
         "File.ContextMenu", "Panel.DirectoryContextMenu", "File.Properties", "File.WindowsProperties",
         "File.View", "File.ViewAlternate", "File.ViewWith", "File.Edit", "File.EditNew", "File.EditWith", "Find.Files", "Find.Duplicates", "Compare.Directories", "Compare.Files", "File.MakeList",
-        "File.OccupiedSpace",
+        "File.OccupiedSpace", "Archive.Pack", "Archive.Unpack", "Archive.Test", "UserMenu.Open",
+        "CommandLine.Toggle", "CommandLine.InsertName", "CommandLine.InsertDosName", "CommandLine.InsertDirectory", "CommandLine.InsertDirectoryDos", "CommandLine.InsertLeftDirectory",
+        "CommandLine.InsertLeftDirectoryDos", "CommandLine.InsertRightDirectory", "CommandLine.InsertRightDirectoryDos", "Shell.CommandPrompt", "Shell.CommandPromptAdmin", "View.ToggleCommandLine",
+        "View.ThumbnailsBigger", "View.ThumbnailsSmaller", "View.Mode8", "View.Mode9", "View.Mode0", "Panel.SmartNameWidth",
+        "Panel.Filter", "Panel.ToggleDotFiles", "Panel.FlatView", "Panel.OpenInExplorer", "Navigation.ShortcutTarget", "File.NewMenu",
+        "Network.Open", "Network.SharedDirectories", "Network.ConnectDrive", "Network.DisconnectDrive", "Server.Connect", "Server.Disconnect", "Server.Log", "Git.Menu", "Git.NewBranch",
     ];
 
     private readonly AppServices _services;
@@ -68,6 +73,7 @@ public partial class MainWindow : Window
             _lastFolder[drive] = folder;
         }
 
+        _working.Limit = services.Settings.Current.Layout.DirectoryLine.FoldersKept;
         _working.Load(services.Session.WorkingDirectories ?? []);
 
         StartupTrace.Mark("window-ctor");
@@ -75,9 +81,14 @@ public partial class MainWindow : Window
         StartupTrace.Mark("window-created");
 
         var settings = services.Settings;
-        _sorter = EntrySorter.ForCurrentCulture(settings.Current.Panels.NumericSort);
+        Controls.WindowMemory.Remember(this, settings, WindowSettings.Main);
+        _sorter = Sorter(settings.Current.Panels.NumericSort);
         _panels = [CreatePanel(0, _sorter), CreatePanel(1, _sorter)];
+        _tabs[0].Add(new PanelTab(_panels[0].Panel));
+        _tabs[1].Add(new PanelTab(_panels[1].Panel));
         StartupTrace.Mark("panels-created");
+        WireNetwork();
+        WireServers();
         Grid.SetColumn(_panels[1], 2);
         PanelsGrid.Children.Insert(0, _panels[0]);
         PanelsGrid.Children.Insert(1, _panels[1]);
@@ -86,20 +97,40 @@ public partial class MainWindow : Window
         StartupTrace.Mark("left-shown");
         ShowInitialListing(_panels[1], services.Preloaded.Right, services.InitialPaths.Right, AppServices.DefaultPaths.Right);
         StartupTrace.Mark("panels-shown");
+        RestoreTabs();
 
         ApplySettings();
-        settings.Changed += (_, _) => Dispatcher.UIThread.Post(ApplySettings);
+        var closed = false;
+        EventHandler<SettingsChangedEventArgs> apply = (_, _) => Dispatcher.UIThread.Post(() =>
+        {
+            if (!closed)
+            {
+                ApplySettings();
+            }
+        });
+        settings.Changed += apply;
+        Closed += (_, _) =>
+        {
+            closed = true;
+            settings.Changed -= apply;
+        };
         EventHandler keyMapChanged = (_, _) => OnKeyMapChanged();
         services.Commands.KeyMapChanged += keyMapChanged;
         Closed += (_, _) => services.Commands.KeyMapChanged -= keyMapChanged;
 
         BuildMenu();
-        FunctionKeys.Configure(services.Commands, CanExecute);
+        WireArchives();
+        FunctionKeys.Configure(services.Commands, id => CanExecute(id) && !GreyedInArchive(id) && !GreyedInTree(id));
         FunctionKeys.CommandInvoked += (_, id) => Run(id, PanelTarget.Active);
+        InitCommandLine();
         SharedStrip.ItemClicked += (_, item) => OnStripItem(ActivePanel, item);
         SharedStrip.ItemMenuRequested += (_, r) => ShowStripMenu(ActivePanel, SharedStrip, r.Item);
         HotPathBar.ItemClicked += (_, item) => OnStripItem(ActivePanel, item, otherPanel: HotPathBar.ClickedWithCtrl);
         HotPathBar.ItemMenuRequested += (_, r) => ShowStripMenu(ActivePanel, HotPathBar, r.Item);
+        UserMenuBar.ItemClicked += (_, item) => OnStripItem(ActivePanel, item);
+        UserMenuBar.ItemMenuRequested += (_, r) => ShowStripMenu(ActivePanel, UserMenuBar, r.Item);
+        WireBarGrips();
+        WireBackForward();
         InitSplitter();
         _noticeTimer.Tick += (_, _) =>
         {
@@ -113,9 +144,20 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnModifierKey, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(KeyUpEvent, OnModifierKey, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(KeyDownEvent, OnMenuKey, RoutingStrategies.Tunnel);
+        AddHandler(PointerWheelChangedEvent, OnAltWheel, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(KeyUpEvent, OnMenuKey, RoutingStrategies.Tunnel);
         Deactivated += (_, _) => FunctionKeys.Modifiers = CoreModifiers.None;
-        Activated += (_, _) => CheckCutStillOnClipboard();
+        Activated += (_, _) =>
+        {
+            CheckCutStillOnClipboard();
+            (Avalonia.Application.Current as App)?.Theme.CheckTextSize();
+        };
+        if ((Avalonia.Application.Current as App)?.Theme is { } theme)
+        {
+            EventHandler textSize = (_, _) => ApplySettings();
+            theme.TextSizeChanged += textSize;
+            Closed += (_, _) => theme.TextSizeChanged -= textSize;
+        }
         InitFocusKeeping();
         _ = LoadDrivesAsync();
         SetActive(services.InitialActive, focus: false);
@@ -147,8 +189,18 @@ public partial class MainWindow : Window
                 }
 
                 (Avalonia.Application.Current as App)?.Icons.Start();
+                (Avalonia.Application.Current as App)?.Thumbnails.Start();
 
                 ShowSettingsFileProblem();
+                ShowLanguageProblems();
+                StartLog();
+                if (!_services.IsIsolated)
+                {
+                    StartSharing();
+                }
+
+                StartActivity();
+
                 if (OfferFirstSteps(_services.Settings.LoadResult.Status, _services.IsIsolated, StartupTrace.IsEnabled))
                 {
                     Avalonia.Threading.Dispatcher.UIThread.Post(async () => await ShowFirstStepsAsync(fromHelp: false), Avalonia.Threading.DispatcherPriority.Background);
@@ -169,11 +221,17 @@ public partial class MainWindow : Window
         {
             UnregisterDropTarget();
             CloseChildWindows();
+            _logs?.Close();
 
-            _services.SessionStore?.Save(new SessionState(_panels[0].Panel.Path, _panels[1].Panel.Path, _active, _lastFolder, _working.All));
-            foreach (var host in _panels)
+            _services.SessionStore?.Save(new SessionState(SessionPath(_panels[0]), SessionPath(_panels[1]), _active, _lastFolder, _working.All, _panels[0].Panel.View, _panels[1].Panel.View)
             {
-                host.Panel.Dispose();
+                Tabs = SavedTabs(),
+                LeftTab = _tabOn[0],
+                RightTab = _tabOn[1],
+            });
+            foreach (var tab in _tabs.SelectMany(t => t))
+            {
+                tab.Panel.Dispose();
             }
         };
     }
@@ -198,24 +256,49 @@ public partial class MainWindow : Window
     private PanelHost CreatePanel(int index, EntrySorter sorter)
     {
         var settings = _services.Settings;
-        var panel = new FilePanel(_services.Files, sorter, a => Dispatcher.UIThread.Post(a));
+        var panel = new FilePanel(_services.PanelFiles, sorter, a => Dispatcher.UIThread.Post(a));
         panel.SetShowHidden(settings.Current.Panels.ShowHiddenFiles);
+        panel.HistoryLimit = settings.Current.Layout.BackForward.StepsKept;
+        panel.SetView(StartView(index));
         var host = new PanelHost(panel, _services.Commands);
         host.View.Activated += (_, _) => SetActive(index, focus: false);
         host.View.UnhandledCommand += (_, request) => request.Handled = Run(request.Id, PanelTarget.Active, request.Chord);
+        host.View.OwnKey = chord => TryUserMenuKey(host, chord);
         host.View.RenameRequested += (_, _) => QuickRename(host);
         host.View.MenuRequested += (_, request) => OnPanelMenuRequested(host, request);
         host.View.DragRequested += (_, request) => StartDrag(host, request);
         host.View.IsCut = name => IsCut(host.Panel.Path, name) || IsDragged(host.Panel.Path, name);
         host.NoticeRequested += (_, message) => ShowNotice(message);
+        host.View.Refused += (_, _) => ShowNotice(AppStrings.Panel_WaitingRefused);
+        host.ServerTimeout = () => Remote.ServerAddress.Parse(host.Panel.LoadingPath) is { } loading ? _services.Servers.AnswerLimit(loading) : TimeSpan.FromSeconds(30);
         host.Strip.ItemClicked += (_, item) => OnStripItem(host, item);
         host.Strip.ItemMenuRequested += (_, r) => ShowStripMenu(host, host.Strip, r.Item);
         host.DirectoryLine.DriveButtonClicked += (_, _) => ToggleDriveMenu(host);
         host.DirectoryLine.PathMenuRequested += (_, point) => ShowPathMenu(host, point);
+        host.DirectoryLine.SpaceMenuRequested += (_, _) => ShowSpaceMenu(host);
         WireDirectoryLine(host, index);
+        WireQuickOpen(host);
+        WireViews(host);
+        WireFilter(host);
+        WireFolderLooks(host);
+        WireFlat(host);
+        WireColumns(host);
+        WireTabs(host);
+        WireBackForward(host);
+        WireGit(host);
+        WireModel(panel);
+        host.PathChanged += (_, _) => UpdateArchiveState(host);
+        host.View.BeforeCommand = id => (id == "Navigation.Parent" && GoUpToThisPc(host))
+                                        || (id == "Panel.Refresh" && ForgetServerListing(host));
+        return host;
+    }
+
+    private void WireModel(FilePanel panel)
+    {
+        var settings = _services.Settings;
         panel.Changed += (_, change) =>
         {
-            if ((change & (PanelChange.Focus | PanelChange.Selection | PanelChange.Items)) != 0 && ReferenceEquals(ActivePanel.Panel, panel))
+            if ((change & (PanelChange.Focus | PanelChange.Selection | PanelChange.Items)) != 0 && _panels is not null && ReferenceEquals(ActivePanel.Panel, panel))
             {
                 ScheduleShellMenu();
             }
@@ -225,20 +308,34 @@ public partial class MainWindow : Window
                 return;
             }
 
-            if (panel.ShowHidden != settings.Current.Panels.ShowHiddenFiles)
+            if (panel.ShowHidden != settings.Current.Panels.ShowHiddenFiles && HostOf(panel) is not null)
             {
                 settings.Update(s => s with { Panels = s.Panels with { ShowHiddenFiles = panel.ShowHidden } });
             }
 
             RememberDriveFolder(panel.Path);
-            if (ReferenceEquals(ActivePanel.Panel, panel))
+            UpdateTabTitles(panel);
+            if (_panels is not null && ReferenceEquals(ActivePanel.Panel, panel))
             {
                 UpdateActiveInfo();
             }
         };
-        panel.Error += (_, message) => ShowNotice(message);
-        panel.ExecuteRequested += (_, path) => _ = OpenFileAsync(path);
-        return host;
+        panel.Error += (_, message) =>
+        {
+            if (_panels is null || HostOf(panel) is not null)
+            {
+                ShowNotice(message);
+            }
+        };
+        panel.ExecuteRequested += (_, path) => OnExecuteRequested(HostOf(panel) ?? ActivePanel, path);
+        panel.HistoryChanged += (_, _) =>
+        {
+            if (_panels is not null && HostOf(panel) is not null)
+            {
+                UpdateBackForward();
+            }
+        };
+        panel.LeavingFolder = (path, focus) => DivertFromLockedTab(panel, path, focus);
     }
 
     private static void ShowInitialListing(PanelHost host, Task<DirectoryListing>? preloaded, string path, string fallback)
@@ -286,12 +383,14 @@ public partial class MainWindow : Window
         _panels[0].IsActive = index == 0;
         _panels[1].IsActive = index == 1;
         Splitter.RightActive = index == 1;
+        FunctionKeys.InvalidateVisual();
         if (focus)
         {
             _panels[index].View.Focus();
         }
 
         UpdateActiveInfo();
+        UpdateBackForward();
     }
 
     private PanelHost OtherPanel(PanelHost host) => ReferenceEquals(host, _panels[0]) ? _panels[1] : _panels[0];
@@ -321,8 +420,12 @@ public partial class MainWindow : Window
         var left = _panels[0].Panel;
         var right = _panels[1].Panel;
         HideComparison();
+        (_tabs[0], _tabs[1]) = (_tabs[1], _tabs[0]);
+        (_tabOn[0], _tabOn[1]) = (_tabOn[1], _tabOn[0]);
         _panels[0].Attach(right);
         _panels[1].Attach(left);
+        UpdateTabStrip(0);
+        UpdateTabStrip(1);
         UpdateActiveInfo();
     }
 
@@ -376,7 +479,7 @@ public partial class MainWindow : Window
         }
         else if (entry.IsDirectory)
         {
-            _ = other.NavigateAsync(Path.Join(panel.Path, entry.Name));
+            _ = other.NavigateAsync(panel.ChildPath(panel.Path, entry.Name));
         }
         else
         {
@@ -388,8 +491,9 @@ public partial class MainWindow : Window
     {
         var path = ActivePanel.Panel.Path;
         var layout = _services.Settings.Current.Layout;
-        Title = WindowTitle.Expand(layout.WindowTitle, path, AppBuild.TitleName(layout.TitleShowsVersion));
+        Title = WindowTitle.Expand(layout.WindowTitle, Core.Vfs.ShellPlace.Display(path), AppBuild.TitleName(layout.TitleShowsVersion));
         SharedStrip.Current = Platform.Windows.FileSystem.WindowsPath.GetRoot(path);
+        UpdateCommandLine();
     }
 
     private async Task LoadDrivesAsync()
@@ -398,31 +502,60 @@ public partial class MainWindow : Window
         UpdateStrips();
     }
 
+    private HighlightSettings? _highlightingFrom;
+    private Highlighter _highlighter = Highlighter.None;
+
     private void ApplySettings()
     {
         var s = _services.Settings.Current;
         var format = DisplayFormat.From(s.Panels, CultureInfo.CurrentCulture);
         var bars = s.Layout.Bars;
-        _services.Commands.UseKeyMap(s.Keyboard.KeyMap);
+        _working.Limit = s.Layout.DirectoryLine.FoldersKept;
+        _services.Commands.UseKeyMap(s.Keyboard.KeyMap, s.Keyboard.Keys);
         ApplyMenuBar(s.Layout);
 
         UpdateStrips();
         UpdateActiveInfo();
         FunctionKeys.IsVisible = bars.FunctionKeyBar;
-        SharedStrip.IsVisible = bars.DriveStrip && s.Layout.Strip == StripMode.Shared;
-        HotPathBar.IsVisible = bars.HotPathBar;
+        BarSizing.SetBarHeight(this, s.Layout.BarHeight);
         Splitter.ShowButtons = bars.MiddleToolbar;
         if (_sorter.NumericSort != s.Panels.NumericSort)
         {
-            _sorter = EntrySorter.ForCurrentCulture(s.Panels.NumericSort);
+            _sorter = Sorter(s.Panels.NumericSort);
+        }
+
+        if (Avalonia.Application.Current is App { Thumbnails: { } thumbs } && thumbs.Files != s.Panels.ThumbnailsOf)
+        {
+            thumbs.Files = s.Panels.ThumbnailsOf;
+            foreach (var host in _panels)
+            {
+                host.View.InvalidateRows();
+            }
+        }
+
+        if (!ReferenceEquals(_highlightingFrom, s.Highlighting))
+        {
+            _highlightingFrom = s.Highlighting;
+            _highlighter = new Highlighter(s.Highlighting.Effective);
+            _services.FolderLooks.Set(s.Highlighting.Folders);
         }
 
         foreach (var host in _panels)
         {
             host.ApplySettings(s, format);
+            host.View.Highlighter = _highlighter;
+            host.View.FolderLooks = _services.FolderLooks;
+            host.DirectoryLine.FolderLooks = _services.FolderLooks;
             host.Panel.SetShowHidden(s.Panels.ShowHiddenFiles);
             host.Panel.SetSorter(_sorter);
         }
+
+        ApplyTabSettings(s);
+        ApplyServerSettings(s);
+        ApplyStepsKept(s.Layout.BackForward.StepsKept);
+        UpdateBackForward();
+
+        KeepOwnViewsMade();
 
         if (!Splitter.IsDragging && _maximized is null)
         {
@@ -525,6 +658,7 @@ public partial class MainWindow : Window
 
     internal static bool IsBuilt(string id)
         => _windowCommands.Contains(id)
+           || IsTabCommand(id)
 
            || FilePanel.HandledCommands.Contains(id)
            || IsHotPathOrDriveMenuCommand(id)
@@ -535,12 +669,16 @@ public partial class MainWindow : Window
         "View.ToggleMenuBar" => _services.Settings.Current.Layout.Bars.MenuBar,
         "View.ToggleDriveStrip" => _services.Settings.Current.Layout.Bars.DriveStrip,
         "View.ToggleHotPathBar" => _services.Settings.Current.Layout.Bars.HotPathBar,
+        "View.ToggleUserMenuBar" => _services.Settings.Current.Layout.Bars.UserMenuBar,
+        "View.ToggleBackForwardBar" => _services.Settings.Current.Layout.BackForward.InBar,
         "View.ToggleDirectoryLine" => _services.Settings.Current.Layout.Bars.DirectoryLine,
         "View.ToggleColumnHeader" => _services.Settings.Current.Layout.Bars.ColumnHeader,
         "View.ToggleInformationLine" => _services.Settings.Current.Layout.Bars.InformationLine,
         "View.ToggleFunctionKeyBar" => _services.Settings.Current.Layout.Bars.FunctionKeyBar,
+        "View.ToggleCommandLine" => _services.Settings.Current.Layout.Bars.CommandLine,
         "View.ToggleMiddleToolbar" => _services.Settings.Current.Layout.Bars.MiddleToolbar,
         "Panel.ToggleHidden" => _services.Settings.Current.Panels.ShowHiddenFiles,
+        "Panel.ToggleDotFiles" => _services.Settings.Current.Panels.HideDotFiles,
         _ => false,
     };
 
@@ -553,13 +691,43 @@ public partial class MainWindow : Window
             _ => ActivePanel,
         };
 
+        if (host.View.IsLocked && !FilePanelView.AllowedWhileWaiting(id))
+        {
+            ShowNotice(AppStrings.Panel_WaitingRefused);
+            return true;
+        }
+
+        RememberCommand(id);
         if (IsHotPathOrDriveMenuCommand(id))
         {
             return RunHotPathCommand(id, host, chord);
         }
 
+        if (IsTabCommand(id))
+        {
+            return RunTabCommand(id, host);
+        }
+
+        if (RunServerCommand(id, host) || RunGitCommand(id, host) || RunOnServer(id, host))
+        {
+            return true;
+        }
+
+        if (BlockedByArchive(id, host) || RunInArchive(id, host))
+        {
+            return true;
+        }
+
+        if (RunNetworkCommand(id, host) || RunInPlace(id, host))
+        {
+            return true;
+        }
+
         switch (id)
         {
+            case "App.CommandSearch":
+                OpenQuickOpen();
+                return true;
             case "App.WindowMenu":
                 ShowWindowMenu(new Avalonia.Point(4, Controls.TitleBarParts.Height));
                 return true;
@@ -578,6 +746,15 @@ public partial class MainWindow : Window
             case "View.ToggleMenuBar":
                 UpdateBars(b => b with { MenuBar = !b.MenuBar });
                 return true;
+            case "Panel.OpenInExplorer":
+                _ = OpenInExplorerAsync(host);
+                return true;
+            case "Navigation.ShortcutTarget":
+                _ = GoToShortcutTargetAsync(host);
+                return true;
+            case "File.NewMenu":
+                ShowNewMenu(host);
+                return true;
             case "Selection.SelectByMask" or "Selection.UnselectByMask":
                 _ = SelectByMaskAsync(host, id == "Selection.SelectByMask");
                 return true;
@@ -587,17 +764,44 @@ public partial class MainWindow : Window
             case "Help.FirstSteps":
                 _ = ShowFirstStepsAsync(fromHelp: true);
                 return true;
+            case "App.About":
+                _ = ShowAboutAsync();
+                return true;
+            case "Help.Logs":
+                ShowLogs();
+                return true;
             case "Options.ExportSettings":
                 _ = SettingsFiles.ExportAsync();
                 return true;
             case "Options.ImportSettings":
                 _ = SettingsFiles.ImportAsync();
                 return true;
+            case "Options.ImportSalamander":
+                _ = SettingsFiles.ImportSalamanderAsync();
+                return true;
             case "Options.ResetAllSettings":
                 _ = SettingsFiles.ResetAllAsync();
                 return true;
             case "Panel.Swap":
                 SwapPanels();
+                return true;
+            case "View.ThumbnailsBigger" or "View.ThumbnailsSmaller":
+                StepThumbnailSize(id == "View.ThumbnailsBigger" ? 1 : -1);
+                return true;
+            case "View.Mode8" or "View.Mode9" or "View.Mode0":
+                RunOwnView(id, host);
+                return true;
+            case "Panel.SmartNameWidth":
+                ToggleSmartName(host);
+                return true;
+            case "Panel.Filter":
+                _ = FilterAsync(host);
+                return true;
+            case "Panel.ToggleDotFiles":
+                ToggleDotFiles();
+                return true;
+            case "Panel.FlatView":
+                ToggleFlat(host);
                 return true;
             case "Panel.Maximize":
                 ToggleMaximize(Array.IndexOf(_panels, host));
@@ -632,6 +836,12 @@ public partial class MainWindow : Window
                 return true;
             case "View.ToggleHotPathBar":
                 UpdateBars(b => b with { HotPathBar = !b.HotPathBar });
+                break;
+            case "View.ToggleUserMenuBar":
+                UpdateBars(b => b with { UserMenuBar = !b.UserMenuBar });
+                return true;
+            case "View.ToggleBackForwardBar":
+                UpdateBackForwardSettings(b => b.WithBar(!b.InBar));
                 return true;
             case "View.ToggleDirectoryLine":
                 UpdateBars(b => b with { DirectoryLine = !b.DirectoryLine });
@@ -644,6 +854,18 @@ public partial class MainWindow : Window
                 return true;
             case "View.ToggleFunctionKeyBar":
                 UpdateBars(b => b with { FunctionKeyBar = !b.FunctionKeyBar });
+                return true;
+            case "View.ToggleCommandLine":
+                UpdateBars(b => b with { CommandLine = !b.CommandLine });
+                return true;
+            case "CommandLine.Toggle":
+                ToggleCommandLine();
+                return true;
+            case var insert when insert.StartsWith("CommandLine.Insert", StringComparison.Ordinal):
+                InsertForCommandLine(insert);
+                return true;
+            case "Shell.CommandPrompt" or "Shell.CommandPromptAdmin":
+                OpenCommandShell(host, elevated: id == "Shell.CommandPromptAdmin");
                 return true;
             case "View.ToggleMiddleToolbar":
                 UpdateBars(b => b with { MiddleToolbar = !b.MiddleToolbar });
@@ -671,6 +893,18 @@ public partial class MainWindow : Window
                 return true;
             case "File.Delete" or "File.DeleteInverted":
                 _ = DeleteAsync(host, inverted: id == "File.DeleteInverted");
+                return true;
+            case "Archive.Pack":
+                _ = PackAsync(host);
+                return true;
+            case "Archive.Unpack":
+                _ = UnpackAsync(host);
+                return true;
+            case "Archive.Test":
+                _ = TestArchivesAsync(host);
+                return true;
+            case "UserMenu.Open":
+                ShowUserMenu(host);
                 return true;
             case "File.ContextMenu" or "Panel.DirectoryContextMenu":
                 ShowMenuFromKeyboard(host, background: id == "Panel.DirectoryContextMenu");
@@ -727,11 +961,15 @@ public partial class MainWindow : Window
         return false;
     }
 
-    internal async Task OpenOptionsAsync(string? category = null)
+    internal async Task OpenOptionsAsync(string? category = null, string? keyCommand = null)
     {
         if (_options is not null)
         {
-            if (category is not null)
+            if (keyCommand is not null)
+            {
+                _options.OpenKeyRow(keyCommand);
+            }
+            else if (category is not null)
             {
                 _options.ShowCategory(category);
             }
@@ -745,12 +983,23 @@ public partial class MainWindow : Window
             PanelFolder = () => ActivePanel.Panel.Path,
             PanelFolders = () => (_panels[0].Panel.Path, _panels[1].Panel.Path),
             TextClipboard = FileClipboardAccess,
+            UserMenuPreview = () => ActivePanel.Panel.Path.Length > 0 ? UserMenuContextFor(ActivePanel) : null,
+            UserMenuIcons = item => UserMenuIcon(item)?.Source,
         };
         var options = _options;
         options.ViewFile = file => OpenViewer(ActivePanel, file, ViewerKind.Text, siblings: [file], comeBackTo: options);
-        if (category is not null)
+        LanguageHooks(options);
+        if (keyCommand is not null)
+        {
+            _options.OpenKeyRow(keyCommand);
+        }
+        else if (category is not null)
         {
             _options.ShowCategory(category);
+        }
+        else if (_options.CurrentCategory == UserMenuPage)
+        {
+            _options.Rebuild();
         }
 
         try
@@ -803,6 +1052,7 @@ public partial class MainWindow : Window
     internal void ShowNotice(string text, double seconds, params (string Label, Action Run)[] actions)
     {
         NoticeText.Text = text;
+        NoticeBar.IsVisible = NoticeDetail.IsVisible = false;
         NoticeActions.Children.Clear();
         foreach (var (label, run) in actions)
         {
@@ -849,7 +1099,20 @@ public partial class MainWindow : Window
         }
     }
 
+    internal void ShowNoticeProgress(double? fraction, string detail)
+    {
+        NoticeBar.IsIndeterminate = fraction is null;
+        NoticeBar.Value = Math.Clamp(fraction ?? 0, 0, 1);
+        NoticeBar.IsVisible = true;
+        NoticeDetail.Text = detail;
+        NoticeDetail.IsVisible = true;
+        _noticeTimer.Stop();
+        _noticeTimer.Start();
+    }
+
     internal string? NoticeMessage => Notice.IsVisible ? NoticeText.Text : null;
+
+    internal string? NoticeProgress => Notice.IsVisible && NoticeDetail.IsVisible ? NoticeDetail.Text : null;
 
     internal IReadOnlyList<Button> NoticeButtons => [.. NoticeActions.Children.OfType<Button>()];
 
@@ -898,6 +1161,11 @@ public partial class MainWindow : Window
             return new Separator();
         }
 
+        if (node.Dynamic == "View.Columns")
+        {
+            return ColumnsSubmenu(node);
+        }
+
         var item = new MenuItem();
         if (node.Dynamic == "Find.Saved")
         {
@@ -930,7 +1198,7 @@ public partial class MainWindow : Window
 
         if (node.Checkable)
         {
-            item.ToggleType = MenuItemToggleType.CheckBox;
+            item.ToggleType = node.Radio ? MenuItemToggleType.Radio : MenuItemToggleType.CheckBox;
         }
 
         item.Click += (_, _) => Run(node.CommandId!, node.Target);
@@ -955,9 +1223,29 @@ public partial class MainWindow : Window
         foreach (var (item, node) in _menuItems)
         {
             item.IsEnabled = CanExecute(node.CommandId!);
-            if (node.Checkable)
+            if (node.CommandId == "Panel.SmartNameWidth")
             {
-                item.IsChecked = IsChecked(node.CommandId!);
+                var host = HostFor(node.Target);
+                item.IsEnabled = PanelViews.HasColumns(host.Panel.View);
+                item.IsChecked = item.IsEnabled && IsSmartName(host);
+                continue;
+            }
+
+            if (IsTabCommand(node.CommandId!))
+            {
+                item.IsEnabled = TabCommandEnabled(node.CommandId!, HostFor(node.Target));
+                item.IsChecked = TabChecked(node.CommandId!, HostFor(node.Target));
+                continue;
+            }
+
+            ShowOwnViewItem(item, node.CommandId!);
+            if (node.CommandId == "Panel.FlatView")
+            {
+                item.IsChecked = HostFor(node.Target).Panel.IsFlat;
+            }
+            else if (node.Checkable)
+            {
+                item.IsChecked = node.Radio ? IsViewChecked(node.CommandId!, node.Target) : IsChecked(node.CommandId!);
             }
         }
     }

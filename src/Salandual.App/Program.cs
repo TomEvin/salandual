@@ -18,6 +18,9 @@ internal static class Program
     public static int Main(string[] args)
     {
         StartupTrace.Mark("main");
+
+        Velopack.VelopackApp.Build().SetArgs(args).OnBeforeUninstallFastCallback(_ => Installer.Uninstalling()).Run();
+        StartupTrace.Mark("installer");
         var dataDirectory = AppServices.DefaultDataDirectory();
 
         if (Platform.Windows.Shell.SingleInstance.TryHandOff(Platform.Windows.Shell.SingleInstance.NameFor(dataDirectory), Environment.CurrentDirectory, args))
@@ -27,10 +30,22 @@ internal static class Program
 
         StartupTrace.Mark("single-instance");
         StartupWarmup.Start();
-        using var services = AppServices.CreateDefault(Core.StartOptions.Parse(args, Environment.CurrentDirectory), dataDirectory);
-        StartupTrace.Mark("services");
-        return BuildAvaloniaApp(services).StartWithClassicDesktopLifetime(args);
+        int code;
+        using (var services = AppServices.CreateDefault(Core.StartOptions.Parse(args, Environment.CurrentDirectory), dataDirectory))
+        {
+            StartupTrace.Mark("services");
+            code = BuildAvaloniaApp(services).StartWithClassicDesktopLifetime(args);
+        }
+
+        if (RestartAfterClose && Environment.ProcessPath is { } program)
+        {
+            using var restarted = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(program) { UseShellExecute = false, WorkingDirectory = AppContext.BaseDirectory });
+        }
+
+        return code;
     }
+
+    internal static bool RestartAfterClose { get; set; }
 
     public static AppBuilder BuildAvaloniaApp() => BuildAvaloniaApp(AppServices.CreateIsolated());
 

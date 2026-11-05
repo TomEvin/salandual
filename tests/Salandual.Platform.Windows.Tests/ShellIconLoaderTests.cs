@@ -50,6 +50,24 @@ public sealed class ShellIconLoaderTests : IDisposable
     public void Load_MissingPath_IsNull() => Assert.Null(OnSta(() => ShellIconLoader.Load(Path.Join(_dir, "nincs.txt"), 16)));
 
     [Fact]
+    public void LoadByName_AFileThatIsntThere_GivesTheIconOfItsKind()
+    {
+        var icon = OnSta(() => ShellIconLoader.LoadByName(Path.Join(_dir, "archive.zip"), 32));
+        Assert.NotNull(icon);
+        Assert.Equal(32, icon.Width);
+        Assert.Contains(icon.Bgra.Where((_, i) => i % 4 == 3), a => a > 0);
+        Assert.False(File.Exists(Path.Join(_dir, "archive.zip")));
+    }
+
+    [Fact]
+    public void IsUnknownType_OnlyForAKindWithNoProgramAndNoIcon()
+    {
+        Assert.False(Salandual.Platform.Windows.FileSystem.FileDetailsReader.IsUnknownType(".zip"));
+        Assert.False(Salandual.Platform.Windows.FileSystem.FileDetailsReader.IsUnknownType(".txt"));
+        Assert.True(Salandual.Platform.Windows.FileSystem.FileDetailsReader.IsUnknownType(".salandual-nothing-opens-this"));
+    }
+
+    [Fact]
     public void Request_RaisesLoaded_OnceForMergedRequests()
     {
         var file = Path.Join(_dir, "a.json");

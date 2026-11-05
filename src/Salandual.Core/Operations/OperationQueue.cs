@@ -8,12 +8,21 @@
 
 namespace Salandual.Core.Operations;
 
+public enum SameDiskRule
+{
+    Wait,
+    HardDiskOnly,
+    Never,
+}
+
 public sealed class OperationQueue
 {
     private readonly object _gate = new();
     private readonly List<OperationJob> _jobs = [];
     private readonly HashSet<OperationJob> _queued = [];
+    private readonly HashSet<OperationJob> _anyway = [];
     private bool _paused;
+    private SameDiskRule _sameDisk;
 
     public event EventHandler? Changed;
 
@@ -28,6 +37,27 @@ public sealed class OperationQueue
     {
         get { lock (_gate) { return [.. _jobs.Where(j => _queued.Contains(j) && j.State == JobState.Queued)]; } }
     }
+
+    public SameDiskRule SameDisk
+    {
+        get { lock (_gate) { return _sameDisk; } }
+        set
+        {
+            lock (_gate)
+            {
+                if (_sameDisk == value)
+                {
+                    return;
+                }
+
+                _sameDisk = value;
+            }
+
+            Pump();
+        }
+    }
+
+    public Func<string, bool>? WaitsOn { get; set; }
 
     public bool IsQueuePaused
     {
@@ -73,6 +103,21 @@ public sealed class OperationQueue
         Pump();
     }
 
+    public void StartAnyway(OperationJob job)
+    {
+        lock (_gate)
+        {
+            if (job.State != JobState.Waiting || _queued.Contains(job))
+            {
+                return;
+            }
+
+            _anyway.Add(job);
+        }
+
+        Pump();
+    }
+
     public void MoveUp(OperationJob job) => Move(job, -1);
 
     public void MoveDown(OperationJob job) => Move(job, +1);
@@ -92,6 +137,7 @@ public sealed class OperationQueue
             }
 
             _queued.Remove(job);
+            _anyway.Remove(job);
             job.Changed -= OnJobChanged;
         }
 
@@ -123,6 +169,7 @@ public sealed class OperationQueue
             {
                 _jobs.Remove(job);
                 _queued.Remove(job);
+                _anyway.Remove(job);
                 job.Changed -= OnJobChanged;
             }
         }
@@ -162,6 +209,13 @@ public sealed class OperationQueue
         }
     }
 
+    private IEnumerable<string> Blocking(OperationJob job) => _sameDisk switch
+    {
+        SameDiskRule.Never => [],
+        SameDiskRule.HardDiskOnly when WaitsOn is { } waitsOn => job.Volumes.Where(waitsOn),
+        _ => job.Volumes,
+    };
+
     private void Pump()
     {
         var start = new List<OperationJob>();
@@ -173,7 +227,7 @@ public sealed class OperationQueue
             {
                 if (job.IsActive)
                 {
-                    busy.UnionWith(job.Volumes);
+                    busy.UnionWith(Blocking(job));
                     queueBusy |= _queued.Contains(job);
                 }
             }
@@ -186,7 +240,7 @@ public sealed class OperationQueue
                     continue;
                 }
 
-                var free = !job.Volumes.Any(busy.Contains);
+                var free = _anyway.Contains(job) || !Blocking(job).Any(busy.Contains);
                 if (fromQueue)
                 {
                     if (_paused || queueBusy)
@@ -202,7 +256,7 @@ public sealed class OperationQueue
                     start.Add(job);
                 }
 
-                busy.UnionWith(job.Volumes);
+                busy.UnionWith(Blocking(job));
             }
         }
 

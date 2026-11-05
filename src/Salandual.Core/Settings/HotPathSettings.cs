@@ -133,16 +133,30 @@ public sealed record HotPathSettings
 
 public sealed record PlaceSetting(string Id, bool InMenu, bool InStrip);
 
+public enum DriveSpaceLook { Ring, Picture, Picture3D }
+
+public enum DriveIconLook { Plain, Picture, Picture3D }
+
+public enum MenuRowSpacing { Normal, Closer }
+
+public enum DriveSpaceShown { FreeOfTotal, Free, Total, Nothing }
+
+public sealed record AddedCloud(string Name, string Path);
+
 public sealed record DriveMenuSettings
 {
     public const string Desktop = "Desktop", Documents = "Documents", Downloads = "Downloads", Music = "Music",
-        Pictures = "Pictures", Videos = "Videos", Cloud = "Cloud", OtherPanel = "OtherPanel", Network = "Network", Registry = "Registry";
+        Pictures = "Pictures", Videos = "Videos", Cloud = "Cloud", OtherPanel = "OtherPanel", Network = "Network", Registry = "Registry", Ftp = "Ftp",
+        ThisPc = "ThisPc", Home = "Home", Libraries = "Libraries", RecycleBin = "RecycleBin";
+
+    public static bool IsShellPlace(string id) => id is ThisPc or Home or Libraries or RecycleBin or Network;
 
     public static IReadOnlyList<PlaceSetting> DefaultPlaces { get; } =
     [
+        new(ThisPc, true, true), new(Home, true, false), new(Libraries, true, false), new(RecycleBin, true, false),
         new(Desktop, true, false), new(Documents, true, false), new(Downloads, true, false), new(Music, false, false),
         new(Pictures, true, false), new(Videos, false, false), new(Cloud, true, false), new(OtherPanel, true, false),
-        new(Network, true, false), new(Registry, true, false),
+        new(Network, true, false), new(Ftp, true, false), new(Registry, true, false),
     ];
 
     public string HiddenDrives { get; set; } = "";
@@ -150,6 +164,34 @@ public sealed record DriveMenuSettings
     public string SeparatorsAfter { get; set; } = "";
 
     public bool FreeSpace { get; set; } = true;
+
+    public DriveSpaceShown SpaceShown { get; set; } = DriveSpaceShown.FreeOfTotal;
+
+    public MenuRowSpacing RowSpacing { get; set; } = MenuRowSpacing.Normal;
+
+    public bool FoldersInMenu { get; set; } = true;
+
+    public bool HotPathsInMenu { get; set; } = true;
+
+    public List<string> HiddenClouds { get; set; } = [];
+
+    public List<AddedCloud> AddedClouds { get; set; } = [];
+
+    public bool IsCloudShown(string path) => !HiddenClouds.Contains(path, StringComparer.OrdinalIgnoreCase);
+
+    public bool FreeSpaceInLine { get; set; } = true;
+
+    public bool ActivityInLine { get; set; } = true;
+
+    public bool ActivityInStrip { get; set; }
+
+    public bool PlaceIconsOnly { get; set; }
+
+    public ActivityLook ActivityLook { get; set; } = ActivityLook.Bar;
+
+    public DriveSpaceLook DriveInfoLook { get; set; } = DriveSpaceLook.Ring;
+
+    public DriveIconLook DriveListIcon { get; set; } = DriveIconLook.Plain;
 
     public List<PlaceSetting> Places { get; set; } = [.. DefaultPlaces];
 
@@ -179,6 +221,15 @@ public sealed record DriveMenuSettings
     {
         static string Letters(string? s) => new([.. new SortedSet<char>((s ?? "").ToUpperInvariant().Where(char.IsAsciiLetterUpper))]);
         var places = DefaultPlaces.Select(d => (Places ?? []).Find(p => p?.Id == d.Id) is { } p ? p : d).ToList();
-        return this with { HiddenDrives = Letters(HiddenDrives), SeparatorsAfter = Letters(SeparatorsAfter), Places = places };
+        return this with
+        {
+            HiddenDrives = Letters(HiddenDrives),
+            SeparatorsAfter = Letters(SeparatorsAfter),
+            Places = places,
+            SpaceShown = FreeSpace ? SpaceShown : DriveSpaceShown.Nothing,
+            FreeSpace = true,
+            HiddenClouds = [.. (HiddenClouds ?? []).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase)],
+            AddedClouds = [.. (AddedClouds ?? []).Where(c => c is not null && !string.IsNullOrWhiteSpace(c.Path)).Select(c => c with { Name = string.IsNullOrWhiteSpace(c.Name) ? c.Path.Trim() : c.Name.Trim(), Path = c.Path.Trim() }).DistinctBy(c => c.Path, StringComparer.OrdinalIgnoreCase)],
+        };
     }
 }

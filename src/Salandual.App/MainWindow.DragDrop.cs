@@ -34,10 +34,20 @@ internal enum DropSpotKind
     Chip,
 
     Line,
+
+    RunItem,
+
+    NewItem,
+
+    Tab,
 }
 
 internal sealed record DropSpot(DropSpotKind Kind, PanelHost? Host = null, string Folder = "", string Name = "", int Row = FilePanelView.NoDrop, DriveStrip? Strip = null, StripItem? Item = null)
 {
+    public TabStrip? Tabs { get; init; }
+
+    public int TabIndex { get; init; } = -1;
+
     public static DropSpot Nowhere { get; } = new(DropSpotKind.None);
 }
 
@@ -81,8 +91,28 @@ public partial class MainWindow
     internal void StartDrag(PanelHost host, PanelDragRequest request)
     {
         var panel = host.Panel;
-        if (panel.Path.Length == 0 || request.Row < 0 || request.Row >= panel.Items.Count || panel.IsUp(request.Row))
+        if (panel.Path.Length == 0 || panel.IsTree || request.Row < 0 || request.Row >= panel.Items.Count || panel.IsUp(request.Row))
         {
+            return;
+        }
+
+        if (ArchiveAt(host) is { } archive)
+        {
+            IReadOnlyList<string> picked = panel.IsSelected(request.Row) ? panel.GetOperationNames() : [panel.Items[request.Row].Name];
+            if (UnpackForDrag(archive, picked) is not { } ready)
+            {
+                return;
+            }
+
+            try
+            {
+                ShellAccess.DragOut(_hwnd, ready.Folder, ready.Names, plainCopies: true, DragPictureFor(ready.Folder, ready.Names));
+            }
+            catch (Exception ex)
+            {
+                ShowNotice(ex.Message);
+            }
+
             return;
         }
 
@@ -122,7 +152,7 @@ public partial class MainWindow
                 var pixels = ShellAccess.LoadIcon(path, (int)Math.Round(DragPictures.IconSize * scale));
                 return (pixels is null ? null : (Avalonia.Media.Imaging.Bitmap)IconCache.ToBitmap(pixels), Directory.Exists(path));
             }).ToList();
-            return DragPictures.Draw(icons, names.Count, scale, Brush("Brush.Accent"), Brush("Brush.OnAccent"), Brush("Brush.SecondaryText"));
+            return DragPictures.Draw(icons, names.Count, scale, Brush("Brush.AccentFill"), Brush("Brush.OnAccent"), Brush("Brush.SecondaryText"));
         }
         catch (Exception)
         {
@@ -170,6 +200,17 @@ public partial class MainWindow
             return DropEffects.None;
         }
 
+        if (spot.Kind is DropSpotKind.RunItem or DropSpotKind.NewItem)
+        {
+            var effect = UserMenuBarFeedback(spot, data.Files).Effect;
+            if (effect != DropEffects.None)
+            {
+                Dispatcher.UIThread.Post(() => DropOnUserMenuBar(spot, data.Files));
+            }
+
+            return effect;
+        }
+
         if (spot.Kind == DropSpotKind.None || data.Files.Count == 0 || DropRules.Check(data.Files, spot.Folder) != DropProblem.None)
         {
             return DropEffects.None;
@@ -200,10 +241,14 @@ public partial class MainWindow
             {
                 case FilePanelView view when _panels.FirstOrDefault(h => h.View == view) is { } host:
                     return PanelSpot(host, view.RowAt(this.TranslatePoint(at, view) ?? default));
+                case DriveStrip strip when strip == UserMenuBar:
+                    return UserMenuBarSpot(strip.ItemAt(this.TranslatePoint(at, strip) ?? default));
                 case DriveStrip strip:
                     return ChipSpot(strip, strip.ItemAt(this.TranslatePoint(at, strip) ?? default));
                 case DirectoryLine line when _panels.FirstOrDefault(h => h.DirectoryLine == line) is { } host:
                     return new DropSpot(DropSpotKind.Line, host);
+                case TabStrip tabs when _panels.FirstOrDefault(h => h.Tabs == tabs) is { } host:
+                    return TabSpot(host, tabs.IndexAt(this.TranslatePoint(at, tabs) ?? default));
             }
         }
 
@@ -213,7 +258,7 @@ public partial class MainWindow
     private static DropSpot PanelSpot(PanelHost host, int row)
     {
         var panel = host.Panel;
-        if (panel.Path.Length == 0)
+        if (panel.Path.Length == 0 || panel.IsTree)
         {
             return DropSpot.Nowhere;
         }
@@ -224,6 +269,17 @@ public partial class MainWindow
         }
 
         return new DropSpot(DropSpotKind.Panel, host, panel.Path, FolderName(panel.Path), FilePanelView.DropOnPanel);
+    }
+
+    private DropSpot TabSpot(PanelHost host, int index)
+    {
+        var tabs = TabsOf(host);
+        if (index < 0 || index >= tabs.Count || TabFolder(tabs[index]) is not { Length: > 0 } folder)
+        {
+            return DropSpot.Nowhere;
+        }
+
+        return new DropSpot(DropSpotKind.Tab, host, folder, FolderName(folder)) { Tabs = host.Tabs, TabIndex = index };
     }
 
     private DropSpot ChipSpot(DriveStrip strip, StripItem? item)
@@ -267,6 +323,11 @@ public partial class MainWindow
                 : DropFeedback.Nothing;
         }
 
+        if (spot.Kind is DropSpotKind.RunItem or DropSpotKind.NewItem)
+        {
+            return UserMenuBarFeedback(spot, files);
+        }
+
         if (spot.Kind == DropSpotKind.None || files.Count == 0)
         {
             return DropFeedback.Nothing;
@@ -306,6 +367,16 @@ public partial class MainWindow
             oldStrip.DropItem = null;
         }
 
+        if (old.Tabs is { } oldTabs && !ReferenceEquals(oldTabs, spot.Tabs))
+        {
+            oldTabs.DropIndex = -1;
+        }
+
+        if (spot.Tabs is { } tabStrip)
+        {
+            tabStrip.DropIndex = spot.TabIndex;
+        }
+
         if (spot.Host is { } host)
         {
             host.View.DropRow = spot.Kind is DropSpotKind.Panel or DropSpotKind.FolderRow ? spot.Row : FilePanelView.NoDrop;
@@ -321,6 +392,20 @@ public partial class MainWindow
     internal async Task DropFilesAsync(DropSpot spot, IReadOnlyList<string> files, DropEffects effect, bool withOptions)
     {
         var host = spot.Host ?? ActivePanel;
+        if (_services.Archives.LocateCached(spot.Folder) is { } archive)
+        {
+            if (effect == DropEffects.Link || files.Any(f => _services.Archives.LocateCached(f) is not null))
+            {
+                ShowReadOnlyNotice(archive);
+            }
+            else
+            {
+                DropIntoArchive(archive, files, move: effect == DropEffects.Move);
+            }
+
+            return;
+        }
+
         if (effect == DropEffects.Link)
         {
             await MakeShortcutsAsync(host, files, spot.Folder);

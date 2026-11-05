@@ -71,7 +71,7 @@ public sealed class FirstStepsTests : IDisposable
     {
         var help = MainMenu.Create().Last();
         var ids = MainMenu.Flatten(help.Children!).Select(n => n.CommandId).ToList();
-        Assert.Equal(["Help.Contents", "Help.WhatIsThis", "Help.FirstSteps", "App.About"], ids);
+        Assert.Equal(["Help.Contents", "Help.WhatIsThis", "Help.FirstSteps", "Help.Logs", "App.About"], ids);
         Assert.Equal("First steps", CommandRegistry.CreateDefault()["Help.FirstSteps"].Title);
         Assert.True(MainWindow.IsBuilt("Help.FirstSteps"));
     }
@@ -94,7 +94,8 @@ public sealed class FirstStepsTests : IDisposable
             seen.Add(w.Current);
         }
 
-        Assert.Equal(Enum.GetValues<FirstStepsWindow.Step>(), seen);
+        Assert.Equal(w.Steps, seen);
+        Assert.DoesNotContain(FirstStepsWindow.Step.Salamander, seen);
         Assert.Equal("Start Salandual", w.NextButton.Content);
         Assert.False(w.SkipButton.IsVisible);
         Assert.Contains("All set", Texts(w));
@@ -199,6 +200,8 @@ public sealed class FirstStepsTests : IDisposable
         var w = Open(services);
         w.Show(FirstStepsWindow.Step.Bars);
         Tagged<CheckBox>(w, "bar:middle").IsChecked = false;
+        Assert.True(Tagged<CheckBox>(w, "bar:backforward").IsChecked);
+        Tagged<CheckBox>(w, "bar:backforward").IsChecked = false;
         Click(Tagged<ToggleButton>(w, "row2"));
         Assert.Contains("28 px per row", Texts(w));
 
@@ -211,7 +214,7 @@ public sealed class FirstStepsTests : IDisposable
 
         w.Show(FirstStepsWindow.Step.Ready);
         var summary = w.SummaryLines().ToDictionary(l => l.Label, l => l.Value);
-        Assert.Equal("menu bar, drive strip, hot paths bar, F-key bar", summary["Bars"]);
+        Assert.Equal("menu bar, drive strip, hot paths bar, F-key bar, free space, disk activity", summary["Bars"]);
         Assert.Equal("Comfortable", summary["Row height"]);
         Assert.Equal("Bytes", summary["Sizes"]);
         Assert.Equal("ISO · 12-hour", summary["Dates and time"]);
@@ -228,7 +231,8 @@ public sealed class FirstStepsTests : IDisposable
         main.ApplyFirstSteps(result, fromHelp: false);
         Dispatcher.UIThread.RunJobs();
         var s = services.Settings.Current;
-        Assert.Equal((28, false, SizeUnits.Bytes, TimeFormat.Hours12, StartFolders.Home), (s.Layout.RowHeight, s.Layout.Bars.MiddleToolbar, s.Panels.SizeUnits, s.Panels.TimeFormat, s.General.StartFolders));
+        Assert.Equal((28, false, SizeStyle.Bytes, TimeFormat.Hours12, StartFolders.Home), (s.Layout.RowHeight, s.Layout.Bars.MiddleToolbar, s.Panels.SizeStyle, s.Panels.TimeFormat, s.General.StartFolders));
+        Assert.Equal(BackForwardPlace.Off, s.Layout.BackForward.Place);
         Assert.True(StartWithWindowsState.IsOn(services.StartWithWindows, services.ProgramPath));
         Assert.Null(main.NoticeMessage);
         main.Close();
@@ -315,7 +319,7 @@ public sealed class FirstStepsTests : IDisposable
         void Save(Window w, string name) => w.CaptureRenderedFrame()!.Save(Path.Combine(dir, name), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
 
         var w = Open(AppServices.CreateIsolated());
-        foreach (var step in Enum.GetValues<FirstStepsWindow.Step>())
+        foreach (var step in w.Steps)
         {
             w.Show(step);
             Dispatcher.UIThread.RunJobs();

@@ -54,11 +54,32 @@ public sealed class WorkingDirectoriesTests : IDisposable
             w.Remember($@"C:\R{i}", 1);
         }
 
-        Assert.Equal(WorkingDirectories.MaxShown, w.For(0, false).Count);
+        Assert.Equal(WorkingDirectories.DefaultLimit, w.For(0, false).Count);
         Assert.Equal(@"C:\L29", w.For(0, false)[0].Path);
         Assert.Equal(@"C:\L10", w.For(0, false)[^1].Path);
-        Assert.Equal(WorkingDirectories.MaxShown * 2, w.All.Count);
-        Assert.Equal(WorkingDirectories.MaxShown, w.For(0, true).Count);
+        Assert.Equal(WorkingDirectories.DefaultLimit * 2, w.All.Count);
+        Assert.Equal(WorkingDirectories.DefaultLimit, w.For(0, true).Count);
+    }
+
+    [Fact]
+    public void Limit_FromOptions_KeepsThatMany_AndASmallerOneForgetsTheOldest()
+    {
+        var w = new WorkingDirectories { Limit = 40 };
+        for (var i = 0; i < 50; i++)
+        {
+            w.Remember($@"C:\L{i}", 0);
+            w.Remember($@"C:\R{i}", 1);
+        }
+
+        Assert.Equal(40, w.For(0, false).Count);
+        w.Limit = 6;
+        Assert.Equal(6, w.For(1, false).Count);
+        Assert.Equal(@"C:\R49", w.For(1, false)[0].Path);
+        Assert.Equal(12, w.All.Count);
+        w.Limit = 1000;
+        Assert.Equal(WorkingDirectories.MaxLimit, w.Limit);
+        w.Limit = 0;
+        Assert.Equal(WorkingDirectories.MinLimit, w.Limit);
     }
 
     [Fact]

@@ -323,6 +323,11 @@ internal sealed class InlineRename
         }
 
         End(focusList);
+        if (_isDirectory)
+        {
+            _host.RaiseRenamed(WindowsPath.Join(folder, oldName), WindowsPath.Join(folder, name));
+        }
+
         if (_host.Panel.Results is not null)
         {
             _host.Panel.RenameResult(_rowName, name);

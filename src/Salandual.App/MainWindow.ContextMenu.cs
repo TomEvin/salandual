@@ -48,6 +48,12 @@ internal interface IShellAccess
     IDisposable? RegisterDropTarget(nint hwnd, IDropHandler handler);
 
     Task<string> CreateShortcutAsync(string target, string folder);
+
+    Task OpenInExplorerAsync(string folder, IReadOnlyList<string> names) => Task.CompletedTask;
+
+    Task<string?> ShortcutTargetAsync(string shortcut) => Task.FromResult<string?>(null);
+
+    IReadOnlyList<ShellNewItem> NewItems() => [];
 }
 
 internal interface IShellMenuHandle : IDisposable
@@ -83,6 +89,12 @@ internal sealed class WindowsShellAccess : IShellAccess
     public IDisposable? RegisterDropTarget(nint hwnd, IDropHandler handler) => ShellDropTarget.Register(hwnd, handler);
 
     public Task<string> CreateShortcutAsync(string target, string folder) => ShellLinks.CreateAsync(target, folder);
+
+    public Task OpenInExplorerAsync(string folder, IReadOnlyList<string> names) => WindowsShellPlaces.OpenInExplorerAsync(folder, names);
+
+    public Task<string?> ShortcutTargetAsync(string shortcut) => ShellLinks.TargetAsync(shortcut);
+
+    public IReadOnlyList<ShellNewItem> NewItems() => ShellNewItems.List();
 
     private sealed class Handle(ShellMenu menu) : IShellMenuHandle
     {
@@ -129,6 +141,20 @@ internal sealed class NoShellAccess : IShellAccess
     public IDisposable? RegisterDropTarget(nint hwnd, IDropHandler handler) => null;
 
     public Task<string> CreateShortcutAsync(string target, string folder) => Task.FromException<string>(new NotSupportedException());
+
+    public List<(string Folder, string[] Names)> Explored { get; } = [];
+
+    public Dictionary<string, string> Shortcuts { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public Task OpenInExplorerAsync(string folder, IReadOnlyList<string> names)
+    {
+        Explored.Add((folder, [.. names]));
+        return Task.CompletedTask;
+    }
+
+    public Task<string?> ShortcutTargetAsync(string shortcut) => Task.FromResult(Shortcuts.TryGetValue(shortcut, out var target) ? target : null);
+
+    public IReadOnlyList<ShellNewItem> NewItems() => [new(".txt", "TXT", []), new(".md", "MD", "# "u8.ToArray())];
 
     private sealed record Empty(string Folder, IReadOnlyList<string> Names, bool Extended) : IShellMenuHandle
     {
@@ -210,7 +236,7 @@ public partial class MainWindow
             _menuTimer.Tick += (_, _) =>
             {
                 _menuTimer.Stop();
-                if (IsActive && ActivePanel.Panel.Path.Length > 0 && !_services.IsIsolated)
+                if (IsActive && ActivePanel.Panel.Path.Length > 0 && !_services.IsIsolated && ArchiveAt(ActivePanel) is null && !OnServer(ActivePanel))
                 {
                     _ = ShellMenuFor(DefaultTarget(ActivePanel));
                 }
@@ -305,6 +331,24 @@ public partial class MainWindow
             }
         }
 
+        if (InPlace(host))
+        {
+            ShowPlaceMenu(host, request.Position, background: target.IsBackground);
+            return;
+        }
+
+        if (ArchiveAt(host) is not null)
+        {
+            ShowArchiveMenu(host, request.Position);
+            return;
+        }
+
+        if (OnServer(host))
+        {
+            ShowServerMenu(host, request.Position, background: target.IsBackground);
+            return;
+        }
+
         var native = request.Shift || _services.Settings.Current.Mouse.RightClick == RightClickMenu.Windows;
         if (native)
         {
@@ -326,6 +370,12 @@ public partial class MainWindow
 
         var target = background ? MenuTarget.For(panel.Path, [], false) : DefaultTarget(host);
         var at = host.View.NameBounds(panel.Focus) is { } r && !background ? new Point(r.X + 24, r.Bottom) : new Point(40, 40);
+        if (ArchiveAt(host) is not null)
+        {
+            ShowArchiveMenu(host, at);
+            return;
+        }
+
         if (_services.Settings.Current.Mouse.RightClick == RightClickMenu.Windows)
         {
             _ = ShowWindowsMenuAsync(host, target, at);
@@ -378,29 +428,13 @@ public partial class MainWindow
 
         MenuItem Cmd(string header, string? iconId, string? commandId, Action run, bool enabled = true)
         {
-            var mi = new MenuItem { Header = header, IsEnabled = enabled, Icon = iconId is null ? null : AppIcons.Create(iconId) };
+            var mi = new MenuItem { Header = header, IsEnabled = enabled, Icon = iconId is null ? null : AppIcons.ForPanel(iconId, ReferenceEquals(host, _panels[1])) };
             if (commandId is not null && _services.Commands.FirstChord(commandId) is { } chord && KeyMapping.ToGesture(chord) is { } gesture)
             {
                 mi.InputGesture = gesture;
             }
 
             mi.Click += (_, _) => run();
-            items.Add(mi);
-            return mi;
-        }
-
-        MenuItem Later(string header, string iconId, string commandId)
-        {
-            _services.Commands.TryGet(commandId, out var definition);
-            var key = _services.Commands.FirstChord(commandId)?.ToString();
-            var later = CommandText.Milestone(definition?.PlannedFor ?? "");
-            var note = key is null ? Loc.Format(AppStrings.QuickMenu_ArrivesIn, later) : Loc.Format(AppStrings.QuickMenu_KeyArrivesIn, key, later);
-            var label = new DockPanel();
-            var noteText = new TextBlock { Text = note, FontSize = 11, Margin = new Thickness(24, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }.Res(TextBlock.ForegroundProperty, "Brush.TertiaryText");
-            DockPanel.SetDock(noteText, Dock.Right);
-            label.Children.Add(noteText);
-            label.Children.Add(new AccessText { Text = header, VerticalAlignment = VerticalAlignment.Center });
-            var mi = new MenuItem { Header = label, IsEnabled = false, Icon = AppIcons.Create(iconId, "Brush.TertiaryText"), Tag = note };
             items.Add(mi);
             return mi;
         }
@@ -441,6 +475,7 @@ public partial class MainWindow
         if (target.IsBackground)
         {
             Head(items, WindowsPath.GetName(panel.Path).TrimEnd('\\') is { Length: > 0 } n ? n : panel.Path);
+            Cmd(AppStrings.QuickMenu_New, "Icon.Add", "File.NewMenu", () => ShowNewMenu(host, at));
             Cmd(AppStrings.QuickMenu_Paste, "Clipboard.Paste", "Clipboard.Paste", () => RunFor("Clipboard.Paste"), hasClipboard);
             AddSeparator();
             Cmd(AppStrings.QuickMenu_NewFolder, "File.CreateDirectory", "File.CreateDirectory", () => RunFor("File.CreateDirectory"));
@@ -490,11 +525,16 @@ public partial class MainWindow
                 else
                 {
                     Cmd(AppStrings.QuickMenu_OpenWith, "Icon.OpenWith", null, () => ShellAccess.OpenWith(_hwnd, WindowsPath.Join(panel.Path, target.Names[0])));
+                    if (target.Names[0].EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) && !target.OverridesSelection)
+                    {
+                        Cmd(AppStrings.QuickMenu_ShortcutTarget, "Icon.Path", "Navigation.ShortcutTarget", () => RunFor("Navigation.ShortcutTarget"));
+                    }
                 }
 
                 JumpToFile();
             }
 
+            AddUserMenuTop(items, host, target);
             Cmd(AppStrings.QuickMenu_View, "File.View", "File.View", () => RunFor("File.View"), single is { IsDirectory: false });
             if (!many && single is { IsDirectory: false })
             {
@@ -538,7 +578,25 @@ public partial class MainWindow
                 copyPath.Items.Add(mi);
             }
 
-            Later(AppStrings.QuickMenu_Pack, "Archive.Pack", "Archive.Pack");
+            Cmd(AppStrings.QuickMenu_Pack, "Archive.Pack", "Archive.Pack", () => RunFor("Archive.Pack"));
+            if (entries.Any(e => e is { IsDirectory: false } f && Archives.ArchivePaths.IsArchiveName(f.Name)))
+            {
+                Cmd(AppStrings.QuickMenu_Unpack, "Archive.Unpack", "Archive.Unpack", () => RunFor("Archive.Unpack"));
+                Cmd(AppStrings.QuickMenu_TestArchive, "Archive.Test", "Archive.Test", () => RunFor("Archive.Test"));
+            }
+
+            if (UserMenuSubmenu(host, target) is { } userMenu)
+            {
+                items.Add(userMenu);
+            }
+        }
+
+        if (!target.IsBackground && entries.Count > 0 && entries.All(e => e is { IsDirectory: true }) && ArchiveAt(host) is null && panel.Results is null)
+        {
+            AddSeparator();
+            var folders = target.Names.ToList();
+            Cmd(AppStrings.Flat_Menu, "Panel.FlatView", "Panel.FlatView", () => ToggleFlat(host, folders));
+            items.Add(FolderLookMenu(host, [.. target.Names.Select(n => WindowsPath.Join(panel.Path, n))], at));
         }
 
         AddSeparator();

@@ -14,10 +14,13 @@ internal sealed class FakeFileSystem : IFileSystemProvider
 {
     private readonly Dictionary<string, List<FileEntry>> _dirs = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<(string Path, Action<DirectoryChange> Change, Action<Exception> Error)> _watches = [];
+    private readonly List<(string Path, Action<IReadOnlyCollection<string>?> Change)> _treeWatches = [];
 
     public ProviderCapabilities Capabilities => ProviderCapabilities.List | ProviderCapabilities.Watch;
 
     public int ListCalls { get; private set; }
+
+    public Task? Hold { get; set; }
 
     public FakeFileSystem Dir(string path, params string[] children)
     {
@@ -25,10 +28,11 @@ internal sealed class FakeFileSystem : IFileSystemProvider
         foreach (var child in children)
         {
             var hidden = child.StartsWith('~');
-            var c = hidden ? child[1..] : child;
+            var link = child.StartsWith('@');
+            var c = hidden || link ? child[1..] : child;
             var isDir = c.EndsWith('/');
             var parts = c.TrimEnd('/').Split(':');
-            var attributes = (isDir ? FileAttributes.Directory : FileAttributes.Archive) | (hidden ? FileAttributes.Hidden : 0);
+            var attributes = (isDir ? FileAttributes.Directory : FileAttributes.Archive) | (hidden ? FileAttributes.Hidden : 0) | (link ? FileAttributes.ReparsePoint : 0);
             list.Add(new FileEntry(parts[0], parts.Length > 1 ? long.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) : 0, 0, attributes));
             if (isDir)
             {
@@ -61,6 +65,16 @@ internal sealed class FakeFileSystem : IFileSystemProvider
         }
     }
 
+    public void FireTreeChange(string root, params string[]? paths)
+    {
+        foreach (var w in _treeWatches.Where(w => w.Path == root).ToList())
+        {
+            w.Change(paths);
+        }
+    }
+
+    public int TreeWatchCount => _treeWatches.Count;
+
     public void FireError(string path)
     {
         foreach (var w in _watches.Where(w => w.Path == path).ToList())
@@ -69,15 +83,20 @@ internal sealed class FakeFileSystem : IFileSystemProvider
         }
     }
 
-    public Task<DirectoryListing> ListAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<DirectoryListing> ListAsync(string path, CancellationToken cancellationToken = default)
     {
         ListCalls++;
+        if (Hold is { } hold)
+        {
+            await hold.WaitAsync(cancellationToken);
+        }
+
         if (!_dirs.TryGetValue(path, out var list))
         {
             throw new DirectoryNotFoundException($"Could not find {path}.");
         }
 
-        return Task.FromResult(new DirectoryListing(path, [.. list], TimeSpan.FromMilliseconds(1)));
+        return new DirectoryListing(path, [.. list], TimeSpan.FromMilliseconds(1));
     }
 
     public string? GetParent(string path)
@@ -98,6 +117,13 @@ internal sealed class FakeFileSystem : IFileSystemProvider
         var w = (path, onChange, onError);
         _watches.Add(w);
         return new Unwatch(() => _watches.Remove(w));
+    }
+
+    public IDisposable? WatchTree(string path, Action<IReadOnlyCollection<string>?> onChange, Action<Exception> onError)
+    {
+        var w = (path, onChange);
+        _treeWatches.Add(w);
+        return new Unwatch(() => _treeWatches.Remove(w));
     }
 
     private sealed class Unwatch(Action action) : IDisposable

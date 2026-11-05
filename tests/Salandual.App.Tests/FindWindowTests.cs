@@ -62,6 +62,10 @@ public sealed class FindWindowTests : IDisposable
             OpenFile = path => _calls.Add("open " + path),
             View = (path, siblings, text) => _calls.Add($"view {path} [{siblings.Count}]" + (text is null ? "" : $" “{text.Text}”")),
             Edit = path => _calls.Add("edit " + path),
+            Archives = new Salandual.Archives.ArchiveSearch(),
+            OpenInArchive = path => _calls.Add("open copy " + path),
+            ViewInArchive = (path, text) => _calls.Add("view copy " + path + (text is null ? "" : $" “{text.Text}”")),
+            EditInArchive = path => _calls.Add("edit copy " + path),
             Properties = (folder, names, windows, _) => _calls.Add($"properties {folder} {string.Join(",", names)}" + (windows ? " windows" : "")),
             OpenWith = path => _calls.Add("open with " + path),
             CopyOrMove = (kind, hits, _) =>
@@ -540,13 +544,17 @@ public sealed class FindWindowTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task Inside_zip_files_when_ticked()
+    public async Task Inside_archives_when_ticked()
     {
         using (var zip = System.IO.Compression.ZipFile.Open(Path.Join(_dir, "pack.zip"), System.IO.Compression.ZipArchiveMode.Create))
         {
             using var writer = new StreamWriter(zip.CreateEntry("inner/invoice.txt").Open());
             writer.Write("deploy the invoice");
         }
+
+        Write(@"tar\old\invoice.md", "the old invoice");
+        System.Formats.Tar.TarFile.CreateFromDirectory(Path.Join(_dir, "tar"), Path.Join(_dir, "backup.tar"), includeBaseDirectory: false);
+        Directory.Delete(Path.Join(_dir, "tar"), recursive: true);
 
         var w = Open();
         w.NamedBox.Text = "invoice";
@@ -555,15 +563,20 @@ public sealed class FindWindowTests : IDisposable
 
         w.InsideZipBox.IsChecked = true;
         await w.StartAsync(ResultMode.New);
-        var hit = Assert.Single(w.Shown);
-        Assert.Equal(Path.Join(_dir, "pack.zip", "inner", "invoice.txt"), hit.FullPath);
+        Assert.Equal([Path.Join(_dir, "backup.tar", "old", "invoice.md"), Path.Join(_dir, "pack.zip", "inner", "invoice.txt")], w.Shown.Select(h => h.FullPath).Order(StringComparer.Ordinal));
+        var hit = w.Shown.Single(h => h.Name == "invoice.txt");
 
         w.ResultList.SelectedItem = hit;
+        Press(w.ResultList, Key.Enter);
         Press(w.ResultList, Key.F3);
-        Assert.Empty(_calls);
-        Assert.Contains("ZIP", w.NoticeText, StringComparison.Ordinal);
+        Press(w.ResultList, Key.F4);
         Press(w.ResultList, Key.Space);
-        Assert.Equal(["panel " + Path.Join(_dir, "pack.zip")], _calls);
+        Assert.Equal(["open copy " + hit.FullPath, "view copy " + hit.FullPath, "edit copy " + hit.FullPath, "panel " + hit.FullPath], _calls);
+
+        _calls.Clear();
+        Press(w.ResultList, Key.F8);
+        Assert.Empty(_calls);
+        Assert.Contains("Ctrl+J", w.NoticeText, StringComparison.Ordinal);
         w.Close();
     }
 

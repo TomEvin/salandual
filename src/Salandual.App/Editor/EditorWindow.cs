@@ -49,6 +49,10 @@ internal sealed record EditorRequest(string Path)
     internal IClipboardAccess? Clipboard { get; init; }
 
     public Func<string, IReadOnlyList<EditWithItem>>? EditWith { get; init; }
+
+    public string? CopyNote { get; init; }
+
+    public Func<string, Task>? Saved { get; init; }
 }
 
 internal sealed partial class EditorWindow : Window
@@ -112,7 +116,7 @@ internal sealed partial class EditorWindow : Window
         _editor.FocusAdorner = null;
         _editor.TextArea.FocusAdorner = null;
         _editor.Bind(TextEditor.FontFamilyProperty, this.GetResourceObservable("Font.Mono"));
-        _editor.Bind(TextEditor.FontSizeProperty, this.GetResourceObservable("Font.MonoSize"));
+        _editor.Bind(TextEditor.FontSizeProperty, this.GetResourceObservable("Font.MonoSizeShown"));
 
         var titleText = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
         titleText.Inlines!.Add(_titleDot);
@@ -233,6 +237,12 @@ internal sealed partial class EditorWindow : Window
 
         SetText(file, keepUndo: false);
         ShowLoading(false);
+        if (_request.CopyNote is { } note)
+        {
+            _editor.IsReadOnly = _request.Saved is null;
+            ShowNote(note);
+        }
+
         _editor.TextArea.Caret.Offset = 0;
         _editor.ScrollToHome();
         _editor.Focus();
@@ -562,6 +572,11 @@ internal sealed partial class EditorWindow : Window
                 PreviewAfterSave();
             }
 
+            if (_request.Saved is { } saved && to is null)
+            {
+                _ = saved(path);
+            }
+
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -621,7 +636,7 @@ internal sealed partial class EditorWindow : Window
             Loc.Format(AppStrings.Editor_Close_Title, WindowsPath.GetName(_path)),
             _problems.Count > 0 ? [AppStrings.Editor_Close_Text, Loc.Format(AppStrings.Editor_Close_Problem, _problems[0].Line, _problems[0].Message)] : [AppStrings.Editor_Close_Text],
             [new("save", AppStrings.Common_Save, "Enter", Primary: true), new("discard", AppStrings.Editor_DontSave, "N", Key.N), new("cancel", AppStrings.Common_Cancel, "Esc")],
-            question => CloseQuestion = question);
+            question => CloseQuestion = question, Core.Settings.ConfirmGroup.Save);
         CloseQuestion = null;
         if (answer == "discard" || (answer == "save" && await SaveAsync()))
         {
@@ -644,9 +659,9 @@ internal sealed partial class EditorWindow : Window
         return true;
     }
 
-    private async Task<string?> Ask(string title, IReadOnlyList<string> text, IReadOnlyList<Choice> choices, Action<ChoiceDialog>? shown = null)
+    private async Task<string?> Ask(string title, IReadOnlyList<string> text, IReadOnlyList<Choice> choices, Action<ChoiceDialog>? shown = null, Core.Settings.ConfirmGroup? group = null)
     {
-        var dialog = new ChoiceDialog(title, text, choices, cancel: "cancel");
+        var dialog = new ChoiceDialog(title, text, choices, cancel: "cancel", group: group);
         shown?.Invoke(dialog);
         return await dialog.ShowDialog<string?>(this);
     }

@@ -181,6 +181,51 @@ public sealed class OperationQueueTests
         Assert.All([a, b, c], j => Assert.Equal(JobState.Done, j.State));
     }
 
+    [Theory]
+    [InlineData(SameDiskRule.Wait, @"D:\", true)]
+    [InlineData(SameDiskRule.HardDiskOnly, @"D:\", false)]
+    [InlineData(SameDiskRule.HardDiskOnly, @"E:\", true)]
+    [InlineData(SameDiskRule.Never, @"E:\", false)]
+    public async Task SameDisk_TheRuleSaysWhoWaits(SameDiskRule rule, string disk, bool waits)
+    {
+        var queue = new OperationQueue { SameDisk = rule, WaitsOn = v => v != @"D:\" };
+        var (a, gateA) = Blocked("a", disk);
+        var (b, gateB) = Blocked("b", disk);
+        queue.Add(a);
+        queue.Add(b);
+        await Until(() => a.State == JobState.Running);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        Assert.Equal(waits ? JobState.Waiting : JobState.Running, b.State);
+        gateA.Set();
+        gateB.Set();
+        await Task.WhenAll(a.Completion, b.Completion);
+    }
+
+    [Fact]
+    public async Task StartAnyway_StartsAWaitingJob_AndALaterRuleStartsTheRest()
+    {
+        var queue = new OperationQueue();
+        var (a, gateA) = Blocked("a", @"C:\");
+        var (b, gateB) = Blocked("b", @"C:\");
+        var (c, gateC) = Blocked("c", @"C:\");
+        queue.Add(a);
+        queue.Add(b);
+        queue.Add(c);
+        await Until(() => a.State == JobState.Running);
+        Assert.Equal(JobState.Waiting, b.State);
+
+        queue.StartAnyway(b);
+        await Until(() => b.State == JobState.Running);
+        Assert.Equal(JobState.Waiting, c.State);
+
+        queue.SameDisk = SameDiskRule.Never;
+        await Until(() => c.State == JobState.Running);
+        gateA.Set();
+        gateB.Set();
+        gateC.Set();
+        await Task.WhenAll(a.Completion, b.Completion, c.Completion);
+    }
+
     [Fact]
     public async Task Queued_RunOneAfterAnother_InTheOrderSet_AndPauseHolds()
     {

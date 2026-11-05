@@ -166,7 +166,7 @@
   <data name="Command_HotPaths_AddCurrent" xml:space="preserve"><value>Add current directory to hot paths</value></data>
   <data name="Command_App_Options" xml:space="preserve"><value>Options</value></data>
   <data name="Command_File_Duplicate" xml:space="preserve"><value>Duplicate</value></data>
-  <data name="Command_App_CommandSearch" xml:space="preserve"><value>Search commands</value></data>
+  <data name="Command_App_CommandSearch" xml:space="preserve"><value>Quick open</value></data>
   <data name="Command_App_About" xml:space="preserve"><value>About Salandual</value></data>
   <data name="Command_View_ToggleMenuBar" xml:space="preserve"><value>Menu bar</value></data>
   <data name="Command_View_ToggleDriveStrip" xml:space="preserve"><value>Drives strip</value></data>
@@ -185,7 +185,6 @@
   <data name="CommandCategory_Options" xml:space="preserve"><value>Options</value></data>
   <data name="CommandCategory_Panel" xml:space="preserve"><value>Panel</value></data>
   <data name="CommandCategory_Tools" xml:space="preserve"><value>Tools</value></data>
-  <data name="Command_View_Mode" xml:space="preserve"><value>View mode {0}</value><comment>{0}: digit 0–9</comment></data>
   <data name="Command_HotPaths_Define" xml:space="preserve"><value>Define hot path {0}</value><comment>{0}: digit 0–9</comment></data>
   <data name="Command_HotPaths_Go" xml:space="preserve"><value>Go to hot path {0}</value><comment>{0}: digit 0–9</comment></data>
   <data name="Command_HotPaths_GoOther" xml:space="preserve"><value>Go to hot path {0} in the other panel</value><comment>{0}: digit 0–9</comment></data>
@@ -381,7 +380,7 @@
   <data name="Color_SyntaxTag" xml:space="preserve"><value>Tag names</value></data>
   <data name="Color_SyntaxBackground" xml:space="preserve"><value>Code background</value></data>
   <data name="Color_SyntaxText" xml:space="preserve"><value>Code text</value></data>
-  <data name="Colors_NotAVsCodeTheme" xml:space="preserve"><value>This isn't a VS Code colour theme (it has no colours).</value></data>
+  <data name="Colors_NotAVsCodeTheme" xml:space="preserve"><value>This isn't a VS Code color theme (it has no colors).</value></data>
   <data name="Image_TooBig" xml:space="preserve"><value>The image is too big to show (over 256 million pixels).</value></data>
   <data name="Image_NoDecoder" xml:space="preserve"><value>No decoder could read this image.</value></data>
   <data name="Info_Taken" xml:space="preserve"><value>Taken</value></data>
@@ -446,6 +445,8 @@
   <data name="List_Separator" xml:space="preserve"><value>, </value><comment>Between items of a list, before the last two</comment></data>
   <data name="List_LastTwo" xml:space="preserve"><value>{0} and {1}</value><comment>{0}: the earlier items, {1}: the last one</comment></data>
   <data name="Milestone_Phase" xml:space="preserve"><value>Phase {0}</value><comment>{0}: phase number</comment></data>
+  <data name="Cloud_OneDrivePersonal" xml:space="preserve"><value>OneDrive – Personal</value><comment>OneDrive is a name; Personal: the private account, not a work or school one</comment></data>
+  <data name="Cloud_DropboxBusiness" xml:space="preserve"><value>Dropbox – Business</value><comment>Dropbox is a name</comment></data>
   <data name="RowHeight_Compact" xml:space="preserve"><value>Compact</value></data>
   <data name="RowHeight_Default" xml:space="preserve"><value>Default</value></data>
   <data name="RowHeight_Comfortable" xml:space="preserve"><value>Comfortable</value></data>
@@ -533,10 +534,10 @@
   <data name="Editor_Utf8Bom" xml:space="preserve"><value>UTF-8 with BOM</value></data>
   <data name="ThemeFile_NotFound" xml:space="preserve"><value>The file wasn't found.</value></data>
   <data name="ThemeFile_TooLarge" xml:space="preserve"><value>The file is larger than {0} MB, too large for a theme.</value><comment>{0} the largest size, e.g. 80</comment></data>
-  <data name="ThemeFile_NotATheme" xml:space="preserve"><value>This isn't a theme: not a Salandual theme file, a VS Code colour theme or a colour file from Options.</value></data>
+  <data name="ThemeFile_NotATheme" xml:space="preserve"><value>This isn't a theme: not a Salandual theme file, a VS Code color theme or a color file from Options.</value></data>
   <data name="ThemeFile_Damaged" xml:space="preserve"><value>The theme file is damaged.</value></data>
   <data name="ThemeFile_Newer" xml:space="preserve"><value>The theme file was made by a newer Salandual.</value></data>
-  <data name="ThemeFile_NoColors" xml:space="preserve"><value>The colour file has no colours.</value></data>
+  <data name="ThemeFile_NoColors" xml:space="preserve"><value>The color file has no colors.</value></data>
   <data name="ThemeFile_ColorFileLight" xml:space="preserve"><value>{0} (light)</value><comment>{0} the colour file's name: the theme made from its light colours</comment></data>
   <data name="ThemeFile_ColorFileDark" xml:space="preserve"><value>{0} (dark)</value><comment>{0} the colour file's name: the theme made from its dark colours</comment></data>
   <data name="ThemeFile_GoneFromVsCode" xml:space="preserve"><value>This theme isn't in your VS Code any more.</value></data>
@@ -568,7 +569,6 @@
   <data name="Find_LogSkippedFolder" xml:space="preserve"><value>Skipped: it is on the list of skipped folders.</value></data>
   <data name="Find_LogLink" xml:space="preserve"><value>Not looked into: it is a link to another folder.</value></data>
   <data name="Find_LogOnlineOnly" xml:space="preserve"><value>Content not read: the file is only in the cloud, and reading it would download it.</value></data>
-  <data name="Find_LogTooBigInZip" xml:space="preserve"><value>Content not read: the file inside the ZIP file is bigger than 64 MB.</value></data>
   <data name="Regex_AnyCharacter" xml:space="preserve"><value>Any character</value></data>
   <data name="Regex_LineStart" xml:space="preserve"><value>Beginning of the line</value></data>
   <data name="Regex_LineEnd" xml:space="preserve"><value>End of the line</value></data>
@@ -633,17 +633,18 @@
   <data name="Transfer_Off" xml:space="preserve"><value>off</value></data>
   <data name="Command_Options_ExportSettings" xml:space="preserve"><value>Export settings…</value></data>
   <data name="Command_Options_ImportSettings" xml:space="preserve"><value>Import settings…</value></data>
+  <data name="Command_Options_ImportSalamander" xml:space="preserve"><value>Import from Altap Salamander…</value></data>
   <data name="Command_Options_ResetAllSettings" xml:space="preserve"><value>Reset all settings…</value></data>
   <data name="Transfer_CompareUseProgram" xml:space="preserve"><value>Compare in another program</value></data>
   <data name="Transfer_CompareProgram" xml:space="preserve"><value>The other compare program</value></data>
   <data name="Transfer_CompareArguments" xml:space="preserve"><value>Its arguments</value></data>
   <data name="Menu_Options_ExportSettings" xml:space="preserve"><value>_Export settings…</value></data>
   <data name="Menu_Options_ImportSettings" xml:space="preserve"><value>_Import settings…</value></data>
+  <data name="Menu_Options_ImportSalamander" xml:space="preserve"><value>Import from Altap Sala_mander…</value></data>
   <data name="Menu_Options_ResetAllSettings" xml:space="preserve"><value>Reset _all settings…</value></data>
   <data name="KeyMap_NotYet_CustomColumns" xml:space="preserve"><value>Custom columns</value></data>
   <data name="KeyMap_NotYet_CreateShortcuts" xml:space="preserve"><value>Create shortcuts</value></data>
   <data name="KeyMap_NotYet_MoveToArchive" xml:space="preserve"><value>Move into an archive</value></data>
-  <data name="KeyMap_NotYet_TestArchives" xml:space="preserve"><value>Test archives</value></data>
   <data name="KeyMap_NotYet_CommandHistory" xml:space="preserve"><value>Command line history</value></data>
   <data name="KeyMap_NotYet_DirectoryTree" xml:space="preserve"><value>Directory tree</value></data>
   <data name="KeyMap_NotYet_BriefView" xml:space="preserve"><value>Brief view</value></data>
@@ -658,22 +659,361 @@
   <data name="KeyMap_NotYet_QuickFilter" xml:space="preserve"><value>Quick filter</value></data>
   <data name="KeyMap_NotYet_MultiRename" xml:space="preserve"><value>Multi-rename</value></data>
   <data name="KeyMap_NotYet_QuickView" xml:space="preserve"><value>Quick view</value></data>
-  <data name="KeyMap_NotYet_NewTab" xml:space="preserve"><value>New tab</value></data>
   <data name="KeyMap_NotYet_NewTabBehind" xml:space="preserve"><value>New tab in the background</value></data>
-  <data name="KeyMap_NotYet_CloseTab" xml:space="preserve"><value>Close the tab</value></data>
   <data name="KeyMap_NotYet_CloseAllTabs" xml:space="preserve"><value>Close all tabs</value></data>
-  <data name="KeyMap_NotYet_NextTab" xml:space="preserve"><value>Next tab</value></data>
-  <data name="KeyMap_NotYet_PreviousTab" xml:space="preserve"><value>Previous tab</value></data>
   <data name="KeyMap_NotYet_OpenInNewTab" xml:space="preserve"><value>Open in a new tab</value></data>
   <data name="KeyMap_NotYet_OpenInNewTabOther" xml:space="preserve"><value>Open in a new tab of the other panel</value></data>
-  <data name="KeyMap_NotYet_SwapWithTabs" xml:space="preserve"><value>Swap the panels with their tabs</value></data>
   <data name="KeyMap_NotYet_Comment" xml:space="preserve"><value>File comment</value></data>
-  <data name="KeyMap_NotYet_FtpConnect" xml:space="preserve"><value>Connect to FTP</value></data>
-  <data name="KeyMap_NotYet_FtpDisconnect" xml:space="preserve"><value>Disconnect from FTP</value></data>
-  <data name="KeyMap_NotYet_FtpNew" xml:space="preserve"><value>New FTP connection</value></data>
-  <data name="KeyMap_NotYet_BranchView" xml:space="preserve"><value>Branch view</value></data>
   <data name="KeyMap_Salamander" xml:space="preserve"><value>Salamander</value></data>
   <data name="KeyMap_TotalCommander" xml:space="preserve"><value>Total Commander</value></data>
   <data name="Command_Help_FirstSteps" xml:space="preserve"><value>First steps</value></data>
   <data name="Menu_Help_FirstSteps" xml:space="preserve"><value>_First steps…</value></data>
+  <data name="Report_Crash" xml:space="preserve"><value>Closed unexpectedly</value></data>
+  <data name="Report_WentOn" xml:space="preserve"><value>Something went wrong</value></data>
+  <data name="Report_Running" xml:space="preserve"><value>running {0}</value></data>
+  <data name="Report_Hours" xml:space="preserve"><value>{0} h {1} min</value></data>
+  <data name="Report_Minutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="Report_Seconds" xml:space="preserve"><value>{0} s</value></data>
+  <data name="Report_Open" xml:space="preserve"><value>Open: {0}</value></data>
+  <data name="Report_LastLines" xml:space="preserve"><value>The last lines of the log:</value></data>
+  <data name="Command_Help_Logs" xml:space="preserve"><value>Logs and crash reports</value></data>
+  <data name="Menu_Help_Logs" xml:space="preserve"><value>_Logs and crash reports…</value></data>
+  <data name="Text_Culture" xml:space="preserve"><value>en-GB</value><comment>The language of these texts, for the names of months written among them; a translation gives its own (hu-HU)</comment></data>
+  <data name="Log_Header" xml:space="preserve"><value>Salandual's log for {0}</value><comment>{0}: Monday 26 October 2026</comment></data>
+  <data name="Report_When" xml:space="preserve"><value>{0}, {1}</value><comment>{0}: 26 October 2026, {1}: 14:02:11</comment></data>
+  <data name="Archive_EngineMissing" xml:space="preserve"><value>{0} can't be opened: 7z.dll, which reads archives, isn't in Salandual's folder.</value><comment>{0}: the archive's name</comment></data>
+  <data name="Archive_NotAnArchive" xml:space="preserve"><value>{0} isn't an archive Salandual can open.</value><comment>{0}: the file's name</comment></data>
+  <data name="Archive_Damaged" xml:space="preserve"><value>{0} can't be read: the archive is damaged or incomplete.</value><comment>{0}: the archive's or entry's name</comment></data>
+  <data name="Archive_WrongPassword" xml:space="preserve"><value>The password for {0} isn't right.</value><comment>{0}: the archive's or entry's name</comment></data>
+  <data name="Archive_PasswordCancelled" xml:space="preserve"><value>{0} wasn't opened: it needs its password.</value><comment>{0}: the archive's name</comment></data>
+  <data name="Archive_UnsupportedMethod" xml:space="preserve"><value>{0} is packed in a way Salandual can't unpack.</value><comment>{0}: the archive's or entry's name</comment></data>
+  <data name="Job_Unpacking" xml:space="preserve"><value>Unpacking {0}</value><comment>{0}: the archive's name</comment></data>
+  <data name="Job_Testing" xml:space="preserve"><value>Testing {0}</value><comment>{0}: the archive's name</comment></data>
+  <data name="TorrentCheck_BadPieceSize" xml:space="preserve"><value>This torrent's piece size can't be checked.</value></data>
+  <data name="Unpack_Refused_LeavesTarget" xml:space="preserve"><value>Its name leads out of the target folder</value></data>
+  <data name="Unpack_Refused_FullPath" xml:space="preserve"><value>Its name is a full path</value></data>
+  <data name="Unpack_Refused_Device" xml:space="preserve"><value>{0} is a name Windows keeps for a device</value><comment>{0}: CON, NUL, COM1…</comment></data>
+  <data name="Unpack_Refused_Stream" xml:space="preserve"><value>A hidden stream of another file</value></data>
+  <data name="Unpack_Refused_LinkOutside" xml:space="preserve"><value>A link that points outside the target</value></data>
+  <data name="Unpack_LinkNotAllowed" xml:space="preserve"><value>Windows didn't allow making this link (it needs Developer Mode or administrator rights)</value></data>
+  <data name="Unpack_HardLinkMissing" xml:space="preserve"><value>A link to a file of the archive that wasn't unpacked</value></data>
+  <data name="Unpack_Damaged" xml:space="preserve"><value>Damaged in the archive</value></data>
+  <data name="Unpack_Checksum" xml:space="preserve"><value>Damaged in the archive (its checksum doesn't match)</value></data>
+  <data name="Unpack_Truncated" xml:space="preserve"><value>Damaged in the archive (its data ends too early)</value></data>
+  <data name="Unpack_WrongPassword" xml:space="preserve"><value>The password didn't open it</value></data>
+  <data name="Unpack_Unsupported" xml:space="preserve"><value>Packed in a way 7-Zip can't unpack</value></data>
+  <data name="Unpack_Grew" xml:space="preserve"><value>Unpacking stopped: {0} grew past the size the archive gave for it. Archives made to fill a disk do this.</value><comment>{0}: the entry's name</comment></data>
+  <data name="Unpack_GrewShort" xml:space="preserve"><value>The file grew past the size the archive gave for it.</value></data>
+  <data name="Unpack_FileInTheWay" xml:space="preserve"><value>A file named “{0}” is in the way of the folder.</value></data>
+  <data name="Log_UnpackRefused" xml:space="preserve"><value>Unpacking an archive left out {0} entries to keep files safe (their names aren't logged).</value><comment>{0}: a number</comment></data>
+  <data name="Log_TestDamaged" xml:space="preserve"><value>Testing an archive found {0} damaged entries (their names aren't logged).</value><comment>{0}: a number</comment></data>
+  <data name="Command_Archive_Test" xml:space="preserve"><value>Test archive</value></data>
+  <data name="Menu_Archive_Test" xml:space="preserve"><value>Test Arc_hive</value></data>
+  <data name="Archive_CantChange" xml:space="preserve"><value>{0} can be read but not changed: 7-Zip writes only ZIP, 7z and TAR. Unpack it, or pack its files again as ZIP or 7z.</value><comment>{0}: the archive's name</comment></data>
+  <data name="Archive_Changed" xml:space="preserve"><value>{0} changed since it was read. Open it again, then try once more.</value><comment>{0}: the archive's name</comment></data>
+  <data name="Job_Packing" xml:space="preserve"><value>Packing {0} into {1}</value><comment>{0}: how many items (Pack_Items_One/Other); {1}: the archive's name</comment></data>
+  <data name="Pack_Items_One" xml:space="preserve"><value>{0} item</value><comment>{0}: 1</comment></data>
+  <data name="Pack_Items_Other" xml:space="preserve"><value>{0} items</value><comment>{0}: the number</comment></data>
+  <data name="Pack_LinkNotFollowed" xml:space="preserve"><value>A folder link: only the link's own folder went in, not where it leads.</value></data>
+  <data name="Pack_NotThere" xml:space="preserve"><value>It isn't there any more.</value></data>
+  <data name="Pack_FolderInArchive" xml:space="preserve"><value>The archive has a folder of this name.</value></data>
+  <data name="Pack_FilesKept" xml:space="preserve"><value>The packed files were kept: not everything went in, or the archive wasn't tested all right.</value></data>
+  <data name="Pack_NotTested" xml:space="preserve"><value>The archive wasn't tested: its password wasn't given.</value></data>
+  <data name="Pack_NotRecycled" xml:space="preserve"><value>It couldn't go to the Recycle Bin, so it was kept.</value></data>
+  <data name="Log_PackDeleted" xml:space="preserve"><value>Pack: the packed items went to the Recycle Bin ({0}).</value><comment>{0}: how many</comment></data>
+  <data name="Change_Inside" xml:space="preserve"><value>{0} is inside another archive: it can be read but not changed. Unpack it, change it, and pack it again.</value><comment>{0}: the archive's name</comment></data>
+  <data name="Change_Split" xml:space="preserve"><value>{0} is in volumes: it can be read but not changed. Unpack it, or pack its files again.</value><comment>{0}: the archive's name</comment></data>
+  <data name="Change_Format" xml:space="preserve"><value>{0} can be read but not changed: {1} is 7-Zip's to read only. Unpack it, or pack its files again as ZIP or 7z.</value><comment>{0}: the archive's name, {1}: its format (RAR)</comment></data>
+  <data name="Job_DeletingIn" xml:space="preserve"><value>Deleting {0} from {1}</value><comment>{0}: what (3 items), {1}: the archive's name</comment></data>
+  <data name="Job_RenamingIn" xml:space="preserve"><value>Renaming {0} in {1}</value><comment>{0}: the old name, {1}: the archive's name</comment></data>
+  <data name="Job_NewFolderIn" xml:space="preserve"><value>New folder {0} in {1}</value><comment>{0}: the folder's name, {1}: the archive's name</comment></data>
+  <data name="Find_LogTooBigInArchive" xml:space="preserve"><value>Content not read: the file inside the archive is bigger than 64 MB.</value></data>
+  <data name="Find_LogEncrypted" xml:space="preserve"><value>Content not read: the file inside the archive is encrypted.</value></data>
+  <data name="Find_LogNotUnpacked" xml:space="preserve"><value>Content not read: it couldn't be unpacked from the archive.</value></data>
+  <data name="Find_LogNamesHidden" xml:space="preserve"><value>Not looked into: its names are hidden behind a password.</value></data>
+  <data name="UserMenu_Unclosed" xml:space="preserve"><value>A $( has no ) after it.</value></data>
+  <data name="UserMenu_ListOnlyInArguments" xml:space="preserve"><value>{0} can only be in the arguments.</value><comment>{0}: $(ListOfSelectedNames) or $(ListOfSelectedFullNames)</comment></data>
+  <data name="UserMenu_UnknownVariable" xml:space="preserve"><value>There is no variable {0}.</value><comment>{0}: the variable as written, $(FileNme)</comment></data>
+  <data name="UserMenu_ListAlone" xml:space="preserve"><value>{0} has to be an argument of its own: it gives one argument for each selected item.</value><comment>{0}: $(ListOfSelectedNames)</comment></data>
+  <data name="UserMenu_NoEnvironment" xml:space="preserve"><value>There is no environment variable {0}.</value><comment>{0}: its name</comment></data>
+  <data name="UserMenu_NeedsAFile" xml:space="preserve"><value>{0} needs a file or folder: focus one first.</value><comment>{0}: $(FullName)</comment></data>
+  <data name="UserMenu_NoPair" xml:space="preserve"><value>Two items to compare are needed: select two here, or focus one here and one in the other panel.</value></data>
+  <data name="UserMenu_NoFilesToCompare" xml:space="preserve"><value>Two files to compare are needed, not folders.</value></data>
+  <data name="UserMenu_NoFoldersToCompare" xml:space="preserve"><value>Two folders to compare are needed, not files.</value></data>
+  <data name="UserMenu_ForOne" xml:space="preserve"><value>For exactly one item.</value></data>
+  <data name="UserMenu_ForTwo" xml:space="preserve"><value>For exactly two items.</value></data>
+  <data name="UserMenu_ForAtLeastTwo" xml:space="preserve"><value>For two or more items.</value></data>
+  <data name="UserMenu_ForItems" xml:space="preserve"><value>For files or folders: none is focused.</value></data>
+  <data name="UserMenu_ForFiles" xml:space="preserve"><value>For files only.</value></data>
+  <data name="UserMenu_ForFolders" xml:space="preserve"><value>For folders only.</value></data>
+  <data name="UserMenu_ForNamed" xml:space="preserve"><value>For {0} only.</value><comment>{0}: the mask, *.mp4;*.mkv</comment></data>
+  <data name="UserMenu_ForKind" xml:space="preserve"><value>For {0} only.</value><comment>{0}: images, audio, video…</comment></data>
+  <data name="UserMenu_Kind_Any" xml:space="preserve"><value>Any</value></data>
+  <data name="UserMenu_Kind_Images" xml:space="preserve"><value>images</value></data>
+  <data name="UserMenu_Kind_Audio" xml:space="preserve"><value>audio</value></data>
+  <data name="UserMenu_Kind_Video" xml:space="preserve"><value>video</value></data>
+  <data name="UserMenu_Kind_Text" xml:space="preserve"><value>text</value></data>
+  <data name="UserMenu_Kind_Archives" xml:space="preserve"><value>archives</value></data>
+  <data name="UserMenu_Kind_Programs" xml:space="preserve"><value>programs</value></data>
+  <data name="UserMenu_NoPowerShell" xml:space="preserve"><value>PowerShell wasn't found on this PC.</value></data>
+  <data name="UserMenu_NoProgram" xml:space="preserve"><value>The item has no program.</value></data>
+  <data name="UserMenu_NotFound" xml:space="preserve"><value>{0} wasn't found. Give its full path in Options › User menu.</value><comment>{0}: the program as written</comment></data>
+  <data name="UserMenu_NotAProgram" xml:space="preserve"><value>{0} isn't a program: only .exe and .com files are started. A script goes in as a PowerShell script.</value><comment>{0}: the program as written</comment></data>
+  <data name="UserMenu_ScriptTooLong" xml:space="preserve"><value>The script is too long to start: Windows takes about 12,000 characters.</value></data>
+  <data name="UserMenu_TooLong" xml:space="preserve"><value>The program and its arguments are longer than Windows takes (32,000 characters).</value></data>
+  <data name="UserMenu_DidNotStart" xml:space="preserve"><value>Didn't start: {0}</value><comment>{0}: Windows' reason</comment></data>
+  <data name="UserMenu_ExitCode" xml:space="preserve"><value>Ended with exit code {0}.</value><comment>{0}: a number</comment></data>
+  <data name="UserMenu_Files_One" xml:space="preserve"><value>{0} file</value></data>
+  <data name="UserMenu_Files_Other" xml:space="preserve"><value>{0} files</value></data>
+  <data name="Transfer_UserMenu" xml:space="preserve"><value>User menu</value></data>
+  <data name="Transfer_UserMenuUnfit" xml:space="preserve"><value>User menu items that don't fit</value></data>
+  <data name="Command_View_ToggleUserMenuBar" xml:space="preserve"><value>User menu bar</value></data>
+  <data name="Menu_View_ToggleUserMenuBar" xml:space="preserve"><value>_User Menu Bar</value></data>
+  <data name="Command_Shell_CommandPromptAdmin" xml:space="preserve"><value>Command shell as administrator</value></data>
+  <data name="Menu_Shell_CommandPromptAdmin" xml:space="preserve"><value>Command Shell as Administrator</value><comment>No access key: every free letter of the Commands menu is taken</comment></data>
+  <data name="Command_View_ToggleCommandLine" xml:space="preserve"><value>Command line</value></data>
+  <data name="Menu_View_ToggleCommandLine" xml:space="preserve"><value>Comma_nd Line</value></data>
+  <data name="MenuSub_View" xml:space="preserve"><value>_View</value></data>
+  <data name="Menu_View_Mode2" xml:space="preserve"><value>_Brief</value></data>
+  <data name="Menu_View_Mode3" xml:space="preserve"><value>_Detailed</value></data>
+  <data name="Menu_View_Mode4" xml:space="preserve"><value>_Icons</value></data>
+  <data name="Menu_View_Mode5" xml:space="preserve"><value>_Thumbnails</value></data>
+  <data name="Menu_View_Mode6" xml:space="preserve"><value>Ti_les</value></data>
+  <data name="Menu_View_Mode7" xml:space="preserve"><value>T_ypes</value></data>
+  <data name="Menu_View_ThumbnailsBigger" xml:space="preserve"><value>Bi_gger Thumbnails</value></data>
+  <data name="Menu_View_ThumbnailsSmaller" xml:space="preserve"><value>S_maller Thumbnails</value></data>
+  <data name="Command_View_Mode2" xml:space="preserve"><value>Brief view</value></data>
+  <data name="Command_View_Mode3" xml:space="preserve"><value>Detailed view</value></data>
+  <data name="Command_View_Mode4" xml:space="preserve"><value>Icons view</value></data>
+  <data name="Command_View_Mode5" xml:space="preserve"><value>Thumbnails view</value></data>
+  <data name="Command_View_Mode6" xml:space="preserve"><value>Tiles view</value></data>
+  <data name="Command_View_Mode7" xml:space="preserve"><value>Types view</value></data>
+  <data name="Command_View_ThumbnailsBigger" xml:space="preserve"><value>Bigger thumbnails</value></data>
+  <data name="Command_View_ThumbnailsSmaller" xml:space="preserve"><value>Smaller thumbnails</value></data>
+  <data name="Date_JustNow" xml:space="preserve"><value>just now</value><comment>Relative date in the panels' date columns</comment></data>
+  <data name="Date_MinuteAgo" xml:space="preserve"><value>1 minute ago</value><comment>Relative date</comment></data>
+  <data name="Date_MinutesAgo" xml:space="preserve"><value>{0} minutes ago</value><comment>Relative date; {0} is a number from 2 to 59</comment></data>
+  <data name="Date_HourAgo" xml:space="preserve"><value>1 hour ago</value><comment>Relative date</comment></data>
+  <data name="Date_HoursAgo" xml:space="preserve"><value>{0} hours ago</value><comment>Relative date; {0} is a number from 2 to 5</comment></data>
+  <data name="Date_Today" xml:space="preserve"><value>today {0}</value><comment>Relative date; {0} is the time, e.g. 08:15</comment></data>
+  <data name="Date_Yesterday" xml:space="preserve"><value>yesterday {0}</value><comment>Relative date; {0} is the time, e.g. 18:23</comment></data>
+  <data name="Menu_View_Mode8" xml:space="preserve"><value>Your view _1</value><comment>Shown with the view's own name once you name it</comment></data>
+  <data name="Menu_View_Mode9" xml:space="preserve"><value>Your view _2</value><comment>Shown with the view's own name once you name it</comment></data>
+  <data name="Menu_View_Mode0" xml:space="preserve"><value>Your view _3</value><comment>Shown with the view's own name once you name it</comment></data>
+  <data name="Command_View_Mode8" xml:space="preserve"><value>Your view 1</value></data>
+  <data name="Command_View_Mode9" xml:space="preserve"><value>Your view 2</value></data>
+  <data name="Command_View_Mode0" xml:space="preserve"><value>Your view 3</value></data>
+  <data name="MenuSub_Columns" xml:space="preserve"><value>Col_umns</value><comment>Submenu of Left/Right › View; the letter after _ is the access key</comment></data>
+  <data name="Menu_Panel_SmartNameWidth" xml:space="preserve"><value>_Smart name width</value><comment>Menu item; the letter after _ is the access key</comment></data>
+  <data name="Color_FocusBackground" xml:space="preserve"><value>Focus background</value></data>
+  <data name="Command_Panel_ToggleDotFiles" xml:space="preserve"><value>Hide dot files and folders</value></data>
+  <data name="Command_Panel_FilterOff" xml:space="preserve"><value>Turn the filter off</value></data>
+  <data name="Command_Panel_HideSelectedNames" xml:space="preserve"><value>Hide selected names</value></data>
+  <data name="Command_Panel_HideUnselectedNames" xml:space="preserve"><value>Hide unselected names</value></data>
+  <data name="Command_Panel_ShowHiddenNames" xml:space="preserve"><value>Show hidden names</value></data>
+  <data name="Menu_Panel_ToggleDotFiles" xml:space="preserve"><value>Hide _dot files and folders</value><comment>Menu item; the letter after _ is the access key</comment></data>
+  <data name="Menu_Panel_FilterOff" xml:space="preserve"><value>_Turn the filter off</value><comment>Menu item; the letter after _ is the access key</comment></data>
+  <data name="Menu_Panel_HideSelectedNames" xml:space="preserve"><value>Hide selecte_d names</value><comment>Menu item; the letter after _ is the access key</comment></data>
+  <data name="Menu_Panel_HideUnselectedNames" xml:space="preserve"><value>Hide unselected names</value><comment>Menu item; no access key: the Edit menu has every letter of it already</comment></data>
+  <data name="Menu_Panel_ShowHiddenNames" xml:space="preserve"><value>Sho_w hidden names</value><comment>Menu item; the letter after _ is the access key</comment></data>
+  <data name="InfoLine_QuickFilter" xml:space="preserve"><value>Quick filter: {0:N0} of {1:N0} shown</value><comment>{0}: shown, {1}: all in the folder; keep :N0</comment></data>
+  <data name="InfoLine_Filter" xml:space="preserve"><value>Filter: {0:N0} of {1:N0} shown, {2:N0} hidden</value><comment>{0}: shown, {1}: all in the folder, {2}: out of sight; keep :N0</comment></data>
+  <data name="InfoLine_FilterAndNames" xml:space="preserve"><value>Filter: {0:N0} of {1:N0} shown; {2}</value><comment>{0}: shown, {1}: all, {2}: InfoLine_NamesHidden_One or _Other; keep :N0</comment></data>
+  <data name="InfoLine_NamesHidden_One" xml:space="preserve"><value>{0:N0} name hidden</value><comment>Hide selected names; keep :N0</comment></data>
+  <data name="InfoLine_NamesHidden_Other" xml:space="preserve"><value>{0:N0} names hidden</value><comment>Hide selected names; keep :N0</comment></data>
+  <data name="Highlight_Encrypted" xml:space="preserve"><value>Encrypted</value></data>
+  <data name="Highlight_Compressed" xml:space="preserve"><value>Compressed</value></data>
+  <data name="Highlight_Hidden" xml:space="preserve"><value>Hidden and system</value></data>
+  <data name="Highlight_Archives" xml:space="preserve"><value>Archives</value></data>
+  <data name="Highlight_Programs" xml:space="preserve"><value>Programs</value></data>
+  <data name="Highlight_Temporary" xml:space="preserve"><value>Temporary files</value></data>
+  <data name="Command_Panel_FlatView" xml:space="preserve"><value>Flat view</value></data>
+  <data name="Menu_Panel_FlatView" xml:space="preserve"><value>_Flat view</value><comment>Menu item; the letter after _ is the access key</comment></data>
+  <data name="Command_View_Mode1" xml:space="preserve"><value>Columns view</value></data>
+  <data name="Menu_View_Mode1" xml:space="preserve"><value>_Columns</value></data>
+  <data name="Command_Panel_Peek" xml:space="preserve"><value>Peek into the folder</value></data>
+  <data name="Menu_Panel_Peek" xml:space="preserve"><value>_Peek into the folder</value><comment>Menu item; the letter after _ is the access key</comment></data>
+  <data name="CommandCategory_Tabs" xml:space="preserve"><value>Tabs</value></data>
+  <data name="Command_Tab_New" xml:space="preserve"><value>New tab</value></data>
+  <data name="Command_Tab_Close" xml:space="preserve"><value>Close the tab</value></data>
+  <data name="Command_Tab_Next" xml:space="preserve"><value>Next tab</value></data>
+  <data name="Command_Tab_Previous" xml:space="preserve"><value>Previous tab</value></data>
+  <data name="Command_Tab_Reopen" xml:space="preserve"><value>Reopen the closed tab</value></data>
+  <data name="Command_Tab_Duplicate" xml:space="preserve"><value>Duplicate the tab</value></data>
+  <data name="Command_Tab_CloseOthers" xml:space="preserve"><value>Close the other tabs</value></data>
+  <data name="Command_Tab_Lock" xml:space="preserve"><value>Lock or unlock the tab</value></data>
+  <data name="Command_Tab_MoveToOther" xml:space="preserve"><value>Move the tab to the other panel</value></data>
+  <data name="Command_Tab_CopyToOther" xml:space="preserve"><value>Copy the tab to the other panel</value></data>
+  <data name="MenuSub_Tabs" xml:space="preserve"><value>_Tabs</value></data>
+  <data name="Menu_Tab_New" xml:space="preserve"><value>_New Tab</value></data>
+  <data name="Menu_Tab_Close" xml:space="preserve"><value>_Close Tab</value></data>
+  <data name="Menu_Tab_Next" xml:space="preserve"><value>Ne_xt Tab</value></data>
+  <data name="Menu_Tab_Previous" xml:space="preserve"><value>_Previous Tab</value></data>
+  <data name="Menu_Tab_Reopen" xml:space="preserve"><value>_Reopen Closed Tab</value></data>
+  <data name="Menu_Tab_Duplicate" xml:space="preserve"><value>_Duplicate Tab</value></data>
+  <data name="Menu_Tab_CloseOthers" xml:space="preserve"><value>Close the _Others</value></data>
+  <data name="Menu_Tab_Lock" xml:space="preserve"><value>_Locked</value></data>
+  <data name="Menu_Tab_MoveToOther" xml:space="preserve"><value>_Move to the Other Panel</value></data>
+  <data name="Menu_Tab_CopyToOther" xml:space="preserve"><value>Cop_y to the Other Panel</value></data>
+  <data name="Menu_CommandLine_Toggle" xml:space="preserve"><value>Command Line</value></data>
+  <data name="Place_ThisPc" xml:space="preserve"><value>This PC</value></data>
+  <data name="Place_Home" xml:space="preserve"><value>Home</value></data>
+  <data name="Place_Libraries" xml:space="preserve"><value>Libraries</value></data>
+  <data name="Place_RecycleBin" xml:space="preserve"><value>Recycle Bin</value></data>
+  <data name="Place_CantOpen" xml:space="preserve"><value>Windows didn't let Salandual read this place.</value></data>
+  <data name="Place_RestoreFirst" xml:space="preserve"><value>An item in the Recycle Bin opens once it is restored.</value></data>
+  <data name="Place_BinItemsGone" xml:space="preserve"><value>Those items are no longer in the Recycle Bin.</value></data>
+  <data name="Command_File_NewMenu" xml:space="preserve"><value>New item (Windows' list and your templates)</value></data>
+  <data name="Menu_File_NewMenu" xml:space="preserve"><value>New Item…</value></data>
+  <data name="Place_Network" xml:space="preserve"><value>Network</value></data>
+  <data name="Place_Shares" xml:space="preserve"><value>Shared folders</value></data>
+  <data name="Place_OpenedBefore" xml:space="preserve"><value>opened before</value></data>
+  <data name="Command_View_ToggleBackForwardBar" xml:space="preserve"><value>Back and forward bar</value></data>
+  <data name="Menu_View_ToggleBackForwardBar" xml:space="preserve"><value>_Back and Forward Bar</value></data>
+  <data name="Server_NoQuestions" xml:space="preserve"><value>A server can't be opened here.</value></data>
+  <data name="Server_KeyChanged" xml:space="preserve"><value>The key of {0} isn't the one you trusted, so Salandual didn't connect. It may have been changed by its owner, or someone may be between you and the server. Ask the server's owner; you can remove the old key in Options › FTP and SFTP.</value><comment>{0}: the server's name</comment></data>
+  <data name="Server_NoKeyFile" xml:space="preserve"><value>The key file isn't there: {0}</value><comment>{0}: its path</comment></data>
+  <data name="Server_BadKeyFile" xml:space="preserve"><value>{0} isn't a key file Salandual can read (OpenSSH or PuTTY).</value><comment>{0}: the file's name</comment></data>
+  <data name="Server_PassphraseWrong" xml:space="preserve"><value>The passphrase didn't open the key file.</value></data>
+  <data name="Server_SignInRefused" xml:space="preserve"><value>The server refused the user name or password.</value></data>
+  <data name="Server_CantReach" xml:space="preserve"><value>Can't reach {0}: {1}</value><comment>{0}: the server; {1}: Windows' reason</comment></data>
+  <data name="Server_TimedOut" xml:space="preserve"><value>{0} didn't answer in time.</value><comment>{0}: the server</comment></data>
+  <data name="Server_NoAnswer" xml:space="preserve"><value>{0} didn't answer in {1} s. The panel stays where it was: Ctrl+R tries again.</value><comment>{0}: the server; {1}: seconds</comment></data>
+  <data name="Server_DownloadFailed" xml:space="preserve"><value>{0} couldn't be copied from the server.</value><comment>{0}: the file's path on the server</comment></data>
+  <data name="Server_BadName" xml:space="preserve"><value>This name can't be a file name on Windows, so it wasn't copied.</value></data>
+  <data name="Server_LinkedFolder" xml:space="preserve"><value>A link to a folder: not copied (its folder can be copied on its own).</value></data>
+  <data name="ServerLog_Connecting" xml:space="preserve"><value>Connecting to {0}:{1}</value><comment>{0}: the server; {1}: the port</comment></data>
+  <data name="ServerLog_KeyKnown" xml:space="preserve"><value>Server key {0} SHA256:{1} (trusted)</value><comment>{0}: ED25519, RSA…; {1}: the fingerprint</comment></data>
+  <data name="ServerLog_KeyTrusted" xml:space="preserve"><value>Server key {0} SHA256:{1}: you trusted it</value><comment>{0}: ED25519, RSA…; {1}: the fingerprint</comment></data>
+  <data name="ServerLog_KeyRefused" xml:space="preserve"><value>Server key {0} SHA256:{1}: not trusted, disconnected</value><comment>{0}: ED25519, RSA…; {1}: the fingerprint</comment></data>
+  <data name="ServerLog_KeyChanged" xml:space="preserve"><value>Server key {0} SHA256:{1} is NOT the one you trusted: refused</value><comment>{0}: ED25519, RSA…; {1}: the fingerprint</comment></data>
+  <data name="ServerLog_CertWindows" xml:space="preserve"><value>TLS certificate trusted by Windows</value></data>
+  <data name="ServerLog_CertKnown" xml:space="preserve"><value>TLS certificate {0} (trusted)</value><comment>{0}: its fingerprint</comment></data>
+  <data name="ServerLog_CertTrusted" xml:space="preserve"><value>TLS certificate {0}: you trusted it</value><comment>{0}: its fingerprint</comment></data>
+  <data name="ServerLog_CertRefused" xml:space="preserve"><value>TLS certificate {0}: not trusted, disconnected</value><comment>{0}: its fingerprint</comment></data>
+  <data name="ServerLog_NoTls" xml:space="preserve"><value>The server has no TLS: not encrypted</value></data>
+  <data name="ServerLog_SignedIn" xml:space="preserve"><value>Signed in as {0}</value><comment>{0}: the user name</comment></data>
+  <data name="ServerLog_SignedInKey" xml:space="preserve"><value>Signed in as {0} with a key file</value><comment>{0}: the user name</comment></data>
+  <data name="ServerLog_SignInRefused" xml:space="preserve"><value>The sign-in was refused</value></data>
+  <data name="ServerLog_Listing" xml:space="preserve"><value>Listing {0}</value><comment>{0}: the folder on the server</comment></data>
+  <data name="ServerLog_Items_One" xml:space="preserve"><value>{0} item</value></data>
+  <data name="ServerLog_Items_Other" xml:space="preserve"><value>{0} items</value></data>
+  <data name="ServerLog_Failed" xml:space="preserve"><value>Failed: {0}</value><comment>{0}: the server's or Windows' reason</comment></data>
+  <data name="ServerLog_Dropped" xml:space="preserve"><value>The connection had closed: connecting again</value></data>
+  <data name="ServerLog_SignedInAgent" xml:space="preserve"><value>Signed in as {0} with a key from the agent</value><comment>{0}: the user name. The agent: Windows' OpenSSH agent or Pageant</comment></data>
+  <data name="ServerLog_AgentKeys_One" xml:space="preserve"><value>The agent has {0} key</value></data>
+  <data name="ServerLog_AgentKeys_Other" xml:space="preserve"><value>The agent has {0} keys</value></data>
+  <data name="Server_NoAgent" xml:space="preserve"><value>No SSH agent with a key is running: start Windows' OpenSSH agent (the ssh-agent service) or Pageant, and add your key to it.</value></data>
+  <data name="Server_AgentRefused" xml:space="preserve"><value>The SSH agent didn't answer as it should.</value></data>
+  <data name="ServerLog_Proxy" xml:space="preserve"><value>Through the proxy {0}:{1}</value><comment>{0}: the proxy's host, {1}: its port</comment></data>
+  <data name="ServerLog_TryAgain" xml:space="preserve"><value>The connection dropped: trying again ({0} of {1})</value><comment>{0}: this try, {1}: how many there are</comment></data>
+  <data name="ServerLog_KeepAliveStopped" xml:space="preserve"><value>Keep alive stopped after {0} minutes without anything done here</value><comment>{0}: minutes</comment></data>
+  <data name="ServerLog_NoAnswer" xml:space="preserve"><value>No answer in {0} s: the connection is closed, and the next request connects again</value><comment>{0}: seconds</comment></data>
+  <data name="ServerLog_Disconnected" xml:space="preserve"><value>Disconnected</value></data>
+  <data name="ServerLog_Download" xml:space="preserve"><value>Copying {0} from the server</value><comment>{0}: the file's path on the server</comment></data>
+  <data name="ServerLog_DownloadRest" xml:space="preserve"><value>Copying the rest of {0} from the server, from byte {1}</value><comment>{0}: the file's path on the server; {1}: where it goes on</comment></data>
+  <data name="ServerLog_Upload" xml:space="preserve"><value>Copying {0} to the server</value><comment>{0}: the file's path on the server</comment></data>
+  <data name="ServerLog_UploadRest" xml:space="preserve"><value>Copying the rest of {0} to the server, from byte {1}</value><comment>{0}: the file's path on the server; {1}: where it goes on</comment></data>
+  <data name="ServerLog_NewFolder" xml:space="preserve"><value>New folder {0}</value><comment>{0}: its path on the server</comment></data>
+  <data name="ServerLog_Delete" xml:space="preserve"><value>Deleting {0}</value><comment>{0}: its path on the server</comment></data>
+  <data name="ServerLog_Rename" xml:space="preserve"><value>Renaming {0} to {1}</value><comment>{0}, {1}: paths on the server</comment></data>
+  <data name="ServerLog_Permissions" xml:space="preserve"><value>Permissions of {0}: {1} ({2})</value><comment>{0}: its path on the server; {1}: 644; {2}: rw-r--r--</comment></data>
+  <data name="Server_CantMake" xml:space="preserve"><value>The server didn't make the folder {0}.</value><comment>{0}: its path on the server</comment></data>
+  <data name="Server_NoChmod" xml:space="preserve"><value>This server doesn't change permissions (it has no SITE CHMOD): {0}</value><comment>{0}: the server's answer</comment></data>
+  <data name="Server_SizeDiffers" xml:space="preserve"><value>The copy has {0:N0} bytes instead of {1:N0}.</value><comment>{0}: bytes there; {1}: bytes expected</comment></data>
+  <data name="Server_SameFolder" xml:space="preserve"><value>The items are already in that folder.</value></data>
+  <data name="Job_Permissions" xml:space="preserve"><value>Setting the permissions of {0} to {1}</value><comment>{0}: "3 files"; {1}: 644</comment></data>
+  <data name="Command_Server_Connect" xml:space="preserve"><value>Connect to a server</value></data>
+  <data name="Command_Server_Disconnect" xml:space="preserve"><value>Disconnect from the server</value></data>
+  <data name="Command_Server_Log" xml:space="preserve"><value>Show the server's log</value></data>
+  <data name="Menu_Server_Connect" xml:space="preserve"><value>Connect to a Server…</value></data>
+  <data name="Menu_Server_Disconnect" xml:space="preserve"><value>Disconnect from the Server</value></data>
+  <data name="Menu_Server_Log" xml:space="preserve"><value>Server's Lo_g…</value></data>
+  <data name="Command_Git_Menu" xml:space="preserve"><value>Show the Git branch menu</value></data>
+  <data name="Command_Git_NewBranch" xml:space="preserve"><value>Make a new Git branch</value></data>
+  <data name="Menu_Git_Menu" xml:space="preserve"><value>Git _Branches…</value></data>
+  <data name="Menu_Git_NewBranch" xml:space="preserve"><value>New Git Branch…</value></data>
+  <data name="Server_BadAddress" xml:space="preserve"><value>That isn't a server address Salandual can open. A password is never taken in an address: you are asked for it.</value></data>
+  <data name="SalImp_TooBig" xml:space="preserve"><value>The file is too big to be Salamander's settings.</value></data>
+  <data name="SalImp_NotReg" xml:space="preserve"><value>The file isn't a .reg file.</value></data>
+  <data name="SalImp_NoSalamander" xml:space="preserve"><value>The file has no settings of Altap Salamander or Open Salamander.</value></data>
+  <data name="SalImp_Slot" xml:space="preserve"><value>Slot {0}</value><comment>{0}: a hot path slot without a key, 11 to 30</comment></data>
+  <data name="SalImp_HotPathMoved" xml:space="preserve"><value>{0} (moved from {1}, where {2} stays)</value><comment>{0}: Salamander's hot path; {1}: its slot there, such as Ctrl+2; {2}: your hot path in that slot</comment></data>
+  <data name="SalImp_Rule" xml:space="preserve"><value>Highlight rule {0}</value><comment>{0}: the rule's masks or attributes, such as *.zip or Compressed</comment></data>
+  <data name="SalImp_Server" xml:space="preserve"><value>Server {0}</value><comment>{0}: a bookmark's name</comment></data>
+  <data name="SalImp_UserMenuItem" xml:space="preserve"><value>User menu: {0}</value><comment>{0}: an item's name</comment></data>
+  <data name="SalImp_Submenu_One" xml:space="preserve"><value>a submenu of {0} item</value></data>
+  <data name="SalImp_Submenu_Other" xml:space="preserve"><value>a submenu of {0} items</value></data>
+  <data name="SalImp_RecycleNever" xml:space="preserve"><value>Recycle Bin for no files</value></data>
+  <data name="SalImp_RecycleOnlyFor" xml:space="preserve"><value>Recycle Bin only for {0}</value><comment>{0}: masks, such as *.txt;*.doc</comment></data>
+  <data name="SalImp_DeletedForGood" xml:space="preserve"><value>off: the others deleted for good</value></data>
+  <data name="SalImp_ReplaceWithoutAsking" xml:space="preserve"><value>Replace files without asking</value></data>
+  <data name="SalImp_Attr_Hidden" xml:space="preserve"><value>Hidden</value></data>
+  <data name="SalImp_Attr_System" xml:space="preserve"><value>System</value></data>
+  <data name="SalImp_Attr_ReadOnly" xml:space="preserve"><value>Read-only</value></data>
+  <data name="SalImp_Attr_Archive" xml:space="preserve"><value>Archive</value></data>
+  <data name="SalImp_View_Image" xml:space="preserve"><value>image viewer</value></data>
+  <data name="SalImp_View_Media" xml:space="preserve"><value>media information</value></data>
+  <data name="SalImp_View_Markdown" xml:space="preserve"><value>Markdown preview</value></data>
+  <data name="SalImp_View_Html" xml:space="preserve"><value>web page preview</value></data>
+  <data name="SalImp_LeftOut_Passwords" xml:space="preserve"><value>passwords (the Password Manager and FTP passwords are never read)</value></data>
+  <data name="SalImp_LeftOut_Plugins_One" xml:space="preserve"><value>{0} plugin's own settings</value></data>
+  <data name="SalImp_LeftOut_Plugins_Other" xml:space="preserve"><value>{0} plugins' own settings</value></data>
+  <data name="SalImp_LeftOut_Packers" xml:space="preserve"><value>packers and unpackers (Salandual packs with 7-Zip)</value></data>
+  <data name="SalImp_LeftOut_HotPaths_One" xml:space="preserve"><value>{0} hot path (all 30 slots are in use)</value></data>
+  <data name="SalImp_LeftOut_HotPaths_Other" xml:space="preserve"><value>{0} hot paths (all 30 slots are in use)</value></data>
+  <data name="SalImp_LeftOut_Servers_One" xml:space="preserve"><value>{0} FTP bookmark whose address isn't a server's name</value></data>
+  <data name="SalImp_LeftOut_Servers_Other" xml:space="preserve"><value>{0} FTP bookmarks whose address isn't a server's name</value></data>
+  <data name="SalImp_LeftOut_ViewerPrograms_One" xml:space="preserve"><value>{0} viewer that is a program (Salandual's viewers are its own)</value></data>
+  <data name="SalImp_LeftOut_ViewerPrograms_Other" xml:space="preserve"><value>{0} viewers that are programs (Salandual's viewers are its own)</value></data>
+  <data name="SalImp_LeftOut_Viewers" xml:space="preserve"><value>viewers with no counterpart in Salandual: {0}</value><comment>{0}: plugins' names, such as DB Viewer</comment></data>
+  <data name="Torrent_Bad_After" xml:space="preserve"><value>there is more after its end</value></data>
+  <data name="Torrent_Bad_Deep" xml:space="preserve"><value>it is nested too deeply</value></data>
+  <data name="Torrent_Bad_Short" xml:space="preserve"><value>it is cut short</value></data>
+  <data name="Torrent_Bad_Key" xml:space="preserve"><value>a key isn't text</value></data>
+  <data name="Torrent_Bad_Number" xml:space="preserve"><value>a number is written wrongly</value></data>
+  <data name="Torrent_Bad_Length" xml:space="preserve"><value>a text is longer than the file</value></data>
+  <data name="Torrent_Bad_Unknown" xml:space="preserve"><value>it has an unknown kind of value</value></data>
+  <data name="Torrent_TooBig" xml:space="preserve"><value>Too big for a torrent file (over {0} MB).</value></data>
+  <data name="Torrent_NotTorrentAt" xml:space="preserve"><value>This isn't a torrent file: {0} (at byte {1}).</value><comment>{0}: what is wrong, such as "it is cut short"</comment></data>
+  <data name="Torrent_NoInfo" xml:space="preserve"><value>This isn't a torrent file: it has no info dictionary.</value></data>
+  <data name="Torrent_Tree_Hashes" xml:space="preserve"><value>{0} bytes · {1} SHA-1 hashes</value></data>
+  <data name="Torrent_Tree_Bytes" xml:space="preserve"><value>{0} bytes</value></data>
+  <data name="Command_Git_Changes" xml:space="preserve"><value>Show the Git changes</value></data>
+  <data name="Command_Git_Stage" xml:space="preserve"><value>Stage the selected files in Git</value></data>
+  <data name="Command_Git_Unstage" xml:space="preserve"><value>Unstage the selected files in Git</value></data>
+  <data name="Command_Git_Discard" xml:space="preserve"><value>Discard the Git changes of the selected files</value></data>
+  <data name="Command_Git_Commit" xml:space="preserve"><value>Commit to Git</value></data>
+  <data name="Menu_Git_Changes" xml:space="preserve"><value>Git Changes</value></data>
+  <data name="Menu_Git_Commit" xml:space="preserve"><value>Git Commit…</value></data>
+  <data name="Command_Git_History" xml:space="preserve"><value>Show the Git history</value></data>
+  <data name="Command_Git_HistoryOfFile" xml:space="preserve"><value>Show the Git history of the focused file or folder</value></data>
+  <data name="Command_Git_Graph" xml:space="preserve"><value>Show the Git graph</value></data>
+  <data name="Menu_Git_History" xml:space="preserve"><value>Git History</value></data>
+  <data name="Menu_Git_Graph" xml:space="preserve"><value>Git Graph…</value></data>
+  <data name="Color_GitChanged" xml:space="preserve"><value>Git: changed</value></data>
+  <data name="Color_GitStaged" xml:space="preserve"><value>Git: staged or added</value></data>
+  <data name="Color_GitNew" xml:space="preserve"><value>Git: new</value></data>
+  <data name="Color_GitDeleted" xml:space="preserve"><value>Git: deleted</value></data>
+  <data name="Color_GitConflicted" xml:space="preserve"><value>Git: conflicted</value></data>
+  <data name="Color_GitIgnored" xml:space="preserve"><value>Git: ignored</value></data>
+  <data name="Command_Git_Fetch" xml:space="preserve"><value>Fetch from the Git remote</value></data>
+  <data name="Command_Git_Pull" xml:space="preserve"><value>Pull from the Git remote</value></data>
+  <data name="Command_Git_Push" xml:space="preserve"><value>Push to the Git remote</value></data>
+  <data name="Command_Git_Clone" xml:space="preserve"><value>Clone a Git repository</value></data>
+  <data name="Menu_Git_Fetch" xml:space="preserve"><value>Git Fetch</value></data>
+  <data name="Menu_Git_Pull" xml:space="preserve"><value>Git Pull</value></data>
+  <data name="Menu_Git_Push" xml:space="preserve"><value>Git Push</value></data>
+  <data name="Menu_Git_Clone" xml:space="preserve"><value>Clone a Git Repository…</value></data>
+  <data name="Command_Git_Browse" xml:space="preserve"><value>Browse a version of the Git repository</value></data>
+  <data name="Menu_Git_Browse" xml:space="preserve"><value>Browse a Git Version</value></data>
+  <data name="Command_Git_Blame" xml:space="preserve"><value>Show who changed each line of the file</value></data>
+  <data name="Menu_Git_Blame" xml:space="preserve"><value>Who Changed Each Line</value></data>
+  <data name="Command_Git_Tags" xml:space="preserve"><value>List the Git repository's tags</value></data>
+  <data name="Menu_Git_Tags" xml:space="preserve"><value>Git Tags</value></data>
+  <data name="Language_TooBig" xml:space="preserve"><value>the file is bigger than 16 MB</value></data>
+  <data name="Language_NoTexts" xml:space="preserve"><value>no "texts" in it</value><comment>"texts" is the name of the part in the file, keep it as it is</comment></data>
+  <data name="Language_NotOurs" xml:space="preserve"><value>its "format" doesn't say Salandual language file</value><comment>"format" and Salandual language file are written in the file as they are</comment></data>
+  <data name="Language_Newer" xml:space="preserve"><value>made for a newer Salandual (format {0})</value><comment>{0}: the version of the file's form, as 2</comment></data>
+  <data name="Language_NotJson" xml:space="preserve"><value>not JSON, from line {0}</value><comment>{0}: the line where reading stopped</comment></data>
 </root>

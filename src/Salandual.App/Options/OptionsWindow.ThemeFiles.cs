@@ -86,7 +86,8 @@ public sealed partial class OptionsWindow
         }
 
         var used = theme;
-        UpdateAppearance(x => x with { Schedule = UseTheme(x.Schedule, used) });
+        TryAppearance(x => x with { Schedule = UseTheme(x.Schedule, used) });
+        CountDownIfNew();
         RebuildLater();
     }
 

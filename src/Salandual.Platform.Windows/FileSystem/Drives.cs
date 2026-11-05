@@ -12,7 +12,7 @@ namespace Salandual.Platform.Windows.FileSystem;
 
 public enum DriveKind { Fixed, Removable, Optical, Network, Other }
 
-public sealed record DriveDetails(string Root, DriveKind Kind, bool Ready, string? Label, long Free, long Total, string? Share)
+public sealed record DriveDetails(string Root, DriveKind Kind, bool Ready, string? Label, long Free, long Total, string? Share, DriveMedium Medium = DriveMedium.Unknown)
 {
     public char Letter => char.ToUpperInvariant(Root[0]);
 }
@@ -21,6 +21,26 @@ public static partial class Drives
 {
     public static IReadOnlyList<(string Root, DriveKind Kind)> List()
         => [.. DriveInfo.GetDrives().Select(d => (d.Name, KindOf(d.DriveType)))];
+
+    public static IReadOnlyList<string> LocalWalkable()
+    {
+        var found = new List<string>();
+        foreach (var d in DriveInfo.GetDrives())
+        {
+            try
+            {
+                if (d.DriveType == DriveType.Fixed && d.IsReady)
+                {
+                    found.Add(d.Name);
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
+        return found;
+    }
 
     public static async Task<IReadOnlyList<DriveDetails>> ReadAsync(TimeSpan timeout)
     {
@@ -34,20 +54,21 @@ public static partial class Drives
     private static DriveDetails Read(string root, DriveKind kind)
     {
         var share = kind == DriveKind.Network ? ShareOf(root) : null;
+        var medium = DriveMedia.Of(root);
         try
         {
             var info = new DriveInfo(root);
             if (!info.IsReady)
             {
-                return new DriveDetails(root, kind, false, null, 0, 0, share);
+                return new DriveDetails(root, kind, false, null, 0, 0, share, medium);
             }
 
             var label = info.VolumeLabel;
-            return new DriveDetails(root, kind, true, label.Length > 0 ? label : null, info.AvailableFreeSpace, info.TotalSize, share);
+            return new DriveDetails(root, kind, true, label.Length > 0 ? label : null, info.AvailableFreeSpace, info.TotalSize, share, medium);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return new DriveDetails(root, kind, false, null, 0, 0, share);
+            return new DriveDetails(root, kind, false, null, 0, 0, share, medium);
         }
     }
 

@@ -8,7 +8,26 @@
 
 namespace Salandual.Core.Operations;
 
-public enum OperationKind { Copy, Move, Delete }
+public enum OperationKind { Copy, Move, Delete, Unpack, Test, Pack, Change, Run, Git }
+
+public enum PackFormat { Zip, SevenZip, Tar, TarGz, TarXz }
+
+public enum PackLevel { Store, Fast, Normal, Maximum }
+
+public enum PackFirstFormat { Zip, SevenZip, Tar, TarGz, TarXz, LastUsed }
+
+public enum PackWhere { BesideFiles, OtherPanel }
+
+public enum PackExisting { Ask, Add, Replace, NewName }
+
+public enum ArchiveEditSave { Ask, PutBack, ReadOnly }
+
+public enum UnpackFolderRule
+{
+    WhenNeeded,
+    Always,
+    Never,
+}
 
 public enum ExistingFilePolicy
 {
@@ -114,7 +133,7 @@ public interface IOperationFileSystem
 
 public abstract record OperationQuestion;
 
-public sealed record ConflictQuestion(string Source, ItemInfo SourceInfo, string Target, ItemInfo TargetInfo, int ConflictsSoFar) : OperationQuestion;
+public sealed record ConflictQuestion(string Source, ItemInfo SourceInfo, string Target, ItemInfo TargetInfo, int ConflictsSoFar, bool CanResume = false) : OperationQuestion;
 
 public sealed record ErrorQuestion(string Path, string Action, string Message) : OperationQuestion;
 
@@ -129,7 +148,7 @@ public sealed record DeleteChecks(bool NonEmptyFolders, bool HiddenOrSystem)
     public static DeleteChecks None { get; } = new(false, false);
 }
 
-public enum AnswerKind { Overwrite, OverwriteOlder, Skip, KeepBoth, Retry, DeletePermanently, Cancel, Yes }
+public enum AnswerKind { Overwrite, OverwriteOlder, Skip, KeepBoth, Retry, DeletePermanently, Cancel, Yes, Resume }
 
 public sealed record OperationAnswer(AnswerKind Kind, bool ForAll = false);
 

@@ -11,14 +11,19 @@
   <Folder Name="/src/">
     <Project Path="src/Salandual.Core/Salandual.Core.csproj" />
     <Project Path="src/Salandual.Platform.Windows/Salandual.Platform.Windows.csproj" />
+    <Project Path="src/Salandual.Git/Salandual.Git.csproj" />
     <Project Path="src/Salandual.Imaging/Salandual.Imaging.csproj" />
     <Project Path="src/Salandual.Archives/Salandual.Archives.csproj" />
+    <Project Path="src/Salandual.Remote/Salandual.Remote.csproj" />
     <Project Path="src/Salandual.App/Salandual.App.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Salandual.Core.Tests/Salandual.Core.Tests.csproj" />
     <Project Path="tests/Salandual.Platform.Windows.Tests/Salandual.Platform.Windows.Tests.csproj" />
+    <Project Path="tests/Salandual.Git.Tests/Salandual.Git.Tests.csproj" />
     <Project Path="tests/Salandual.Imaging.Tests/Salandual.Imaging.Tests.csproj" />
+    <Project Path="tests/Salandual.Archives.Tests/Salandual.Archives.Tests.csproj" />
+    <Project Path="tests/Salandual.Remote.Tests/Salandual.Remote.Tests.csproj" />
     <Project Path="tests/Salandual.App.Tests/Salandual.App.Tests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">

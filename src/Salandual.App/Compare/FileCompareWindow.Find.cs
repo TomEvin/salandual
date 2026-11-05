@@ -412,6 +412,11 @@ internal sealed partial class FileCompareWindow
             return;
         }
 
+        if (RefusedAsGits(toRight ? 1 : 0))
+        {
+            return;
+        }
+
         var (source, target) = toRight ? (_sides[0], _sides[1]) : (_sides[1], _sides[0]);
         target.Undo.Push(([.. target.Lines], [.. target.Copied], target.Pending));
         target.Pending += DiffCopy.Apply(diff.Rows, Enumerable.Range(0, diff.Rows.Count), toRight, source.Lines, target.Lines, target.Copied);

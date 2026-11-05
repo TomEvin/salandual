@@ -8,8 +8,11 @@
 
 namespace Salandual.Core.Settings;
 
-public sealed record ControlColors(Rgb Fill, Rgb FillHover, Rgb FillPressed, Rgb Edge, Rgb EdgeHover, Rgb DisabledFill, Rgb DisabledEdge, Rgb DisabledText, Rgb ScrollThumb, AccentColors Accent)
+public sealed record ControlColors(Rgb Fill, Rgb FillHover, Rgb FillPressed, Rgb Edge, Rgb EdgeHover, Rgb DisabledFill, Rgb DisabledEdge, Rgb DisabledText, Rgb ScrollThumb, AccentColors Accent, Rgb Label)
 {
+    private const double LightLabel = 0.35;
+    private const double DarkLabel = 0.1;
+
     public static ControlColors From(IReadOnlyDictionary<string, Rgb> c)
     {
         var surface = c[ColorTokens.PanelBackground];
@@ -18,17 +21,24 @@ public sealed record ControlColors(Rgb Fill, Rgb FillHover, Rgb FillPressed, Rgb
         var dark = ColorMath.Luminance(surface) < 0.2;
         var disabledFill = ColorMath.Mix(surface, text, 0.03);
         var edge = Reach(surface, text, 3.0, surface, window);
+        var label = text;
+        for (var t = 0.0; t <= 1.0 && (dark ? ColorMath.Luminance(label) < LightLabel : ColorMath.Luminance(label) > DarkLabel); t += 0.02)
+        {
+            label = ColorMath.Mix(text, dark ? ColorMath.White : ColorMath.Ink, t);
+        }
+
         return new ControlColors(
-            Fill: Shade(surface, text, dark ? 0.12 : 0.07),
-            FillHover: Shade(surface, text, dark ? 0.18 : 0.12),
-            FillPressed: Shade(surface, text, dark ? 0.24 : 0.18),
+            Fill: Shade(surface, label, dark ? 0.12 : 0.07),
+            FillHover: Shade(surface, label, dark ? 0.18 : 0.12),
+            FillPressed: Shade(surface, label, dark ? 0.24 : 0.18),
             Edge: edge,
             EdgeHover: Reach(surface, text, 4.5, surface, window),
             DisabledFill: disabledFill,
             DisabledEdge: Reach(surface, text, 1.6, surface, window),
             DisabledText: Reach(surface, text, 3.0, surface, window, disabledFill),
             ScrollThumb: Reach(surface, text, 2.0, surface, window),
-            Accent: AccentColors.From(c, dark, edge));
+            Accent: AccentColors.From(c, dark, edge),
+            Label: label);
     }
 
     private static Rgb Shade(Rgb surface, Rgb text, double amount)

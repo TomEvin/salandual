@@ -12,9 +12,25 @@ public sealed record WorkingDirectory(string Path, int Side);
 
 public sealed class WorkingDirectories
 {
-    public const int MaxShown = 20;
+    public const int DefaultLimit = 20;
+
+    public const int MinLimit = 5;
+
+    public const int MaxLimit = 100;
 
     private readonly List<WorkingDirectory> _items = [];
+    private int _limit = DefaultLimit;
+
+    public int Limit
+    {
+        get => _limit;
+        set
+        {
+            _limit = Math.Clamp(value, MinLimit, MaxLimit);
+            Trim(0);
+            Trim(1);
+        }
+    }
 
     public IReadOnlyList<WorkingDirectory> All => _items;
 
@@ -27,14 +43,19 @@ public sealed class WorkingDirectories
 
         _items.RemoveAll(w => w.Side == side && string.Equals(w.Path, path, StringComparison.OrdinalIgnoreCase));
         _items.Insert(0, new WorkingDirectory(path, side));
+        Trim(side);
+    }
+
+    private void Trim(int side)
+    {
         var kept = 0;
-        _items.RemoveAll(w => w.Side == side && ++kept > MaxShown);
+        _items.RemoveAll(w => w.Side == side && ++kept > _limit);
     }
 
     public IReadOnlyList<WorkingDirectory> For(int side, bool shared)
         => shared
-            ? [.. _items.DistinctBy(w => w.Path, StringComparer.OrdinalIgnoreCase).Take(MaxShown)]
-            : [.. _items.Where(w => w.Side == side).Take(MaxShown)];
+            ? [.. _items.DistinctBy(w => w.Path, StringComparer.OrdinalIgnoreCase).Take(_limit)]
+            : [.. _items.Where(w => w.Side == side).Take(_limit)];
 
     public void Clear(int side, bool shared, string leftPath, string rightPath)
     {

@@ -40,12 +40,21 @@ public partial class OptionsWindow
         Add(page, startup, AppStrings.Opt_StartFolders, AppStrings.Opt_StartFolders_Desc, StartFoldersPicker, keywords: AppStrings.Opt_StartFolders_Kw, below: StartFoldersFields);
         Add(page, startup, AppStrings.Opt_StartWithWindows, AppStrings.Opt_StartWithWindows_Desc, StartWithWindowsSwitch, keywords: AppStrings.Opt_StartWithWindows_Kw);
 
-        Add(page, AppStrings.OptSec_Language, AppStrings.Opt_Language, AppStrings.Opt_Language_Desc,
-            () => Combo([("en", AppStrings.Opt_Language_English)], "en", _ => { }, minWidth: 160), keywords: AppStrings.Opt_Language_Kw);
+        var quick = AppStrings.OptSec_QuickOpen;
+        Add(page, quick, AppStrings.Opt_QuickRemember, AppStrings.Opt_QuickRemember_Desc,
+            () => Toggle(Current.QuickOpen.Remember, on => Settings.Update(s => s with { QuickOpen = s.QuickOpen with { Remember = on } })), keywords: AppStrings.Opt_QuickOpen_Kw);
+        Add(page, quick, AppStrings.Opt_QuickForget, AppStrings.Opt_QuickForget_Desc,
+            () => ActionButton(AppStrings.Opt_QuickForgetButton, () => Settings.Update(s => s with { History = s.History with { QuickFolders = [], QuickFiles = [], QuickCommands = [] } })),
+            keywords: AppStrings.Opt_QuickOpen_Kw);
+        Add(page, quick, AppStrings.Opt_QuickFileEnter, AppStrings.Opt_QuickFileEnter_Desc,
+            () => Segmented([(QuickOpenFileEnter.GoTo, AppStrings.Opt_QuickFileEnter_GoTo), (QuickOpenFileEnter.Open, AppStrings.Opt_QuickFileEnter_Open)],
+                Current.QuickOpen.FileEnter, enter => Settings.Update(s => s with { QuickOpen = s.QuickOpen with { FileEnter = enter } })), keywords: AppStrings.Opt_QuickOpen_Kw);
+        AddQuickOpenDrives(page, quick);
+
+        AddLanguage(page);
 
         var later = AppStrings.OptSec_Later;
         Add(page, later, AppStrings.Opt_KeepRunning, AppStrings.Opt_KeepRunning_Desc, () => new Panel(), keywords: AppStrings.Opt_KeepRunning_Kw, badge: AppStrings.Opt_Badge_Later);
-        Add(page, later, AppStrings.Opt_ImportSalamander, AppStrings.Opt_ImportSalamander_Desc, () => new Panel(), keywords: AppStrings.Opt_ImportSalamander_Kw, badge: CommandText.Milestone("Phase 3"));
         Add(page, later, AppStrings.Opt_Updates, AppStrings.Opt_Updates_Desc, () => new Panel(), keywords: AppStrings.Opt_Updates_Kw, badge: CommandText.Milestone("Phase 3"));
     }
 

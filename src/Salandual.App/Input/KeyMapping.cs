@@ -87,7 +87,7 @@ public static class KeyMapping
     public static KeyGesture? ToGesture(KeyChord chord)
     {
         _keysByName ??= BuildReverseMap();
-        if (!_keysByName.TryGetValue(chord.Key, out var key))
+        if (chord.Key is null || !_keysByName.TryGetValue(chord.Key, out var key))
         {
             return null;
         }

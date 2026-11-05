@@ -71,7 +71,7 @@ public sealed class SelectMaskDialog : Window
             VerticalAlignment = VerticalAlignment.Center,
             Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { _maskKind, _regexKind } },
         }.Res(Border.BorderBrushProperty, "Brush.Border");
-        _pieces = new Button { Content = ".* ▾", FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"), Padding = new Thickness(8, 4), VerticalAlignment = VerticalAlignment.Center };
+        _pieces = new Button { Content = ".* ▾", FontFamily = Salandual.App.Options.OptionsUi.MonoFamily, Padding = new Thickness(8, 4), VerticalAlignment = VerticalAlignment.Center };
         ToolTip.SetTip(_pieces, AppStrings.Find_PiecesTip);
         _pieces.Flyout = RegexMenu.Create(() => _mask);
         var line = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 8, Children = { _mask, kinds, _pieces } };

@@ -28,6 +28,7 @@ public sealed class ThemeService
     {
         _app = app;
         _settings = settings;
+        TextScale.Install();
         _settings.Changed += (_, e) =>
         {
             if (!e.Old.Appearance.IsEquivalentTo(e.New.Appearance))
@@ -52,6 +53,23 @@ public sealed class ThemeService
         Apply(_settings.Current.Appearance);
     }
 
+    internal Func<double> ReadWindowsTextSize { get; set; } = OperatingSystem.IsWindows() ? Platform.Windows.Shell.TextScale.Read : () => 1;
+
+    public double WindowsTextSize => ReadWindowsTextSize();
+
+    public void CheckTextSize()
+    {
+        var appearance = _settings.Current.Appearance;
+        if (TextScale.Set(appearance.FollowTextSize ? ReadWindowsTextSize() : 1))
+        {
+            ApplyFonts(appearance);
+            Applied?.Invoke(this, EventArgs.Empty);
+            TextSizeChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public event EventHandler? TextSizeChanged;
+
     public bool WindowsDark => _app.PlatformSettings?.GetColorValues().ThemeVariant == PlatformThemeVariant.Dark;
 
     public Rgb? WindowsAccent => _app.PlatformSettings?.GetColorValues() is { } v ? new Rgb(v.AccentColor1.R, v.AccentColor1.G, v.AccentColor1.B) : null;
@@ -70,9 +88,14 @@ public sealed class ThemeService
         ApplyVariant(ThemeVariant.Light, theme, colors);
         ApplyVariant(ThemeVariant.Dark, theme, colors);
         ApplyFluent(theme, colors);
+        var resized = TextScale.Set(appearance.FollowTextSize ? ReadWindowsTextSize() : 1);
         ApplyFonts(appearance);
         ScheduleNext(appearance.Schedule, minute, now.Second);
         Applied?.Invoke(this, EventArgs.Empty);
+        if (resized)
+        {
+            TextSizeChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private void ScheduleNext(ThemeSchedule schedule, int minute, int second)
@@ -105,7 +128,7 @@ public sealed class ThemeService
     private static void ApplyControls(ResourceDictionary dict, ColorTheme theme, IReadOnlyDictionary<string, Rgb> colors)
     {
         var k = ControlColors.From(colors);
-        var text = theme.Origin == ThemeOrigin.BuiltIn ? Brush(theme.Dark ? new Rgb(255, 255, 255) : new Rgb(0, 0, 0)) : Brush(colors[ColorTokens.Text]);
+        var text = theme.Origin == ThemeOrigin.BuiltIn ? Brush(theme.Dark ? new Rgb(255, 255, 255) : new Rgb(0, 0, 0)) : Brush(k.Label);
         var (fill, hover, pressed) = (Brush(k.Fill), Brush(k.FillHover), Brush(k.FillPressed));
         var (edge, edgeHover) = (Brush(k.Edge), Brush(k.EdgeHover));
         var (disabledFill, disabledEdge, disabledText) = (Brush(k.DisabledFill), Brush(k.DisabledEdge), Brush(k.DisabledText));
@@ -268,6 +291,9 @@ public sealed class ThemeService
         r["Font.PanelSize"] = appearance.PanelFont.Size;
         r["Font.Mono"] = new FontFamily((appearance.MonoFont.Family ?? "Cascadia Mono") + ", Consolas");
         r["Font.MonoSize"] = appearance.MonoFont.Size;
+
+        r["Font.PanelSizeShown"] = TextScale.Of(appearance.PanelFont.Size);
+        r["Font.MonoSizeShown"] = TextScale.Of(appearance.MonoFont.Size);
     }
 
     private ResourceDictionary VariantDictionary(ThemeVariant variant)

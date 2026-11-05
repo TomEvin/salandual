@@ -103,7 +103,10 @@ public partial class MainWindow
         }
 
         var settings = _services.Settings.Current.Compare;
-        var dialog = CompareDialog = new CompareDirectoriesDialog(_lastCompare is { } last ? settings with { Directories = last } : settings, paths.Left, paths.Right, paths.From, panelLeft, panelRight);
+        var dialog = CompareDialog = new CompareDirectoriesDialog(_lastCompare is { } last ? settings with { Directories = last } : settings, paths.Left, paths.Right, paths.From, panelLeft, panelRight)
+        {
+            FolderExists = path => Directory.Exists(path) || _services.Archives.LocateCached(path) is { } inside && inside.Contents.IsFolder(inside.Inner),
+        };
         CompareDirectoriesChoice? choice;
         try
         {
@@ -183,7 +186,7 @@ public partial class MainWindow
         try
         {
             var showHidden = _panels[0].Panel.ShowHidden || _panels[1].Panel.ShowHidden;
-            var compare = new DirectoryCompare(_services.Files, OpenToCompare, session.Options, showHidden);
+            var compare = new DirectoryCompare(_services.Archives, path => _services.Archives.OpenRead(path), session.Options, showHidden);
             result = await compare.RunAsync(session.Left, session.Right, p => progress = p, stop.Token);
         }
         finally
@@ -223,9 +226,6 @@ public partial class MainWindow
             list?.ShowComparing(progress);
         }
     }
-
-    private static Stream OpenToCompare(string path)
-        => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan);
 
     private bool PanelsShow(CompareSession session) => LevelShown(session) == "";
 
@@ -351,10 +351,21 @@ public partial class MainWindow
                 },
                 Stop = () => _comparing?.Cancel(),
                 OpenOptions = () => _ = OpenOptionsAsync("compare"),
-                View = path => OpenViewer(ActivePanel, path, _services.Settings.Current.Viewers.KindFor(Path.GetFileName(path), alternate: false), comeBackTo: DifferencesList),
-                CompareFiles = (left, right) => OpenFileCompare(left, right),
+                View = path =>
+                {
+                    if (InOpenArchive(path))
+                    {
+                        _ = ViewFoundInArchiveAsync(path, null, DifferencesList);
+                    }
+                    else
+                    {
+                        OpenViewer(ActivePanel, path, _services.Settings.Current.Viewers.KindFor(Path.GetFileName(path), alternate: false), comeBackTo: DifferencesList);
+                    }
+                },
+                CompareFiles = (left, right) => _ = CompareCopiesAsync(left, right),
             };
             window = DifferencesList = new DifferencesWindow(_services.Settings, request, session.Left, session.Right);
+            Controls.WindowMemory.Remember(window, _services.Settings, WindowSettings.Differences, centreOn: this);
             window.Closed += (_, _) => DifferencesList = null;
             window.Tag = session;
             window.Show();
@@ -430,7 +441,19 @@ public partial class MainWindow
         }
     }
 
-    internal FileCompareWindow? OpenFileCompare(string left, string right)
+    private bool InOpenArchive(string path) => WindowsPath.GetParent(path) is { } parent && _services.Archives.LocateCached(parent) is not null;
+
+    private async Task CompareCopiesAsync(string left, string right)
+    {
+        var l = InOpenArchive(left) ? await CopyOutAsync(left) : left;
+        var r = l is null ? null : InOpenArchive(right) ? await CopyOutAsync(right) : right;
+        if (l is not null && r is not null)
+        {
+            OpenFileCompare(l, r);
+        }
+    }
+
+    internal FileCompareWindow? OpenFileCompare(string left, string right, GitCompare? git = null)
     {
         var files = _services.Settings.Current.Compare.Files;
         if (files.UseProgram && files.Program.Length > 0)
@@ -439,7 +462,7 @@ public partial class MainWindow
             return null;
         }
 
-        var window = new FileCompareWindow(_services.Settings, left, right)
+        var window = new FileCompareWindow(_services.Settings, left, right, git)
         {
             Host = new FileCompareHost
             {
@@ -450,6 +473,7 @@ public partial class MainWindow
                 Program = CompareProgramToUse,
             },
         };
+        Controls.WindowMemory.Remember(window, _services.Settings, WindowSettings.FileCompare, centreOn: this);
         FileCompare = window;
         _fileCompares.Add(window);
         window.Closed += (_, _) =>

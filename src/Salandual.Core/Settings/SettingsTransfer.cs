@@ -33,9 +33,16 @@ public enum SettingsPart
     History,
 
     Programs,
+
+    Unusual,
 }
 
-public sealed record SettingChange(SettingsPart Part, string Name, string Old, string New);
+public sealed record SettingChange(SettingsPart Part, string Name, string Old, string New, string? Path = null)
+{
+    public bool Equals(SettingChange? other) => other is not null && Part == other.Part && Name == other.Name && Old == other.Old && New == other.New;
+
+    public override int GetHashCode() => HashCode.Combine(Part, Name, Old, New);
+}
 
 public sealed record ExportChoice(bool Themes = true, bool HotPaths = true, bool History = false);
 
@@ -45,9 +52,11 @@ public sealed class SettingsImport
 {
     private readonly JsonObject _current;
     private readonly JsonObject _imported;
+    private readonly IReadOnlyDictionary<string, SettingsPart> _partOf;
 
-    internal SettingsImport(string file, DateTime? exported, string? exportedBy, JsonObject current, JsonObject imported, IReadOnlyList<SettingChange> changes, IReadOnlySet<SettingsPart> named)
+    internal SettingsImport(string file, DateTime? exported, string? exportedBy, JsonObject current, JsonObject imported, IReadOnlyList<SettingChange> changes, IReadOnlySet<SettingsPart> named, IReadOnlyDictionary<string, SettingsPart>? partOf = null)
     {
+        _partOf = partOf ?? new Dictionary<string, SettingsPart>();
         Named = named;
         File = file;
         Exported = exported;
@@ -67,16 +76,22 @@ public sealed class SettingsImport
 
     public IReadOnlySet<SettingsPart> Named { get; }
 
-    public IReadOnlyList<SettingsPart> Same => [.. Named.Except(Changes.Select(c => c.Part)).Where(p => p != SettingsPart.Programs).Order()];
+    public IReadOnlyList<SettingsPart> Same => [.. Named.Except(Changes.Select(c => c.Part)).Where(p => p is not SettingsPart.Programs and not SettingsPart.Unusual).Order()];
 
     public IReadOnlyList<SettingsPart> Parts => [.. Changes.Select(c => c.Part).Distinct().Order()];
+
+    public string? Source { get; init; }
+
+    public IReadOnlySet<SettingsPart> OffAtFirst { get; init; } = new HashSet<SettingsPart> { SettingsPart.Programs, SettingsPart.Unusual };
+
+    public IReadOnlyList<string> LeftOut { get; init; } = [];
 
     public AppSettings Apply(IReadOnlySet<SettingsPart> parts)
     {
         var result = (JsonObject)_current.DeepClone();
         foreach (var (path, part) in SettingsTransfer.Leaves(_current, _imported))
         {
-            if (part is { } p && parts.Contains(p))
+            if ((_partOf.TryGetValue(path, out var own) ? own : part) is { } p && parts.Contains(p))
             {
                 SettingsTransfer.Set(result, path, SettingsTransfer.Get(_imported, path));
             }
@@ -112,13 +127,21 @@ public static class SettingsTransfer
         ("layout.panelSplit", null),
         ("panels", SettingsPart.Panels),
         ("mouse", SettingsPart.Panels),
+        ("highlighting", SettingsPart.Panels),
+        ("highlighting.folders", null),
         ("keyboard", SettingsPart.Keyboard),
         ("hotPaths", SettingsPart.HotPaths),
         ("driveMenu", SettingsPart.HotPaths),
         ("operations", SettingsPart.Operations),
         ("confirmations", SettingsPart.Confirmations),
         ("viewers", SettingsPart.Viewers),
+        ("viewers.windowWidth", null),
+        ("viewers.windowHeight", null),
+        ("viewers.windowMaximized", null),
         ("editors", SettingsPart.Editors),
+        ("editors.windowWidth", null),
+        ("editors.windowHeight", null),
+        ("editors.windowMaximized", null),
         ("compare", SettingsPart.Compare),
         ("compare.files.useProgram", SettingsPart.Programs),
         ("compare.files.program", SettingsPart.Programs),
@@ -132,12 +155,19 @@ public static class SettingsTransfer
         ("find.windowHeight", null),
         ("find.windowMaximized", null),
         ("fileList", SettingsPart.History),
+        ("userMenu", SettingsPart.Programs),
+        ("commandLine", SettingsPart.General),
+        ("commandLine.program", SettingsPart.Programs),
         ("general", SettingsPart.General),
         ("advanced", SettingsPart.Advanced),
         ("history", SettingsPart.History),
+        ("quickOpen", SettingsPart.General),
+        ("servers", SettingsPart.HotPaths),
+        ("windows", null),
+        ("sharing", null),
     ];
 
-    private static readonly JsonDocumentOptions _documentOptions = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+    internal static readonly JsonDocumentOptions DocumentOptions = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
     public static SettingsPart? PartOf(string path)
     {
@@ -196,7 +226,7 @@ public static class SettingsTransfer
         JsonObject root;
         try
         {
-            root = JsonNode.Parse(System.IO.File.ReadAllBytes(file), documentOptions: _documentOptions) as JsonObject
+            root = JsonNode.Parse(System.IO.File.ReadAllBytes(file), documentOptions: DocumentOptions) as JsonObject
                 ?? throw new InvalidDataException(Strings.Transfer_NotSettings);
         }
         catch (JsonException ex)
@@ -274,12 +304,13 @@ public static class SettingsTransfer
         return path;
     }
 
-    private static List<SettingChange> Describe(JsonObject mine, JsonObject theirs)
+    internal static List<SettingChange> Describe(JsonObject mine, JsonObject theirs, IReadOnlyDictionary<string, SettingsPart>? partOf = null)
     {
         var changes = new List<SettingChange>();
-        foreach (var (path, part) in Leaves(mine, theirs))
+        foreach (var (path, ownPart) in Leaves(mine, theirs))
         {
             var (a, b) = (Get(mine, path), Get(theirs, path));
+            var part = partOf is not null && partOf.TryGetValue(path, out var other) ? other : ownPart;
             if (part is not { } p || JsonNode.DeepEquals(a, b))
             {
                 continue;
@@ -288,19 +319,19 @@ public static class SettingsTransfer
             switch (path)
             {
                 case "appearance.themes":
-                    changes.AddRange(ThemeChanges(a as JsonArray, b as JsonArray));
+                    changes.AddRange(ThemeChanges(a as JsonArray, b as JsonArray).Select(c => c with { Path = path }));
                     break;
                 case "editors.masks":
                     var (withoutA, withoutB) = (WithoutPrograms(a), WithoutPrograms(b));
                     if (!JsonNode.DeepEquals(withoutA, withoutB))
                     {
-                        changes.Add(new(p, Name(path), Value(withoutA), Value(withoutB)));
+                        changes.Add(new(p, Name(path), Value(withoutA), Value(withoutB), path));
                     }
 
-                    changes.AddRange(EditorProgramChanges(a as JsonArray, b as JsonArray));
+                    changes.AddRange(EditorProgramChanges(a as JsonArray, b as JsonArray).Select(c => c with { Path = path }));
                     break;
                 default:
-                    changes.Add(new(p, Name(path), Value(a), Value(b)));
+                    changes.Add(new(p, Name(path), Value(a), Value(b), path));
                     break;
             }
         }
@@ -344,7 +375,7 @@ public static class SettingsTransfer
     private static string? ProgramFor(JsonArray? rows, string mask)
         => (rows ?? []).OfType<JsonObject>().FirstOrDefault(r => r["mask"]?.ToString() == mask)?["program"]?.ToString();
 
-    private static JsonNode? WithoutPrograms(JsonNode? masks)
+    internal static JsonNode? WithoutPrograms(JsonNode? masks)
     {
         if (masks?.DeepClone() is not JsonArray copy)
         {
@@ -386,7 +417,7 @@ public static class SettingsTransfer
         }
     }
 
-    private static string Name(string path)
+    internal static string Name(string path)
     {
         switch (path)
         {
@@ -396,6 +427,10 @@ public static class SettingsTransfer
                 return Strings.Transfer_CompareProgram;
             case "compare.files.programArguments":
                 return Strings.Transfer_CompareArguments;
+            case "userMenu.items":
+                return Strings.Transfer_UserMenu;
+            case "userMenu.unfit":
+                return Strings.Transfer_UserMenuUnfit;
         }
 
         var segments = path.Split('.');
@@ -490,7 +525,7 @@ public static class SettingsTransfer
         return node;
     }
 
-    private static bool Has(JsonObject root, string path)
+    internal static bool Has(JsonObject root, string path)
     {
         JsonNode? node = root;
         foreach (var key in path.Split('.'))

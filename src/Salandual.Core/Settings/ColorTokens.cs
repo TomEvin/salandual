@@ -20,6 +20,8 @@ public static class ColorTokens
     public const string SelectedText = "SelectedText";
     public const string SelectionBackground = "SelectionBackground";
     public const string FocusOutline = "FocusOutline";
+
+    public const string FocusBackground = "FocusBackground";
     public const string ColumnHeader = "ColumnHeader";
     public const string InformationLine = "InformationLine";
     public const string InformationLineText = "InformationLineText";
@@ -66,14 +68,29 @@ public static class ColorTokens
     public const string CompareMinorText = "CompareMinorText";
     public const string CompareCopied = "CompareCopied";
 
+    public const string GitChanged = "GitChanged";
+    public const string GitStaged = "GitStaged";
+    public const string GitNew = "GitNew";
+    public const string GitDeleted = "GitDeleted";
+    public const string GitConflicted = "GitConflicted";
+    public const string GitIgnored = "GitIgnored";
+
     public const string WarningBackground = "WarningBackground";
     public const string DangerBackground = "DangerBackground";
     public const string InfoBackground = "InfoBackground";
 
+    public const string RowStripe = "RowStripe";
+
     public const string CompareMinorMark = "CompareMinorMark";
     public const string SuccessBackground = "SuccessBackground";
     public const string FocusOutlineInactive = "FocusOutlineInactive";
+    public const string FocusBackgroundInactive = "FocusBackgroundInactive";
     public const string OnAccent = "OnAccent";
+
+    public const string AccentFill = "AccentFill";
+
+    public const string DangerFill = "DangerFill";
+    public const string OnDanger = "OnDanger";
     public const string AccentHover = "AccentHover";
 
     public const string InformationLineDimText = "InformationLineDimText";
@@ -93,6 +110,7 @@ public static class ColorTokens
         (SelectedText, Strings.Color_SelectedText),
         (SelectionBackground, Strings.Color_SelectionBackground),
         (FocusOutline, Strings.Color_FocusOutline),
+        (FocusBackground, Strings.Color_FocusBackground),
         (ColumnHeader, Strings.Color_ColumnHeader),
         (InformationLine, Strings.Color_InformationLine),
         (InformationLineText, Strings.Color_InformationLineText),
@@ -148,7 +166,17 @@ public static class ColorTokens
         (CompareCopied, Strings.Color_CompareCopied),
     ];
 
-    public static readonly IReadOnlyList<(string Token, string Label)> All = [.. Window, .. Viewer, .. Syntax, .. Compare];
+    public static readonly IReadOnlyList<(string Token, string Label)> Git =
+    [
+        (GitChanged, Strings.Color_GitChanged),
+        (GitStaged, Strings.Color_GitStaged),
+        (GitNew, Strings.Color_GitNew),
+        (GitDeleted, Strings.Color_GitDeleted),
+        (GitConflicted, Strings.Color_GitConflicted),
+        (GitIgnored, Strings.Color_GitIgnored),
+    ];
+
+    public static readonly IReadOnlyList<(string Token, string Label)> All = [.. Window, .. Viewer, .. Syntax, .. Compare, .. Git];
 
     private static readonly HashSet<string> _known = [.. All.Select(t => t.Token)];
 
@@ -247,6 +275,34 @@ public static class ColorTokens
         result.TryAdd(SelectionBackground, ColorMath.Mix(surface, accent, dark ? 0.22 : 0.16));
         result.TryAdd(SelectedText, ColorMath.Mix(text, accent, dark ? 0.70 : 0.75));
         result.TryAdd(FocusOutline, accent);
+        result[RowStripe] = ColorMath.Mix(surface, text, dark ? 0.045 : 0.03);
+
+        var selection = result[SelectionBackground];
+        bool Distinct(Rgb c) => ColorMath.Contrast(c, surface) >= 1.08 && Distance(c, selection) >= 24 && ColorMath.Contrast(text, c) >= Body;
+        Rgb focus;
+        if (theme.Id is ThemeCatalog.SalandualLightId or ThemeCatalog.SalandualDarkId)
+        {
+            focus = ColorMath.ParseHex(dark ? "#3D3D3D" : "#E6E6E6");
+        }
+        else if (result.TryGetValue(FocusBackground, out var ownFocus) && Distinct(ownFocus))
+        {
+            focus = ownFocus;
+        }
+        else
+        {
+            focus = ColorMath.Mix(surface, text, 0.11);
+            foreach (var amount in (ReadOnlySpan<double>)[0.11, 0.17, 0.23, 0.07])
+            {
+                if (Distinct(ColorMath.Mix(surface, text, amount)))
+                {
+                    focus = ColorMath.Mix(surface, text, amount);
+                    break;
+                }
+            }
+        }
+
+        result[FocusBackground] = Highlight(focus, [text], surface);
+        result[FocusBackgroundInactive] = ColorMath.Mix(result[FocusBackground], surface, 0.5);
 
         Floor(SecondaryText, Body, PanelBackground, WindowBackground, ColumnHeader, Hover, WarningBackground, DangerBackground, InfoBackground, SuccessBackground);
         Floor(TertiaryText, Body, PanelBackground, WindowBackground, ColumnHeader);
@@ -333,8 +389,20 @@ public static class ColorTokens
             result[token] = Highlight(result[token], codeInk, code);
         }
 
+        result.TryAdd(GitChanged, result[Warning]);
+        result.TryAdd(GitStaged, result[Success]);
+        result.TryAdd(GitNew, accent);
+        result.TryAdd(GitDeleted, result[Danger]);
+        result.TryAdd(GitConflicted, result[Danger]);
+        result.TryAdd(GitIgnored, result[TertiaryText]);
+        foreach (var token in (ReadOnlySpan<string>)[GitChanged, GitStaged, GitNew, GitDeleted, GitConflicted, GitIgnored])
+        {
+            Floor(token, Body, PanelBackground, WindowBackground);
+        }
+
         result[FocusOutlineInactive] = salandual ? ColorMath.ParseHex(dark ? "#5A5A5A" : "#B0B0B0") : ColorMath.Mix(surface, text, 0.35);
-        result[OnAccent] = ColorMath.OnColor(accent);
+        (result[AccentFill], result[OnAccent]) = AccentColors.FillAndLabel(accent, dark);
+        (result[DangerFill], result[OnDanger]) = AccentColors.FillAndLabel(result[Danger], dark);
         result[CompareMinorMark] = ColorMath.Mix(result[CompareMinorText], dark ? new Rgb(0xA9, 0xC1, 0xF5) : new Rgb(0x3A, 0x66, 0xC4), 0.7);
         result[AccentHover] = dark ? ColorMath.Lighten(accent, 0.12) : ColorMath.Mix(accent, new Rgb(0, 0, 0), 0.12);
         return result;
@@ -373,6 +441,9 @@ public static class ColorTokens
 
         return under;
     }
+
+    private static double Distance(Rgb a, Rgb b)
+        => Math.Sqrt(((a.R - b.R) * (a.R - b.R)) + ((a.G - b.G) * (a.G - b.G)) + ((a.B - b.B) * (a.B - b.B)));
 
     private static Rgb Soft(bool dark, bool salandual, string light, string darkHex, Rgb color, Rgb surface)
         => salandual ? ColorMath.ParseHex(dark ? darkHex : light) : ColorMath.Mix(surface, color, dark ? 0.15 : 0.14);

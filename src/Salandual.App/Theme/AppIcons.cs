@@ -39,7 +39,9 @@ internal static class AppIcons
         ["Clipboard.Paste"] = I("M5 3H3.5A1 1 0 0 0 2.5 4V13.5A1 1 0 0 0 3.5 14.5H12.5A1 1 0 0 0 13.5 13.5V4A1 1 0 0 0 12.5 3H11 M5.8 1.5H10.2A0.8 0.8 0 0 1 11 2.3V3.7A0.8 0.8 0 0 1 10.2 4.5H5.8A0.8 0.8 0 0 1 5 3.7V2.3A0.8 0.8 0 0 1 5.8 1.5Z M5.5 8.5H10.5 M5.5 11H9"),
         ["Archive.Pack"] = I("M2 8.5H14V13.5A1 1 0 0 1 13 14.5H3A1 1 0 0 1 2 13.5Z M6.5 11H9.5 M8 1.5V6 M5.8 3.8L8 6L10.2 3.8"),
         ["Archive.Unpack"] = I("M2 8.5H14V13.5A1 1 0 0 1 13 14.5H3A1 1 0 0 1 2 13.5Z M6.5 11H9.5 M8 6.5V1.5 M5.8 3.7L8 1.5L10.2 3.7"),
-        ["File.Email"] = I("M3 3.5H13A1.5 1.5 0 0 1 14.5 5V11A1.5 1.5 0 0 1 13 12.5H3A1.5 1.5 0 0 1 1.5 11V5A1.5 1.5 0 0 1 3 3.5Z M2 4.5L8 9L14 4.5"),
+        ["Archive.Test"] = I("M2 8.5H14V13.5A1 1 0 0 1 13 14.5H3A1 1 0 0 1 2 13.5Z M6.5 11H9.5 M5.5 4.2L7.3 6L10.7 2.5"),
+        ["UserMenu.Open"] = I("M2.5 2.5H13.5A1 1 0 0 1 14.5 3.5V12.5A1 1 0 0 1 13.5 13.5H2.5A1 1 0 0 1 1.5 12.5V3.5A1 1 0 0 1 2.5 2.5Z M4 5.5H5 M7 5.5H12 M4 8H5 M7 8H12 M4 10.5H5 M7 10.5H10"),
+        ["File.Email"] =I("M3 3.5H13A1.5 1.5 0 0 1 14.5 5V11A1.5 1.5 0 0 1 13 12.5H3A1.5 1.5 0 0 1 1.5 11V5A1.5 1.5 0 0 1 3 3.5Z M2 4.5L8 9L14 4.5"),
         ["Icon.More"] = F("M1.6 8A1.4 1.4 0 1 0 4.4 8A1.4 1.4 0 1 0 1.6 8Z M6.6 8A1.4 1.4 0 1 0 9.4 8A1.4 1.4 0 1 0 6.6 8Z M11.6 8A1.4 1.4 0 1 0 14.4 8A1.4 1.4 0 1 0 11.6 8Z"),
 
         ["Navigation.Execute"] = I("M1.5 12.5V4A1.5 1.5 0 0 1 3 2.5H6L7.5 4H12A1.5 1.5 0 0 1 13.5 5.5V7 M1.5 12.5L3.6 7.9A1.5 1.5 0 0 1 5 7H14.2L11.8 12.5H1.5Z"),
@@ -49,6 +51,8 @@ internal static class AppIcons
         ["Icon.Path"] = I("M6.5 9.5A3 3 0 0 0 10.7 9.5L13 7.2A3 3 0 0 0 8.8 3L7.6 4.1 M9.5 6.5A3 3 0 0 0 5.3 6.5L3 8.8A3 3 0 0 0 7.2 13L8.4 11.9"),
         ["Icon.Windows"] = I("M2 2.5H7.5V8H2Z M8.5 2.5H14V8H8.5Z M2 9H7.5V14H2Z M8.5 9H14V14H8.5Z"),
         ["File.Properties"] = I("M3.5 1.5H12.5A1.5 1.5 0 0 1 14 3V13A1.5 1.5 0 0 1 12.5 14.5H3.5A1.5 1.5 0 0 1 2 13V3A1.5 1.5 0 0 1 3.5 1.5Z M5 5H11 M5 8H11 M5 11H8.5"),
+        ["Panel.Filter"] = I("M2 3H14L9.5 8.5V13.5L6.5 12V8.5Z"),
+        ["Panel.FlatView"] = I("M2.5 3.5H13.5 M4.5 6.5H13.5 M4.5 9.5H13.5 M4.5 12.5H13.5 M2.5 5V12.5"),
         ["Panel.Refresh"] = I("M13.5 8A5.5 5.5 0 1 1 11.8 4 M12 1.5V4.5H9"),
         ["Icon.Sort"] = I("M4.5 2.5V13.5 M2.5 11.5L4.5 13.5L6.5 11.5 M9 4H14 M9 7.5H13 M9 11H11.5"),
         ["Icon.Pin"] = I("M9.5 1.5L14.5 6.5L12 7.5L9.5 10L9 13.5L2.5 7L6 6.5L8.5 4Z M5.5 10.5L1.5 14.5"),
@@ -63,11 +67,20 @@ internal static class AppIcons
         ["Icon.FileLoading"] = F("M4 1H12A2 2 0 0 1 14 3V13A2 2 0 0 1 12 15H4A2 2 0 0 1 2 13V3A2 2 0 0 1 4 1Z"),
 
         ["Icon.StripDrive"] = new([new(Geo("M4.5 5H11.5A2 2 0 0 1 13.5 7V9A2 2 0 0 1 11.5 11H4.5A2 2 0 0 1 2.5 9V7A2 2 0 0 1 4.5 5Z")), new(Geo("M10 7.25H11.5V8.75H10Z"), Filled: true)]),
+        ["Icon.StripServer"] = I("M3.5 2.5H12.5A1 1 0 0 1 13.5 3.5V6.5A1 1 0 0 1 12.5 7.5H3.5A1 1 0 0 1 2.5 6.5V3.5A1 1 0 0 1 3.5 2.5Z M3.5 8.5H12.5A1 1 0 0 1 13.5 9.5V12.5A1 1 0 0 1 12.5 13.5H3.5A1 1 0 0 1 2.5 12.5V9.5A1 1 0 0 1 3.5 8.5Z M5 5H6 M5 11H6"),
         ["Icon.StripNetwork"] = I("M4 3.5H12A1 1 0 0 1 13 4.5V9.5A1 1 0 0 1 12 10.5H4A1 1 0 0 1 3 9.5V4.5A1 1 0 0 1 4 3.5Z M8 10.5V12.5 M5 12.5H11"),
         ["Icon.StripFolder"] = I("M2 4H6L7.5 5.5H14V12.5H2Z"),
+        ["Icon.StripPc"] = I("M3.5 3.5H12.5V10.5H3.5Z M1.5 12.5H14.5"),
+        ["Icon.StripHome"] = I("M2.5 7.5L8 2.5L13.5 7.5 M4 6.5V13.5H12V6.5 M6.75 13.5V10H9.25V13.5"),
         ["Icon.StripAdd"] = I("M8 2L9.53 5.9L13.71 6.15L10.47 8.8L11.53 12.85L8 10.6L4.47 12.85L5.53 8.8L2.29 6.15L6.47 5.9Z"),
 
         ["Icon.PanelMaximize"] = I("M9.5 2.5L13.5 2.5L13.5 6.5 M6.5 13.5L2.5 13.5L2.5 9.5 M13.5 2.5L9 7 M2.5 13.5L7 9"),
+        ["Icon.ViewBrief"] = I("M2 4H6.5 M2 8H6.5 M2 12H6.5 M9.5 4H14 M9.5 8H14 M9.5 12H14"),
+        ["Icon.ViewColumns"] = I("M2.5 2.5H13.5V13.5H2.5Z M6 2.5V13.5 M9.5 2.5V13.5"),
+        ["Icon.ViewDetailed"] = I("M2 4H9 M11.5 4H14 M2 8H9 M11.5 8H14 M2 12H9 M11.5 12H14"),
+        ["Icon.ViewIcons"] = I("M2.5 2.5H6.5V6.5H2.5Z M9.5 2.5H13.5V6.5H9.5Z M2.5 9.5H6.5V13.5H2.5Z M9.5 9.5H13.5V13.5H9.5Z"),
+        ["Icon.ViewThumbnails"] = I("M2.5 3.5H13.5V12.5H2.5Z M2.5 10.5L6 7L9 10L11 8L13.5 10.5"),
+        ["Icon.ViewTiles"] = I("M2.5 2.5H6.5V6.5H2.5Z M8.5 3.5H14 M8.5 5.5H12 M2.5 9.5H6.5V13.5H2.5Z M8.5 10.5H14 M8.5 12.5H12"),
         ["Icon.PanelRestore"] = I("M13.5 6.5L9.5 6.5L9.5 2.5 M2.5 9.5L6.5 9.5L6.5 13.5 M9.5 6.5L13.5 2.5 M6.5 9.5L2.5 13.5"),
         ["Icon.ChevronDown"] = I("M4 6L8 10L12 6"),
         ["Icon.TitleChevron"] = I("M1 3L5 7L9 3"),
@@ -79,6 +92,9 @@ internal static class AppIcons
         ["Icon.MenuDrive"] = I("M1.5 5H14.5V11H1.5Z M11.5 8H12.5"),
         ["Icon.MenuNetwork"] = I("M2 3H14V10H2Z M8 10V13 M4.5 13H11.5"),
         ["Icon.Folder"] = I("M1.5 4H6L7.5 5.5H14.5V13.5H1.5Z"),
+        ["Icon.Script"] = I("M2.5 3H13.5A1 1 0 0 1 14.5 4V12A1 1 0 0 1 13.5 13H2.5A1 1 0 0 1 1.5 12V4A1 1 0 0 1 2.5 3Z M4 6.5L6 8.25L4 10 M7.5 10.5H11"),
+        ["Icon.Archive"] = I("M3.5 1.5H12.5V14.5H3.5Z M8 2.5V3.5 M8 5V6 M8 7.5V8.5 M6.5 10.5H9.5V13H6.5Z"),
+        ["Icon.Lock"] = I("M4.5 7.5H11.5V13.5H4.5Z M6 7.5V5.5A2 2 0 0 1 10 5.5V7.5"),
         ["Icon.Registry"] = I("M2 2H7V7H2Z M9 2H14V7H9Z M2 9H7V14H2Z M9 9H14V14H9Z"),
         ["Icon.History"] = I("M8 2A6 6 0 1 0 8.01 2Z M8 4.5V8L10.5 9.5"),
 
@@ -100,8 +116,13 @@ internal static class AppIcons
         ["Icon.ChevronLeft"] = I("M10 3.5L5.5 8L10 12.5"),
         ["Icon.ChevronRight"] = I("M6 3.5L10.5 8L6 12.5"),
         ["Icon.Find"] = I("M2.8 7A4.2 4.2 0 1 0 11.2 7A4.2 4.2 0 1 0 2.8 7Z M10.2 10.2L13.5 13.5"),
+        ["Icon.GitBranch"] = I("M4.5 4.5V11.5 M11.5 6Q11.5 9.5 4.5 10.5 M3 3A1.5 1.5 0 1 0 6 3A1.5 1.5 0 1 0 3 3Z M3 13A1.5 1.5 0 1 0 6 13A1.5 1.5 0 1 0 3 13Z M10 4.5A1.5 1.5 0 1 0 13 4.5A1.5 1.5 0 1 0 10 4.5Z"),
+        ["Icon.GitCommit"] = I("M8 2.5V5.5 M8 10.5V13.5 M5.5 8A2.5 2.5 0 1 0 10.5 8A2.5 2.5 0 1 0 5.5 8Z"),
         ["Icon.Bookmark"] = I("M4.5 2.5L11.5 2.5L11.5 13.5L8 10.5L4.5 13.5Z"),
         ["Icon.Panels"] = I("M2 3L14 3L14 13L2 13Z M8 3L8 13"),
+        ["Icon.QuickCommand"] = I("M3 4.5L6.5 8L3 11.5 M8 11.5H13"),
+        ["Icon.QuickTab"] = I("M1.5 6H14.5V13.5H1.5Z M1.5 6V3H7.5L8.5 6"),
+        ["Icon.QuickCloud"] = I("M4.5 12.5H11.8A2.6 2.6 0 0 0 12 7.3A4 4 0 0 0 4.3 7.9A2.3 2.3 0 0 0 4.5 12.5Z"),
         ["Icon.Gear"] = I("M13.06 6.43L14.9 6.82L14.9 9.18L13.06 9.57L12.69 10.47L13.72 12.04L12.04 13.72L10.47 12.69L9.57 13.06L9.18 14.9L6.82 14.9L6.43 13.06L5.53 12.69L3.96 13.72L2.28 12.04L3.31 10.47L2.94 9.57L1.1 9.18L1.1 6.82L2.94 6.43L3.31 5.53L2.28 3.96L3.96 2.28L5.53 3.31L6.43 2.94L6.82 1.1L9.18 1.1L9.57 2.94L10.47 3.31L12.04 2.28L13.72 3.96L12.69 5.53Z M5.8 8A2.2 2.2 0 1 0 10.2 8A2.2 2.2 0 1 0 5.8 8Z"),
         ["Icon.Advanced"] = I("M1.5 4.5H4 M7.5 4.5H14.5 M4 4.5A1.75 1.75 0 1 0 7.5 4.5A1.75 1.75 0 1 0 4 4.5Z M1.5 11.5H8.5 M12 11.5H14.5 M8.5 11.5A1.75 1.75 0 1 0 12 11.5A1.75 1.75 0 1 0 8.5 11.5Z"),
         ["Icon.GoTo"] = I("M2.5 8H11.5 M8.5 4.5L12 8L8.5 11.5 M14 3V13"),
@@ -118,13 +139,22 @@ internal static class AppIcons
         ["Icon.Contents"] = I("M2.5 3.5H3 M5.5 3.5H13.5 M4.5 8H5 M7.5 8H13.5 M4.5 12.5H5 M7.5 12.5H13.5"),
         ["Icon.SwapSides"] = I("M2.5 5.5H13.5 M11 3L13.5 5.5L11 8 M13.5 10.5H2.5 M5 8L2.5 10.5L5 13"),
         ["Icon.SwapUpDown"] = I("M5.5 13.5V2.5 M3 5L5.5 2.5L8 5 M10.5 2.5V13.5 M8 11L10.5 13.5L13 11"),
+        ["Icon.Add"] = I("M8 2.5V13.5 M2.5 8H13.5"),
         ["Icon.ArrowUp"] = I("M8 13V3 M4 7L8 3L12 7"),
         ["Icon.ArrowDown"] = I("M8 3V13 M4 9L8 13L12 9"),
+        ["Icon.NewItem"] = I("M8 14.5H4V1.5H9L12.5 5V8.5 M9 1.5V5H12.5 M12.5 10.5V15 M10.25 12.75H14.75"),
+        ["Icon.Picture"] = I("M2.5 3H13.5V13H2.5Z M2.5 11L6 7.5L9 10.5L10.5 9L13.5 12 M10 6A1 1 0 1 0 12 6A1 1 0 1 0 10 6Z"),
+        ["Icon.Variable"] = I("M5.5 2.5C4 2.5 4 3.5 4 5V6.5C4 7.5 3 8 2.5 8C3 8 4 8.5 4 9.5V11C4 12.5 4 13.5 5.5 13.5 M10.5 2.5C12 2.5 12 3.5 12 5V6.5C12 7.5 13 8 13.5 8C13 8 12 8.5 12 9.5V11C12 12.5 12 13.5 10.5 13.5 M6.5 6L9.5 10 M9.5 6L6.5 10"),
+        ["Icon.NewSeparator"] = I("M2 3.5H14 M2 12.5H14 M2 8H4 M6.5 8H9.5 M12 8H14"),
 
         ["Icon.ZoomOut"] = I("M3.5 8H12.5"),
         ["Icon.ZoomIn"] = I("M3.5 8H12.5 M8 3.5V12.5"),
         ["Icon.RotateLeft"] = I("M3.5 6.5A5 5 0 1 1 4 11 M3 3V6.5H6.5"),
         ["Icon.RotateRight"] = I("M12.5 6.5A5 5 0 1 0 12 11 M13 3V6.5H9.5"),
+        ["Icon.Play"] = I("M5 3.5L12.5 8L5 12.5Z"),
+        ["Icon.Pause"] = I("M5.5 3.5V12.5 M10.5 3.5V12.5"),
+        ["Icon.FramePrevious"] = I("M4 3.5V12.5 M12.5 3.5L6.5 8L12.5 12.5Z"),
+        ["Icon.FrameNext"] = I("M12 3.5V12.5 M3.5 3.5L9.5 8L3.5 12.5Z"),
         ["Icon.FullScreen"] = I("M2.5 6V2.5H6 M10 2.5H13.5V6 M13.5 10V13.5H10 M6 13.5H2.5V10"),
         ["Icon.Copy"] = I("M6.7 5.5H12.3A1.2 1.2 0 0 1 13.5 6.7V12.3A1.2 1.2 0 0 1 12.3 13.5H6.7A1.2 1.2 0 0 1 5.5 12.3V6.7A1.2 1.2 0 0 1 6.7 5.5Z M10.5 3.5V3A1 1 0 0 0 9.5 2H3.5A1 1 0 0 0 2.5 3V9A1 1 0 0 0 3.5 10H4"),
     };
@@ -145,6 +175,17 @@ internal static class AppIcons
 
     public static Control? Create(string name, string brush = "Brush.SecondaryText")
         => _icons.ContainsKey(name) ? Glyph(name, 16, 16, 1.25, brush) : null;
+
+    public static Control? ForPanel(string name, bool rightPanel)
+    {
+        var icon = Create(name);
+        if (icon is not null && rightPanel && name is "File.Copy" or "File.Move")
+        {
+            icon.RenderTransform = new ScaleTransform(-1, 1);
+        }
+
+        return icon;
+    }
 
     public static Control Glyph(string name, double width, double height, double thickness = 1.4, string brush = "Brush.SecondaryText", bool round = true)
     {
@@ -323,6 +364,50 @@ internal static class AppIcons
 
     private static RectangleGeometry Box(double x, double y, double width, double height, double radius)
         => new(new Rect(x, y, width, height), radius, radius);
+
+    public static void DrawSalamander(DrawingContext context, Size size, double sway, bool firstStep, bool dark)
+    {
+        var outline = new Pen(dark ? new ImmutableSolidColorBrush(Color.FromArgb(0x73, 0xFF, 0xFF, 0xFF)) : Brushes.Black, 0.8);
+        var legs = new Pen(dark ? new ImmutableSolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x5A)) : _salamanderSkin, 3.2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        using var scale = context.PushTransform(Matrix.CreateScale(size.Width / 120, size.Height / 40));
+
+        using (context.PushTransform(Around(46, 20, 9 * sway)))
+        {
+            context.DrawGeometry(_salamanderSkin, outline, _salamanderTail);
+            context.DrawEllipse(_salamanderSpots, null, new Point(36, 19), 1.8, 1.8);
+            context.DrawEllipse(_salamanderSpots, null, new Point(24, 18.5), 1.3, 1.3);
+        }
+
+        context.DrawGeometry(null, legs, firstStep ? _salamanderLegsA : _salamanderLegsB);
+
+        using (context.PushTransform(Around(62, 20, -4 * sway)))
+        {
+            context.DrawEllipse(_salamanderSkin, outline, new Point(66, 20), 20, 6.5);
+            context.DrawGeometry(_salamanderSkin, outline, _salamanderHead);
+            context.DrawEllipse(_salamanderSpots, null, new Point(56, 17), 3, 1.6);
+            context.DrawEllipse(_salamanderSpots, null, new Point(62, 23.2), 2.6, 1.5);
+            context.DrawEllipse(_salamanderSpots, null, new Point(70, 16.6), 2.8, 1.5);
+            context.DrawEllipse(_salamanderSpots, null, new Point(77, 22.6), 2.4, 1.4);
+            foreach (var spot in _salamanderHeadSpots)
+            {
+                context.DrawGeometry(_salamanderSpots, null, spot);
+            }
+
+            context.DrawEllipse(_salamanderSpots, null, new Point(101, 16.4), 1.6, 1.6);
+            context.DrawEllipse(_salamanderSpots, null, new Point(101, 23.6), 1.6, 1.6);
+        }
+    }
+
+    private static Matrix Around(double x, double y, double degrees)
+        => Matrix.CreateTranslation(-x, -y) * Matrix.CreateRotation(degrees * Math.PI / 180) * Matrix.CreateTranslation(x, y);
+
+    private static readonly IBrush _salamanderSpots = new ImmutableSolidColorBrush(Color.FromRgb(0xF5, 0xC4, 0x00));
+    private static readonly IBrush _salamanderSkin = new ImmutableSolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x1A));
+    private static readonly Geometry _salamanderTail = Geometry.Parse("M48,16 C36,15 24,13 4,20 C24,17 36,25 48,24 Z");
+    private static readonly Geometry _salamanderHead = Geometry.Parse("M84,20 C84,13 92,12.5 99,14 C106,15.5 109,18 109,20 C109,22 106,24.5 99,26 C92,27.5 84,27 84,20 Z");
+    private static readonly Geometry[] _salamanderHeadSpots = [Geometry.Parse("M88,15 C92,13.6 96,14 98,15.6 C95,16.4 91,16.6 88,15 Z"), Geometry.Parse("M88,25 C92,26.4 96,26 98,24.4 C95,23.6 91,23.4 88,25 Z")];
+    private static readonly Geometry _salamanderLegsA = Geometry.Parse("M52,17 L46,8 L42,7 M56,23 L60,33 L64,35 M80,17 L86,8 L90,7 M78,23 L72,33 L68,34");
+    private static readonly Geometry _salamanderLegsB = Geometry.Parse("M52,17 L56,7 L60,6 M56,23 L50,32 L46,33 M80,17 L74,8 L70,7 M78,23 L84,33 L88,35");
 
     private sealed class MarkView : Control
     {

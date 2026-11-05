@@ -29,7 +29,7 @@
   <img src="assets/screenshot.png" alt="Salandual in the dark theme: two panels after a folder comparison, with the middle toolbar, the drive strip and the F-key bar" width="900">
 </p>
 
-> **Status: v0.1, the first release.** Salandual is complete enough for everyday file work, but it is young and some Salamander features are not built yet (see [What is not in v0.1](#what-is-not-in-v01)). Expect rough edges, and please report them.
+> **Status: v0.8.** Salandual is complete enough for everyday file work, with archives, tabs, the user menu, FTP and SFTP, Git and a Hungarian translation since v0.1, but it is young (see [What is not in v0.8](#what-is-not-in-v08)). Expect rough edges, and please report them.
 >
 
 >[!IMPORTANT]
@@ -39,7 +39,7 @@
 >[!CAUTION]
 >**What to keep in mind**
 >
->- AI-written code can be wrong in ways that tests and checks do not catch. v0.1 has not had an independent security review; the project's own list of security rules is checked in each step, and a full review against it is still to do. Keep backups, and until you trust it, try Move, Delete and overwrite on copies of your files first.
+>- AI-written code can be wrong in ways that tests and checks do not catch. Salandual has not had an independent security review; the project's own list of security rules is checked in each step, and a full review against it is still to do. Keep backups, and until you trust it, try Move, Delete and overwrite on copies of your files first.
 >- Open Salamander's published help text and key tables were the functional reference. No code from [Open Salamander](https://github.com/OpenSalamander/salamander) or [Samandarin](https://github.com/KRtkovo-eu-AI/salamander) is in `src`, see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 >- Please report what you find, see [Reporting problems and ideas](#reporting-problems-and-ideas).
 >
@@ -55,10 +55,20 @@ If you prefer Total Commander's keys, choose that key map in the first-start wiz
 ### Panels and navigation
 - Two panels with a draggable splitter, a breadcrumb directory line, a header, an information line and an F-key bar that relabels for `Shift`, `Ctrl` and `Alt`.
 - A custom-drawn list that stays smooth in folders with 100,000 entries; sorting is locale- and number-aware (`file2` before `file10`).
-- Quick search (`/ \ <` wildcards), selection by mask, extension or name (`Space`, `Insert`, numeric `+ - *`, `Ctrl+A`, `Ctrl+W` to restore), hidden files (`Ctrl+H`), folder sizes on `Space`.
+- Quick search (`/ \ <` wildcards), selection by mask, extension or name (`Space`, `Insert`, numeric `+ - *`, `Ctrl+A`, Edit › Restore selection), hidden files (`Ctrl+H`), folder sizes on `Space`.
 - A drive strip and drive menu (`Alt+F1` / `Alt+F2`) with labels, free space and a meter; **Drive information** (`Ctrl+F1`) with file system, SSD or HDD, cluster size and a rename.
 - 30 **hot paths** (`Ctrl+1…0`, `Shift+F9` for the list) with a bar; *Change directory* (`Shift+F7`, `Ctrl+G`) with completion and history; per-panel working directories (`Alt+F12`); back and forward per panel; both panels' folders restored at the next start.
+- **Windows' places** in a panel: This PC (your folders, then the drives with how full each is), Home, Libraries and the **Recycle Bin** (where each item came from and when; restore, delete for good, copy or move out, empty). `Shift+F3` opens Explorer with the items selected; Go to shortcut target opens the folder of what a shortcut points to.
+- **Quick open** (`Ctrl+Shift+P`): one box that finds commands, folders, files, tabs and settings as you type, the ones you use most first.
+- **Network** (`Ctrl+,`): the computers on your network, a server's shares, your network drives; Windows' own sign-in when a share wants a password (I never store one). `F11` connects a network drive, `F12` disconnects them, `Ctrl+Shift+F9` lists this PC's shares.
+- A **New** menu (`Ctrl+Shift+N`): your own templates, then Windows' list of new files; the new item's name is ready to type.
 - Shell icons loaded in the background, a folder watcher that refreshes the list and keeps your place.
+- **Tabs** in each panel (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, `Ctrl+Shift+T` reopens), and views beside Detailed: Brief, Icons, Thumbnails, Tiles, the **Columns view** (`Alt+1`) and the **flat view** (`Ctrl+B`).
+- A column chooser and views of your own, the **filter** (`Ctrl+F12`), **highlighting rules**, folder colors and marks, and each drive's disk activity on the directory line.
+- **Archives as folders:** ZIP, 7z, RAR, TAR, ISO and the other formats 7-Zip reads; unpack (`Alt+F9`), pack (`Alt+F5`, also with AES-256 and volumes), copy in and out, change and search inside them.
+- **FTP, FTPS and SFTP** (`Ctrl+Shift+F`): browse and copy both ways, the server's key checked first, passwords only in Windows Credential Manager when you tick *Remember*.
+- **Git** in the panels: the branch and each file's state, changes, staging and commits, the history and graph, who changed each line, an old version browsed whole, and fetch, pull, push and clone through your own Git.
+- The **user menu** (`F9`) with Salamander's variables, a user menu bar and the **command line**; the bars arranged as blocks in rows.
 
 ### File operations
 - **Copy, Move, Delete, New folder, Quick rename, Duplicate** (`F5`, `F6`, `F8`, `F7`, `F2`, `Alt+Shift+D`), each checked before it starts: free space, files over 4 GB for FAT32, paths too long, a write-protected target, copying a file onto itself.
@@ -73,6 +83,7 @@ If you prefer Total Commander's keys, choose that key map in the first-start wiz
 - Colours for JSON, YAML, XML, HTML, CSS, JavaScript and Markdown, and a **Tree** view for JSON, JSON Lines, YAML and XML.
 - **Markdown** and **Jupyter notebooks** shown rendered (a notebook is never run); **HTML** pages with their own look and a switch for scripts.
 - **Images:** the usual formats plus AVIF, WebP, HEIC, JPEG XL, camera RAW, PSD, SVG, TGA and DDS. Fit, width and 1:1 zoom up to 6400 %, pan, rotate, mirror, full screen, neighbours decoded ahead, and photo information (EXIF, IPTC, XMP, GPS, colour profile).
+- **Torrent files:** files, trackers and hashes, and *Check the files* against the downloaded ones.
 - **Media files:** the information MediaInfo reads (streams, codecs, bit rates, HDR, chapters, tags, cover art). There is no audio or video playback.
 - A mask table chooses the viewer for each kind of file; `Alt+F3` and `Ctrl+Shift+F3` pick another.
 
@@ -95,37 +106,38 @@ If you prefer Total Commander's keys, choose that key map in the first-start wiz
 - **Themes:** Salandual Light and Dark, Salamander Classic, high contrast, several greys, Dracula, Nord, Gruvbox, Catppuccin, Tokyo Night, GitHub and VS Code's own themes. Make your own from any theme, import a VS Code theme or a `.saldtheme` file, follow Windows' light and dark mode or your own schedule, pick an accent colour and a background picture.
 - Menus in the title bar, on their own row or behind a button; a window title built from a template; row height, fonts, size units, date and 12- or 24-hour time formats.
 - **Options** with a search across every page; export, import and reset of your settings (`.saldset`), shown part by part before anything changes, with Undo.
-- Key maps for Salamander and Total Commander, a cheat sheet, and *Which command has a key?*
+- Key maps for Salamander and Total Commander, your own keys on top of either in Options › Keyboard, a cheat sheet, and *Which command has a key?*
+- **Import from Altap Salamander** (read only, shown part by part first; passwords skipped), and the interface in **English or Hungarian**, with language files you can make for other languages.
 - A first-start wizard (also under **Help › First steps**).
+- A *Keep* or *Revert* bar for a new theme or colours; every window remembers its size, and the main window its place; settings shared between your PCs through a folder that syncs; Windows' *Text size* followed.
+- **Help › About Salandual** with the version, the licences of what Salandual uses, and **Help › Logs and crash reports**: a day's log and a report when something goes wrong, with your user folder hidden in what you copy.
 
 ### Careful with your files
 - File names and contents are treated as untrusted. Programs start by full path with an argument list, never through a command shell.
 - Delete and Move never follow a folder link into its target; viewing never runs anything.
 - A settings file that is broken, held open by another program or from a newer version is never overwritten: it is moved aside or left alone, and Salandual says so at start.
 
-## What is not in v0.1
+## What is not in v0.8
 
-These are planned and some already appear greyed out in the menus with a note:
+These are planned, some greyed out in the menus with a note:
 
-- **Archives:** browsing, packing and unpacking (ZIP, 7z, RAR, TAR and more), apart from searching inside ZIP files.
-- **Tabs**, the **user menu** (`F9`) and the **command line**, quick open and a key-map editor (the key map is read-only for now), changing attributes, network places, Windows shell folders as places.
-- **Remote:** FTP, FTPS, SFTP and SCP. **Plugins.**
-- Other languages: the interface is English only; Hungarian is the first translation planned.
-- Importing settings from Altap Salamander, an installer and automatic updates.
-- Playback of audio and video; PDF, EPS and ICNS previews; animated images (the first frame is shown).
+- **Plugins**, SCP, changing attributes (`Ctrl+F2`), automatic updates and code signing.
+- Playback of audio and video; PDF, EPS and ICNS previews.
+- Languages other than English and Hungarian, unless you make a language file.
 - Windows on Arm, Linux and macOS builds.
 
 ## Install
 
-1. Download `Salandual-0.1-win-x64.zip` from the [Releases](https://github.com/TomEvin/salandual/releases) page.
-2. Before unzipping, right-click the zip, choose **Properties** and tick **Unblock** if it is there, so Windows does not flag every file inside.
-3. Unzip it anywhere you like. It makes a `Salandual-0.1` folder; run `salandual.exe` inside it. There is no installer and no .NET installation is needed; the build is self-contained.
+There are two downloads on the [Releases](https://github.com/TomEvin/salandual/releases) page. Neither needs administrator rights or a .NET installation; the build is self-contained.
+
+- **The installer, `Salandual-0.8-win-x64-Setup.exe`:** run it and Salandual starts. It installs for your account only, into `%LOCALAPPDATA%\Salandual`, with a Start menu and a desktop shortcut. Settings live in `%APPDATA%\Salandual`.
+- **The portable zip, `Salandual-0.8-win-x64-portable.zip`:** before unzipping, right-click it, choose **Properties** and tick **Unblock** if it is there, so Windows does not flag every file inside. Unzip it anywhere, for example on a USB stick; it makes a `Salandual-0.8` folder, run `salandual.exe` inside it. It keeps its settings in a `Data` folder beside itself (the `portable.flag` file there does that), so `%APPDATA%` and `%LOCALAPPDATA%` stay untouched.
 
 **Requirements:** Windows 11, 64-bit (x64). Windows 10 22H2 may work but is not tested.
 
-**Windows may warn about the download.** v0.1 is not code-signed yet. If SmartScreen says *Windows protected your PC*, choose **More info › Run anyway**.
+**Windows may warn about the download.** Salandual is not code-signed yet. If SmartScreen says *Windows protected your PC*, choose **More info › Run anyway**.
 
-**To remove it,** delete the folder and, if you want your settings gone too, `%APPDATA%\Salandual`.
+**To remove it:** the installed one from *Settings › Apps › Installed apps › Salandual › Uninstall*; your settings in `%APPDATA%\Salandual` stay, delete that folder too if you want them gone. The portable one: delete its folder.
 
 ### Command line
 
@@ -142,13 +154,15 @@ A folder path on its own counts as `-A`, so dropping a folder on the icon opens 
 
 | What | Where |
 |---|---|
-| Settings, session, history, logs | `%APPDATA%\Salandual` |
+| Settings, session, history | `%APPDATA%\Salandual` |
+| The log and crash reports (kept 30 days, never sent) | `%APPDATA%\Salandual\Logs` |
+| The installed program | `%LOCALAPPDATA%\Salandual` |
 | Rendered pages' browser profile | `%LOCALAPPDATA%\Salandual\WebView2` |
 | Short-lived files (a file list shown in the viewer, a page's copy) | `%TEMP%\Salandual`, removed when Salandual closes |
 
-**Portable mode:** put an empty file named `portable.flag` next to `salandual.exe`. Settings, history and logs then live in a `Data` folder beside it instead of `%APPDATA%`.
+**Portable mode:** the portable zip has an empty file named `portable.flag` next to `salandual.exe`. Settings, history, logs and the pages' browser profile then live in a `Data` folder beside it instead of `%APPDATA%` and `%LOCALAPPDATA%`. Delete the file to use `%APPDATA%` instead.
 
-**Nothing is sent anywhere by Salandual.** There is no telemetry, no crash report upload and no update check. What can touch the network is what you open: pages shown in the Markdown, notebook and HTML viewers can load pictures and other content from the web, and *Show on map* opens your browser. Options › Viewers has switches for both, and scripts in HTML pages can be turned off.
+**Nothing is sent anywhere by Salandual.** There is no telemetry, no crash report upload and no update check. A crash report stays on your PC until you copy it into an issue yourself (Help › Logs and crash reports). What can touch the network is what you open: pages shown in the Markdown, notebook and HTML viewers can load pictures and other content from the web, and *Show on map* opens your browser. Options › Viewers has switches for both, and scripts in HTML pages can be turned off.
 
 ## Build from source
 
@@ -186,22 +200,24 @@ dotnet test Salandual.slnx
 | `src/Salandual.Core` | Pure .NET with no UI and no Win32: file system model, listing, selection, operations, commands and key maps, compare, search, viewer logic, settings |
 | `src/Salandual.Platform.Windows` | Win32 and COM: local file system, copy engine, Recycle Bin, shell menus, drives |
 | `src/Salandual.Imaging` | Image decoder chain and photo and media information |
-| `src/Salandual.Archives` | Archives as file systems (an empty placeholder: the feature is not in v0.1) |
+| `src/Salandual.Archives` | Archives as file systems through 7-Zip's 7z.dll: reading, unpacking with the safety rules, packing, changing, searching |
+| `src/Salandual.Remote` | FTP, FTPS and SFTP as file systems (FluentFTP, SSH.NET) |
+| `src/Salandual.Git` | Reading repositories with LibGit2Sharp, and your own Git run for what you ask |
 | `src/Salandual.App` | The Avalonia application, `salandual.exe` |
-| `tests/` | xUnit tests for Core, Platform.Windows, Imaging and the App |
+| `tests/` | xUnit tests for Core, Platform.Windows, Imaging, Archives, Remote, Git and the App |
 
 ## Roadmap
 
 Plans, not promises, and the order can change:
 
-1. **0.5, Salamander parity:** archives, user menu and command line, more panel views and filters, tabs, quick open with a key-map editor, movable bars, Hungarian, cloud folders, several monitors, touch and pen, import from Altap Salamander.
-2. **0.8, tools:** FTP, FTPS, SFTP and SCP, checksums, batch rename, a disk space view, folder synchronization, a preview panel, Office documents in the viewer, and a plugin API.
-3. **1.0:** an installer, automatic updates from GitHub Releases, code signing if it can be arranged, and a user manual.
+1. **Done in 0.8:** archives, user menu and command line, more panel views and filters, tabs, quick open with a key-map editor, movable bars, Hungarian, cloud folders, import from Altap Salamander, FTP, FTPS and SFTP, and Git.
+2. **Next, tools:** SCP, checksums, batch rename, folder synchronization, a preview panel, Office documents in the viewer, several monitors, touch and pen, and a plugin API.
+3. **1.0:** automatic updates from GitHub Releases, code signing if it can be arranged, and a user manual.
 4. **After 1.0:** a native Windows on Arm build, then Linux and macOS.
 
 ## Reporting problems and ideas
 
-Please open an [issue](https://github.com/TomEvin/salandual/issues). Say what you did, what you expected and what happened, your Windows version and Salandual's version (turn on *Version in the title* in Options › Layout › Title bar and menus). Screenshots help; **leave out file names and paths you would not post publicly.** For a larger change, open an issue first so we can agree on it before you spend time on a pull request.
+Please open an [issue](https://github.com/TomEvin/salandual/issues). Say what you did, what you expected and what happened, your Windows version and Salandual's version (Help › About Salandual › *Copy version info*). If something went wrong, Help › Logs and crash reports › *How to report* opens a new issue with the report filled in. Screenshots help; **leave out file names and paths you would not post publicly.** For a larger change, open an issue first so we can agree on it before you spend time on a pull request.
 
 **Security problems:** please do not post them in a public issue. Use the repository's **Security** tab and choose **Report a vulnerability**, so the report stays private until there is a fix.
 

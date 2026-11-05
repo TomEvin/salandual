@@ -202,6 +202,17 @@ public sealed class LocalOperationsTests : IDisposable
     }
 
     [Fact]
+    public async Task Move_TellsWhichFoldersWentWhere_SoTheirColoursFollow()
+    {
+        var folder = Folder("Clients", Source);
+        var file = Write(Source, "note.txt", "x");
+        var job = FileOperations.Move(_fs, [Item(folder), Item(file)], new TransferTarget(Target));
+        await Run(job);
+        Assert.Equal(JobState.Done, job.State);
+        Assert.Equal([(folder, WindowsPath.Join(Target, "Clients"))], job.MovedFolders);
+    }
+
+    [Fact]
     public async Task Copy_IntoItself_IsRefused_OntoItself_MakesASecondCopy()
     {
         var folder = Folder("Photos", Source);

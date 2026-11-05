@@ -111,8 +111,8 @@ public sealed class UsageRing : ThemedControl
             context.DrawGeometry(null, pen, arc);
         }
 
-        var value = new FormattedText(_center, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Bold, 17, _text);
-        var caption = new FormattedText(AppStrings.Ring_Free, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face, 11, _dim);
+        var value = new FormattedText(_center, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Bold, Salandual.App.Theme.TextScale.Of(17), _text);
+        var caption = new FormattedText(AppStrings.Ring_Free, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face, Salandual.App.Theme.TextScale.Of(11), _dim);
         var top = center.Y - ((value.Height + caption.Height) / 2);
         context.DrawText(value, new Point(center.X - (value.Width / 2), top));
         context.DrawText(caption, new Point(center.X - (caption.Width / 2), top + value.Height));

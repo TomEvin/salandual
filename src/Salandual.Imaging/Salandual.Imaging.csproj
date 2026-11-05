@@ -12,7 +12,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Magick.NET-Q8-x64" />
+    <PackageReference Include="Magick.NET-Q8-x64" GeneratePathProperty="true" />
     <PackageReference Include="BCnEncoder.Net" />
     <PackageReference Include="MetadataExtractor" />
     <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="$(PkgMediaInfoDLL)\lib\netstandard2.1\x64\MediaInfo.dll" Link="MediaInfo.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="$(PkgMagick_NET-Q8-x64)\Notice.txt" Link="licences\Magick.NET-notice.txt" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Salandual.Core\Salandual.Core.csproj" />

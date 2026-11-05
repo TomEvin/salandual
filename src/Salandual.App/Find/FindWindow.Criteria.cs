@@ -76,7 +76,7 @@ internal sealed class TextRow
         var kindsFrame = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Padding = new Thickness(2), Child = kinds }.Res(Border.BorderBrushProperty, "Brush.Border");
 
         _kind = text.Kind;
-        Pieces = new Button { Content = ".* ▾", FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"), Padding = new Thickness(8, 4), IsVisible = text.Kind == TextKind.Regex };
+        Pieces = new Button { Content = ".* ▾", FontFamily = Salandual.App.Options.OptionsUi.MonoFamily, Padding = new Thickness(8, 4), IsVisible = text.Kind == TextKind.Regex };
         ToolTip.SetTip(Pieces, AppStrings.Find_PiecesTip);
         Pieces.Flyout = RegexMenu.Create(() => Box);
         Remove = new Button { Content = AppIcons.Glyph("Icon.Cross", 10, 10, 1.5), Padding = new Thickness(8, 6), Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
@@ -137,7 +137,7 @@ internal sealed class TextRow
         }
 
         Pieces.IsVisible = kind == TextKind.Regex;
-        Box.FontFamily = kind == TextKind.Text ? FontFamily.Default : new FontFamily("Cascadia Mono,Consolas,monospace");
+        Box.FontFamily = kind == TextKind.Text ? FontFamily.Default : Salandual.App.Options.OptionsUi.MonoFamily;
         Box.PlaceholderText = kind == TextKind.Hex ? AppStrings.Find_HexPlaceholder : AppStrings.Find_AnyContent;
         owner.RowsChanged();
     }
@@ -202,7 +202,7 @@ internal static class RegexMenu
 
     private static MenuItem Item(RegexPiece piece, Func<Control> target)
     {
-        var pattern = new TextBlock { Text = piece.Pattern.Length > 24 ? piece.Pattern[..23] + "…" : piece.Pattern, FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"), FontSize = 12, Width = 170, VerticalAlignment = VerticalAlignment.Center };
+        var pattern = new TextBlock { Text = piece.Pattern.Length > 24 ? piece.Pattern[..23] + "…" : piece.Pattern, FontFamily = Salandual.App.Options.OptionsUi.MonoFamily, FontSize = 12, Width = 170, VerticalAlignment = VerticalAlignment.Center };
         pattern.Res(TextBlock.ForegroundProperty, "Brush.Accent");
         var header = new StackPanel { Orientation = Orientation.Horizontal, Children = { pattern, new TextBlock { Text = piece.Description, VerticalAlignment = VerticalAlignment.Center } } };
         var item = new MenuItem { Header = header, Tag = piece };

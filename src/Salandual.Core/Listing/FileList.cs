@@ -287,7 +287,7 @@ public sealed class FileListLine
         }
     }
 
-    private static string Drive(string folder)
+    internal static string Drive(string folder)
     {
         if (folder.StartsWith(@"\\", StringComparison.Ordinal))
         {
@@ -299,7 +299,7 @@ public sealed class FileListLine
         return folder.Length >= 2 && folder[1] == ':' ? folder[..2] : "";
     }
 
-    private static string PathPart(string folder)
+    internal static string PathPart(string folder)
     {
         var rest = folder[Drive(folder).Length..];
         if (!rest.StartsWith('\\'))

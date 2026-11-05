@@ -35,26 +35,39 @@
   </Window.Styles>
   <Panel>
     <controls:BackgroundLayer />
+    <Canvas x:Name="BarDropLayer" IsHitTestVisible="False" ZIndex="10">
+      <Border x:Name="BarDropMark" IsVisible="False" Background="{DynamicResource Brush.Accent}" CornerRadius="1" />
+    </Canvas>
     <DockPanel x:Name="RootDock">
       <Menu x:Name="MainMenuBar" DockPanel.Dock="Top" Padding="4,2" />
       <Grid x:Name="BottomRow" DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto">
         <controls:FunctionKeyBar x:Name="FunctionKeys" />
       </Grid>
-      <panels:DriveStrip x:Name="HotPathBar" DockPanel.Dock="Top" Margin="8,4,8,0" />
-      <panels:DriveStrip x:Name="SharedStrip" DockPanel.Dock="Top" IsVisible="False" Margin="8,4,8,0" />
+      <controls:CommandLineBar x:Name="CommandLineRow" DockPanel.Dock="Bottom" />
+      <StackPanel x:Name="BarRows" DockPanel.Dock="Top">
+        <panels:DriveStrip x:Name="UserMenuBar" IsVisible="False" />
+        <panels:DriveStrip x:Name="BackForwardBar" />
+        <panels:DriveStrip x:Name="HotPathBar" />
+        <panels:DriveStrip x:Name="SharedStrip" IsVisible="False" />
+      </StackPanel>
       <Grid x:Name="PanelsGrid" ColumnDefinitions="*,Auto,*" Margin="8,4,8,0">
         <controls:PanelSplitter x:Name="Splitter" Grid.Column="1" />
         <Border x:Name="SplitBadge" Grid.ColumnSpan="3" IsVisible="False" IsHitTestVisible="False"
                 HorizontalAlignment="Left" VerticalAlignment="Top" Padding="10,4"
                 CornerRadius="{StaticResource Radius.Full}"
-                Background="{DynamicResource Brush.Accent}">
+                Background="{DynamicResource Brush.AccentFill}">
           <TextBlock x:Name="SplitBadgeText" FontWeight="SemiBold" Foreground="{DynamicResource Brush.OnAccent}" />
         </Border>
         <Border x:Name="Notice" Grid.ColumnSpan="3" IsVisible="False" IsHitTestVisible="False"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,48" Padding="14,8"
                 CornerRadius="{StaticResource Radius.M}" Background="{DynamicResource Brush.Text}">
           <StackPanel Orientation="Horizontal" Spacing="14">
-            <TextBlock x:Name="NoticeText" Foreground="{DynamicResource Brush.PanelBackground}" TextWrapping="Wrap" MaxWidth="560" VerticalAlignment="Center" />
+            <StackPanel VerticalAlignment="Center" Spacing="5">
+              <TextBlock x:Name="NoticeText" Foreground="{DynamicResource Brush.PanelBackground}" TextWrapping="Wrap" MaxWidth="560" />
+              <ProgressBar x:Name="NoticeBar" IsVisible="False" Minimum="0" Maximum="1" MinWidth="320" Height="4" MinHeight="4"
+                           CornerRadius="2" Foreground="{DynamicResource Brush.Accent}" />
+              <TextBlock x:Name="NoticeDetail" IsVisible="False" FontSize="12" Opacity="0.8" Foreground="{DynamicResource Brush.PanelBackground}" />
+            </StackPanel>
             <StackPanel x:Name="NoticeActions" Orientation="Horizontal" Spacing="6" />
           </StackPanel>
         </Border>

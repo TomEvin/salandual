@@ -30,6 +30,14 @@ Salandual is licensed under GPL-3.0-or-later. It uses the components below. This
 | YamlDotNet (the editor: checking YAML and keeping Format's meaning; only its parser) | 18.1.0 | MIT | https://github.com/aaubry/YamlDotNet |
 | Markdig (Markdown viewer: Markdown to HTML, CommonMark and the GitHub extras) | 1.4.0 | BSD-2-Clause | https://github.com/xoofx/markdig |
 | Avalonia.Controls.WebView (Markdown viewer: the page, shown by the WebView2 engine that comes with Windows; nothing of the engine is shipped) | 12.1.0 | MIT | https://github.com/AvaloniaUI/Avalonia |
+| 7-Zip (7z.dll: archives opened as folders, read and unpacked; 7-Zip's official x64 build, unchanged, checked at build time against its SHA-256 and loaded only from Salandual's folder; its licence file is shipped next to the exe as `licences\7-Zip-License.txt`; source at 7-zip.org) | 26.04 | LGPL-2.1-or-later, with the unRAR licence restriction for the RAR decoder; BSD-3-Clause and BSD-2-Clause for some parts | https://www.7-zip.org |
+| FluentFTP (FTP and FTPS) | 55.1.0 | MIT | https://github.com/robinrodricks/FluentFTP |
+| SSH.NET (SFTP) | 2026.0.0 | MIT | https://github.com/sshnet/SSH.NET |
+| BouncyCastle.Cryptography (used by SSH.NET for its key exchanges and ciphers) | 2.7.0 | MIT | https://github.com/bcgit/bc-csharp |
+| Microsoft.Extensions.Logging.Abstractions, Microsoft.Extensions.DependencyInjection.Abstractions (used by FluentFTP and SSH.NET; nothing they log is kept) | 8.0.3, 8.0.2 | MIT | https://github.com/dotnet/runtime |
+| LibGit2Sharp (the Git view: reading repositories inside Salandual; it never runs a program from a repository) | 0.31.0 | MIT | https://github.com/libgit2/libgit2sharp |
+| libgit2 (git2-3f4182d.dll, from LibGit2Sharp.NativeBinaries 2.0.323; loaded only from Salandual's folder; its licence is shipped next to the exe as `licences\libgit2-License.txt`) | 3f4182d | GPL-2.0 with the linking exception | https://github.com/libgit2/libgit2 |
+| Velopack (the installer: Setup.exe, the uninstaller and their calls to Salandual; no update checks) | 1.2.161 | MIT | https://github.com/velopack/velopack |
 
 ## Colour themes
 

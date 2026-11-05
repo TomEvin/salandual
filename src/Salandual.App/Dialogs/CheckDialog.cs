@@ -62,11 +62,8 @@ public sealed class CheckDialog : Window
         var cancel = new Button { Content = CheckTexts.CancelJob(job), Padding = new Thickness(14, 5) };
         cancel.Click += (_, _) => Close(new ConflictChoice(new OperationAnswer(AnswerKind.Cancel)));
 
-        var footerRow = new DockPanel();
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { minimize, cancel, Skip, Yes } };
-        DockPanel.SetDock(buttons, Dock.Right);
-        footerRow.Children.Add(buttons);
-        footerRow.Children.Add(_forAll);
+        body.Children.Add(_forAll);
+        var footerRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { minimize, cancel, Skip, Yes } };
         var footer = new Border { Padding = new Thickness(20, 12), BorderThickness = new Thickness(0, 1, 0, 0), Child = footerRow }
             .Res(Border.BackgroundProperty, "Brush.WindowBackground").Res(Border.BorderBrushProperty, "Brush.Border");
 

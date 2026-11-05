@@ -42,6 +42,7 @@ public sealed class OperationJob
     private long _speedLimit;
     private int _speedLimitVersion;
     private JobState _state;
+    private string? _outcome;
 
     public OperationJob(OperationKind kind, string title, string route, IReadOnlyCollection<string> volumes, Action<OperationJob> work)
     {
@@ -64,6 +65,14 @@ public sealed class OperationJob
     public string? Subject { get; init; }
 
     public IReadOnlyCollection<string> Volumes { get; }
+
+    public Git.GitSyncKind? GitKind { get; init; }
+
+    public string? Outcome
+    {
+        get { lock (_gate) { return _outcome; } }
+        set { lock (_gate) { _outcome = value; } }
+    }
 
     public JobState State
     {
@@ -207,6 +216,22 @@ public sealed class OperationJob
         thread.Start();
     }
 
+    public void RunHere()
+    {
+        lock (_gate)
+        {
+            if (_state is not (JobState.Queued or JobState.Waiting))
+            {
+                return;
+            }
+
+            _state = JobState.Running;
+            _clock.Start();
+        }
+
+        Run();
+    }
+
     private void Run()
     {
         try
@@ -291,6 +316,21 @@ public sealed class OperationJob
     public IReadOnlyList<string> Targets
     {
         get { lock (_gate) { return [.. _targets]; } }
+    }
+
+    public IReadOnlyList<(string From, string To)> MovedFolders
+    {
+        get { lock (_gate) { return [.. _movedFolders]; } }
+    }
+
+    private readonly List<(string From, string To)> _movedFolders = [];
+
+    internal void AddMovedFolder(string from, string to)
+    {
+        lock (_gate)
+        {
+            _movedFolders.Add((from, to));
+        }
     }
 
     internal void AddTarget(string path)

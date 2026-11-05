@@ -56,10 +56,11 @@ public sealed class CountdownDialog : Window
         root.Children.Add(body);
         Content = TitleBarParts.ForDialog(this, root);
 
+        DialogButtons.ArrowsAcross(this, () => [Now, Cancel]);
         _timer.Tick += (_, _) => Tick();
         Opened += (_, _) =>
         {
-            Cancel.Focus();
+            DialogButtons.FocusShown(Cancel);
             _timer.Start();
         };
         Closed += (_, _) => _timer.Stop();

@@ -10,8 +10,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsAotCompatible>true</IsAotCompatible>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Salandual.Core\Salandual.Core.csproj" />
+    <InternalsVisibleTo Include="Salandual.Archives.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\third-party\7-Zip\7z.dll" Link="7z.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="..\..\third-party\7-Zip\License.txt" Link="licences\7-Zip-License.txt" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <Target Name="CheckSevenZipDll" BeforeTargets="Build">
+    <GetFileHash Files="..\..\third-party\7-Zip\7z.dll" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="SevenZipDllHash" />
+    </GetFileHash>
+    <Error Condition="'$(SevenZipDllHash)' != '899CD73D7FC60E1C1C35C7DE0F5BED3DC69BFE2CECBD48014D868A347970A0B1'" Text="third-party\7-Zip\7z.dll is not 7-Zip's 26.04 x64 build (SHA-256 $(SevenZipDllHash))." />
+  </Target>
 </Project>

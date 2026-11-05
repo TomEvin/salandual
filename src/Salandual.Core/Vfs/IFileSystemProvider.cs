@@ -21,7 +21,10 @@ public enum ProviderCapabilities
     Watch = 64,
 }
 
-public sealed record DirectoryListing(string Path, FileEntry[] Entries, TimeSpan Elapsed);
+public sealed record DirectoryListing(string Path, FileEntry[] Entries, TimeSpan Elapsed)
+{
+    public bool KeepOrder { get; init; }
+}
 
 public sealed record DirectoryChange(string Path, int ChangeCount, bool Overflowed);
 
@@ -40,4 +43,6 @@ public interface IFileSystemProvider
     string Combine(string directory, string name);
 
     IDisposable Watch(string path, Action<DirectoryChange> onChange, Action<Exception> onError);
+
+    IDisposable? WatchTree(string path, Action<IReadOnlyCollection<string>?> onChange, Action<Exception> onError) => null;
 }

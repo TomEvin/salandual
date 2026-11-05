@@ -691,6 +691,10 @@ internal sealed class DiffView : Control
         }
     }
 
+    public bool CopyToRight { get; set; } = true;
+
+    public bool CopyToLeft { get; set; } = true;
+
     public (int Block, bool ToRight)? ArrowAt(Point p)
     {
         if (_text is null || ItemCount == 0)
@@ -705,8 +709,8 @@ internal sealed class DiffView : Control
         }
 
         var x = SideWidth + ((Gap - (2 * ArrowWidth) - ArrowSpace) / 2);
-        return p.X >= x && p.X < x + ArrowWidth ? (block, true)
-            : p.X >= x + ArrowWidth + ArrowSpace && p.X < x + (2 * ArrowWidth) + ArrowSpace ? (block, false)
+        return CopyToRight && p.X >= x && p.X < x + ArrowWidth ? (block, true)
+            : CopyToLeft && p.X >= x + ArrowWidth + ArrowSpace && p.X < x + (2 * ArrowWidth) + ArrowSpace ? (block, false)
             : null;
     }
 
@@ -733,7 +737,7 @@ internal sealed class DiffView : Control
 
     private Typeface MonoTypeface => new(this.TryFindResource("Font.Mono", ActualThemeVariant, out var f) && f is FontFamily family ? family : FontFamily.Default);
 
-    private double MonoSize => this.TryFindResource("Font.MonoSize", ActualThemeVariant, out var s) && s is double size ? size : 13;
+    private double MonoSize => this.TryFindResource("Font.MonoSizeShown", ActualThemeVariant, out var s) && s is double size ? size : 13;
 
     private IBrush Brush(string key) => this.TryFindResource(key, ActualThemeVariant, out var b) && b is IBrush brush ? brush : Brushes.Gray;
 
@@ -849,14 +853,21 @@ internal sealed class DiffView : Control
 
         var x = side + ((Gap - (2 * ArrowWidth) - ArrowSpace) / 2);
         var ay = y + Math.Max(2, (h - ArrowHeight) / 2);
-        Arrow(new Rect(x, ay, ArrowWidth, ArrowHeight), toRight: true);
-        Arrow(new Rect(x + ArrowWidth + ArrowSpace, ay, ArrowWidth, ArrowHeight), toRight: false);
+        if (CopyToRight)
+        {
+            Arrow(new Rect(x, ay, ArrowWidth, ArrowHeight), toRight: true);
+        }
+
+        if (CopyToLeft)
+        {
+            Arrow(new Rect(x + ArrowWidth + ArrowSpace, ay, ArrowWidth, ArrowHeight), toRight: false);
+        }
 
         void Arrow(Rect r, bool toRight)
         {
             if (current)
             {
-                context.FillRectangle(Brush("Brush.Accent"), r, 3);
+                context.FillRectangle(Brush("Brush.AccentFill"), r, 3);
             }
             else
             {
@@ -879,7 +890,7 @@ internal sealed class DiffView : Control
         context.DrawLine(dash, new Point(0, area.Top + 0.5), new Point(area.Right, area.Top + 0.5));
         context.DrawLine(dash, new Point(0, area.Bottom - 0.5), new Point(area.Right, area.Bottom - 0.5));
         var label = Loc.Plural(item.Fold, AppStrings.FileCompare_Fold_One, AppStrings.FileCompare_Fold_Other);
-        var text = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface.Default, 11.5, Brush("Brush.TertiaryText"));
+        var text = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface.Default, Salandual.App.Theme.TextScale.Of(11.5), Brush("Brush.TertiaryText"));
         context.DrawText(text, new Point(area.Center.X - (text.Width / 2), area.Top + ((area.Height - text.Height) / 2)));
     }
 

@@ -242,6 +242,10 @@ public static class FileOperations
                 }
 
                 Job.AddTarget(dest);
+                if (kind == OperationKind.Move && info.IsDirectory && !info.IsLink)
+                {
+                    Job.AddMovedFolder(source.Path, dest);
+                }
 
                 if (kind == OperationKind.Move && SameVolume(source.Path, target.Folder))
                 {
@@ -714,6 +718,7 @@ public static class FileOperations
 
             foreach (var source in permanent)
             {
+                Job.Report(OperationPhase.Working, 0, 0, _done, _total, source.Path, force: true);
                 if (Try(source.Path, "Delete", () => fs.Stat(source.Path), out var info) && info is { } found)
                 {
                     DeleteTree(source.Path, found);

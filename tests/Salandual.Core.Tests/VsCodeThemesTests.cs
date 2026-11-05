@@ -200,14 +200,14 @@ public sealed class VsCodeThemesTests : IDisposable
     [Fact]
     public void ColourFile_FromBeforeThemes_MakesALightAndADarkTheme()
     {
-        var path = Write("my-colours.json", """
+        var path = Write("my-colors.json", """
             { "format": "salandual-colors", "version": 1,
               "light": { "Text": "#112233", "Unknown": "#000000" }, "dark": { "PanelBackground": "#101010" } }
             """);
 
         var themes = ThemePackage.Import(path, new AppearanceSettings(), _dir, _now);
 
-        Assert.Equal(["my-colours (light)", "my-colours (dark)"], themes.Select(t => t.Name));
+        Assert.Equal(["my-colors (light)", "my-colors (dark)"], themes.Select(t => t.Name));
         Assert.Equal([false, true], themes.Select(t => t.Dark));
         Assert.Equal("#112233", themes[0].Colors[ColorTokens.Text]);
         Assert.Equal(ColorTokens.SalandualLight[ColorTokens.PanelBackground], themes[0].Colors[ColorTokens.PanelBackground]);

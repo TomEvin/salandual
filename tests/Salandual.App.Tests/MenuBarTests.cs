@@ -251,11 +251,15 @@ public sealed class MenuBarTests
         options.ShowCategory("layout");
         Dispatcher.UIThread.RunJobs();
         var preview = options.GetVisualDescendants().OfType<BarsPreview>().Single();
-        Assert.Equal(["title", "hot paths bar", "middle toolbar", "panel strips", "directory lines", "column headers", "information lines", "function keys"], preview.Shown);
+        Assert.Equal(["title", "user menu bar", "back and forward bar", "hot paths bar", "middle toolbar", "panel strips", "directory lines", "column headers", "information lines", "function keys"], preview.Shown);
 
         settings.Update(s => s with { Layout = s.Layout with { MenuRow = MenuRow.OwnRow, Strip = StripMode.Shared, Bars = s.Layout.Bars with { InformationLine = false, FunctionKeyBar = false } } });
         Dispatcher.UIThread.RunJobs();
-        Assert.Equal(["title", "menu", "hot paths bar", "shared strip", "middle toolbar", "directory lines", "column headers"], preview.Shown);
+        Assert.Equal(["title", "menu", "user menu bar", "back and forward bar", "hot paths bar", "shared strip", "middle toolbar", "directory lines", "column headers"], preview.Shown);
+
+        settings.Update(s => s with { Layout = s.Layout with { Blocks = new() { Rows = [[BarBlock.BackForward]], WithDrives = [BarBlock.HotPaths, BarBlock.UserMenu] } } });
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(["title", "menu", "back and forward bar", "shared strip + hot paths bar + user menu bar", "middle toolbar"], preview.Shown.Take(5));
 
         var sticky = preview.GetVisualAncestors().OfType<StickyPanel>().Single();
         options.PageScroll.Offset = new Avalonia.Vector(0, options.PageScroll.Extent.Height);
@@ -266,8 +270,10 @@ public sealed class MenuBarTests
 
         var toggle = options.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.IsEnabled);
         toggle.Focus();
-        options.MouseDown(new Avalonia.Point(600, options.Bounds.Height - 120), Avalonia.Input.MouseButton.Left);
-        options.MouseUp(new Avalonia.Point(600, options.Bounds.Height - 120), Avalonia.Input.MouseButton.Left);
+        var later = options.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == "Coming later");
+        var spot = Avalonia.VisualExtensions.TranslatePoint(later, new Avalonia.Point(later.Bounds.Width / 2, later.Bounds.Height / 2), options)!.Value;
+        options.MouseDown(spot, Avalonia.Input.MouseButton.Left);
+        options.MouseUp(spot, Avalonia.Input.MouseButton.Left);
         Dispatcher.UIThread.RunJobs();
         Assert.False(toggle.IsFocused);
         Assert.True(options.PageScroll.IsFocused);
@@ -290,30 +296,15 @@ public sealed class MenuBarTests
         Assert.Contains(options.Items, i => i.Title == "Window title");
         Assert.Contains(options.Items, i => i.Title == "Menu button");
 
-        var ownRow = options.GetVisualDescendants().OfType<Button>().First(b => Avalonia.Automation.AutomationProperties.GetName(b) == "Own row");
+        Avalonia.Controls.Primitives.ToggleButton Choice(string label) => options.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.ToggleButton>().First(b => b.Content as string == label);
+        var ownRow = Choice("Own row");
+        Assert.Equal(Salandual.App.Resources.AppStrings.Opt_Menus_OwnRow_Desc, ToolTip.GetTip(ownRow));
         ownRow.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(MenuRow.OwnRow, settings.Current.Layout.MenuRow);
         Assert.True(settings.Current.Layout.Bars.MenuBar);
-        settings.Update(s => s with { Appearance = s.Appearance with { Schedule = AppearanceSettings.Fixed(ThemeCatalog.SalandualDarkId).Schedule } });
-        Dispatcher.UIThread.RunJobs();
-        var inTitle = options.GetVisualDescendants().OfType<Button>().First(b => Avalonia.Automation.AutomationProperties.GetName(b) == "In the title bar");
-        inTitle.BringIntoView();
-        Dispatcher.UIThread.RunJobs();
-        var center = Avalonia.VisualExtensions.TranslatePoint(inTitle, new Avalonia.Point(inTitle.Bounds.Width / 2, 20), options)!.Value;
-        options.MouseMove(center, RawInputModifiers.None);
-        Dispatcher.UIThread.RunJobs();
-        Assert.True(inTitle.IsPointerOver);
-        var presenter = inTitle.GetVisualDescendants().OfType<Avalonia.Controls.Presenters.ContentPresenter>().First(p => p.Name == "PART_ContentPresenter");
-        options.TryFindResource("Brush.PanelBackground", options.ActualThemeVariant, out var panelBg);
-        Assert.Equal(((Avalonia.Media.ISolidColorBrush)panelBg!).Color, ((Avalonia.Media.ISolidColorBrush)presenter.Background!).Color);
-        if (Environment.GetEnvironmentVariable("SALANDUAL_CAPTURE_DIR") is { Length: > 0 } dir)
-        {
-            options.CaptureRenderedFrame()!.Save(Path.Combine(dir, "options-cards-hover-dark.png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
-        }
 
-        var shared = options.GetVisualDescendants().OfType<Button>().First(b => Avalonia.Automation.AutomationProperties.GetName(b) == "Shared");
-        shared.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Choice("One for both").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
         Assert.Equal(StripMode.Shared, settings.Current.Layout.Strip);
 
         options.SearchBox.Text = "hamburger";

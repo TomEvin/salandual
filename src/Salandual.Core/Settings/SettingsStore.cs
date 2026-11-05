@@ -117,10 +117,10 @@ public sealed class SettingsStore(string filePath)
             return SettingsPeek.Defaults;
         }
 
-        var values = Scan(text, ["advanced.rendering", "general.startFolders", "general.startLeft", "general.startRight"]);
+        var values = Scan(text, ["advanced.rendering", "general.startFolders", "general.startLeft", "general.startRight", "general.language"]);
         var rendering = values.TryGetValue("advanced.rendering", out var r) && r.Equals("Software", StringComparison.OrdinalIgnoreCase) ? RenderingMode.Software : RenderingMode.Gpu;
         var folders = values.TryGetValue("general.startFolders", out var f) && Enum.TryParse<StartFolders>(f, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed) ? parsed : StartFolders.WhereYouLeft;
-        return new SettingsPeek(rendering, folders, values.GetValueOrDefault("general.startLeft", ""), values.GetValueOrDefault("general.startRight", ""));
+        return new SettingsPeek(rendering, folders, values.GetValueOrDefault("general.startLeft", ""), values.GetValueOrDefault("general.startRight", ""), values.GetValueOrDefault("general.language", GeneralSettings.English));
     }
 
     private static Dictionary<string, string> Scan(string text, string[] wanted)
@@ -269,7 +269,70 @@ internal static class SettingsMigrations
         [5] = AddHtmlMask,
         [6] = AddSlnx,
         [7] = PanelFont12,
+        [8] = BarRows,
+        [9] = AddTorrentMask,
     };
+
+    private static JsonObject BarRows(JsonObject root)
+    {
+        if (root["layout"] is not JsonObject layout || layout["blocks"] is not JsonObject blocks)
+        {
+            return root;
+        }
+
+        static string Read(JsonObject o, string key, string fallback)
+            => o[key] is JsonValue v && v.GetValueKind() == JsonValueKind.String ? v.GetValue<string>() : fallback;
+
+        var first = Read(blocks, "first", nameof(BarBlock.UserMenu)) == nameof(BarBlock.HotPaths) ? nameof(BarBlock.HotPaths) : nameof(BarBlock.UserMenu);
+        var second = first == nameof(BarBlock.HotPaths) ? nameof(BarBlock.UserMenu) : nameof(BarBlock.HotPaths);
+        var place = new Dictionary<string, string>
+        {
+            [nameof(BarBlock.HotPaths)] = Read(blocks, "hotPaths", nameof(BlockPlace.OwnRow)),
+            [nameof(BarBlock.UserMenu)] = Read(blocks, "userMenu", nameof(BlockPlace.OwnRow)),
+        };
+
+        string Where(string block, string other)
+            => place[block] == nameof(BlockPlace.WithOther) && place[other] == nameof(BlockPlace.WithDrives) ? nameof(BlockPlace.WithDrives) : place[block];
+
+        var rows = new JsonArray();
+        var drives = new JsonArray();
+        var together = new JsonArray();
+        foreach (var (block, other) in new[] { (first, second), (second, first) })
+        {
+            switch (Where(block, other))
+            {
+                case nameof(BlockPlace.WithDrives):
+                    drives.Add((JsonNode)block);
+                    break;
+                case nameof(BlockPlace.WithOther) when Where(other, block) != nameof(BlockPlace.WithDrives):
+                    together.Add((JsonNode)block);
+                    break;
+                default:
+                    if (Where(other, block) == nameof(BlockPlace.WithOther))
+                    {
+                        together.Add((JsonNode)block);
+                    }
+                    else
+                    {
+                        rows.Add((JsonNode)new JsonArray(block));
+                    }
+
+                    break;
+            }
+        }
+
+        if (together.Count > 0)
+        {
+            rows.Insert(0, together);
+        }
+
+        blocks.Remove("first");
+        blocks.Remove("hotPaths");
+        blocks.Remove("userMenu");
+        blocks["rows"] = rows;
+        blocks["withDrives"] = drives;
+        return root;
+    }
 
     private static JsonObject PanelFont12(JsonObject root)
     {
@@ -315,6 +378,12 @@ internal static class SettingsMigrations
         return root;
     }
 
+    private static JsonObject AddTorrentMask(JsonObject root)
+    {
+        AddMask(root, "*.torrent", ViewerKind.Torrent, ViewerKind.Hex, ".torrent");
+        return root;
+    }
+
     private static JsonObject AddSlnx(JsonObject root)
     {
         foreach (var table in (ReadOnlySpan<string>)["viewers", "editors"])
@@ -346,7 +415,9 @@ internal static class SettingsMigrations
         return root;
     }
 
-    private static void AddMask(JsonObject root, string mask, ViewerKind view, params string[] names)
+    private static void AddMask(JsonObject root, string mask, ViewerKind view, params string[] names) => AddMask(root, mask, view, ViewerKind.Text, names);
+
+    private static void AddMask(JsonObject root, string mask, ViewerKind view, ViewerKind alternate, params string[] names)
     {
         if (root["viewers"] is not JsonObject viewers || viewers["masks"] is not JsonArray masks)
         {
@@ -359,7 +430,7 @@ internal static class SettingsMigrations
             return;
         }
 
-        var row = new JsonObject { ["mask"] = mask, ["view"] = view.ToString(), ["alternate"] = nameof(ViewerKind.Text) };
+        var row = new JsonObject { ["mask"] = mask, ["view"] = view.ToString(), ["alternate"] = alternate.ToString() };
         var catchAll = rows.FindIndex(r => r["mask"]?.GetValueKind() == JsonValueKind.String && r["mask"]!.GetValue<string>().Trim() is "*.*" or "*");
         if (catchAll >= 0)
         {
@@ -385,7 +456,7 @@ internal static class SettingsMigrations
     }
 }
 
-public sealed record SettingsPeek(RenderingMode Rendering, StartFolders StartFolders, string StartLeft, string StartRight)
+public sealed record SettingsPeek(RenderingMode Rendering, StartFolders StartFolders, string StartLeft, string StartRight, string Language = GeneralSettings.English)
 {
     public static SettingsPeek Defaults { get; } = new(RenderingMode.Gpu, StartFolders.WhereYouLeft, "", "");
 }

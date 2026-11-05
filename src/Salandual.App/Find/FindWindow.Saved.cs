@@ -207,7 +207,7 @@ internal sealed partial class FindWindow
             return true;
         }
 
-        var ask = new ConfirmDialog(Loc.Format(AppStrings.Find_SavedReplaceTitle, name), AppStrings.Find_SavedReplaceText, AppStrings.Find_SavedReplace, AppStrings.Common_Cancel);
+        var ask = new ConfirmDialog(Loc.Format(AppStrings.Find_SavedReplaceTitle, name), AppStrings.Find_SavedReplaceText, AppStrings.Find_SavedReplace, AppStrings.Common_Cancel, group: Core.Settings.ConfirmGroup.Save);
         return await ask.ShowDialog<bool>(this);
     }
 

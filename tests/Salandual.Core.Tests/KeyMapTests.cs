@@ -59,13 +59,16 @@ public sealed class KeyMapTests
     public void TotalCommander_KeysForWhatIsntBuilt_DoNothing_AndAreNamed()
     {
         var r = TotalCommander();
-        foreach (var key in new[] { "Ctrl+T", "Ctrl+Q", "Ctrl+M", "Ctrl+W", "Ctrl+Up", "Ctrl+F10", "Alt+F10" })
+        foreach (var key in new[] { "Ctrl+Q", "Ctrl+M", "Ctrl+Up", "Ctrl+F10", "Alt+F10" })
         {
             Assert.Null(Resolve(r, key));
             Assert.NotNull(r.NotYet(KeyChord.Parse(key)));
         }
 
-        Assert.Equal("New tab", r.NotYet(KeyChord.Parse("Ctrl+T"))!.Title);
+        Assert.Equal("Open in a new tab", r.NotYet(KeyChord.Parse("Ctrl+Up"))!.Title);
+        Assert.Equal("Tab.New", Resolve(r, "Ctrl+T"));
+        Assert.Equal("Tab.Close", Resolve(r, "Ctrl+W"));
+        Assert.Equal("Panel.Swap", Resolve(r, "Ctrl+Shift+U"));
         Assert.All(r.NotYetKeys, k => Assert.DoesNotContain("KeyMap_", k.Title, StringComparison.Ordinal));
     }
 
@@ -91,7 +94,8 @@ public sealed class KeyMapTests
         r.KeyMapChanged += (_, _) => changed++;
         var back = r.Differences(KeyMapName.TotalCommander, KeyMapName.Salamander);
         Assert.Contains(back, d => d.Chord == KeyChord.Parse("F2") && d.Before == "Panel.Refresh" && d.After == "File.QuickRename");
-        Assert.Contains(back, d => d.Chord == KeyChord.Parse("Ctrl+T") && d.Before == "" && d.After == "Navigation.ShortcutTarget");
+        Assert.Contains(back, d => d.Chord == KeyChord.Parse("Ctrl+Up") && d.Before == "");
+        Assert.DoesNotContain(back, d => d.Chord == KeyChord.Parse("Ctrl+T"));
         Assert.DoesNotContain(back, d => d.Chord == KeyChord.Parse("F5"));
         Assert.Equal("F2", back[0].Chord.ToString());
 
@@ -99,7 +103,7 @@ public sealed class KeyMapTests
         Assert.Equal(1, changed);
         Assert.Empty(r.NotYetKeys);
         Assert.Equal("File.QuickRename", Resolve(r, "F2"));
-        Assert.Equal("Navigation.ShortcutTarget", Resolve(r, "Ctrl+T"));
+        Assert.Equal("Tab.New", Resolve(r, "Ctrl+T"));
         Assert.Equal(back.Count, r.Differences(KeyMapName.Salamander, KeyMapName.TotalCommander).Count);
         foreach (var command in r.Commands)
         {

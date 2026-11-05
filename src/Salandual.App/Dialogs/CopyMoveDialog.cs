@@ -58,6 +58,7 @@ public sealed class CopyMoveDialog : Window
     private readonly Button _go, _queue;
     private readonly ComboBox _ifExists;
     private readonly CheckBox _times, _attrs, _streams, _filterOn, _skipEmpty, _limitOn, _verify;
+    private readonly CheckBox _closeWhenDone;
     private readonly TextBox _filter, _limit;
     private readonly List<(string Group, string Path, string Hint)> _shown = [];
     private CheckBox? _ontoItself;
@@ -71,7 +72,7 @@ public sealed class CopyMoveDialog : Window
     private bool _settingText;
     private bool _blocked;
 
-    public CopyMoveDialog(CopyMoveContext context, IOperationFileSystem fs, DisplayFormat format, Action<OperationSettings> saveDefaults)
+    public CopyMoveDialog(CopyMoveContext context, IOperationFileSystem fs, DisplayFormat format, Action<OperationSettings> saveDefaults, Action<bool>? keepCloseWhenDone = null)
     {
         _context = context;
         _fs = fs;
@@ -79,7 +80,6 @@ public sealed class CopyMoveDialog : Window
         _saveDefaults = saveDefaults;
         _maskInsideChosen = context.Settings.MaskInSubfolders;
         var verb = Verb;
-        Title = verb;
         Width = 620;
         SizeToContent = SizeToContent.Height;
         CanResize = false;
@@ -87,19 +87,8 @@ public sealed class CopyMoveDialog : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         this.Res(BackgroundProperty, "Brush.PanelBackground");
 
-        var heading = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 15 };
-        heading.Res(TextBlock.ForegroundProperty, "Brush.Text");
         var what = context.KnownBytes > 0 ? Loc.Format(AppStrings.Copy_WhatWithSize, FileOperations.Count(context.Sources), format.Size(context.KnownBytes)) : FileOperations.Count(context.Sources);
-        Rich.Add(heading.Inlines!, AppStrings.Copy_Heading, text =>
-            {
-                var run = new Run(text);
-                run.Bind(Run.ForegroundProperty, heading.GetResourceObservable("Brush.SecondaryText"));
-                return run;
-            },
-            new Run(verb) { FontWeight = FontWeight.SemiBold },
-            new Run(what).Also(r => r.Bind(Run.ForegroundProperty, heading.GetResourceObservable("Brush.SecondaryText"))),
-            new Run(FolderName(context.SourceFolder)) { FontWeight = FontWeight.SemiBold });
-        Heading = heading;
+        Title = Loc.Format(AppStrings.Copy_Heading, verb, what, FolderName(context.SourceFolder));
 
         _to = new TextBox { VerticalContentAlignment = VerticalAlignment.Center, MinHeight = 32 };
         _to.Res(TextBox.FontFamilyProperty, "Font.Mono");
@@ -179,6 +168,9 @@ public sealed class CopyMoveDialog : Window
         _limitOn = Check(AppStrings.Copy_LimitTo, s.LimitSpeed);
         _limit = new TextBox { Text = s.SpeedLimitMb.ToString("0.#", System.Globalization.CultureInfo.CurrentCulture), Width = 56, MinHeight = 26, Padding = new Thickness(6, 2), FontSize = 12, HorizontalContentAlignment = HorizontalAlignment.Right };
         _verify = Check(AppStrings.Copy_Verify, s.Verify);
+        _closeWhenDone = Check(AppStrings.Opt_CloseWhenDone, s.CloseWhenDone);
+        _closeWhenDone.IsVisible = s.Progress == ProgressShow.Window;
+        _closeWhenDone.IsCheckedChanged += (_, _) => keepCloseWhenDone?.Invoke(_closeWhenDone.IsChecked == true);
         var keep = new StackPanel { Spacing = 4, Children = { OptionsUi.Text(AppStrings.Copy_Keep, 12, FontWeight.SemiBold, "Brush.SecondaryText"), _times, _attrs, _streams, owners } };
         var filterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _filterOn, _filter } };
         var limitRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _limitOn, _limit, OptionsUi.Text("MB/s", 13) } };
@@ -227,9 +219,9 @@ public sealed class CopyMoveDialog : Window
             .Res(Border.BackgroundProperty, "Brush.WindowBackground").Res(Border.BorderBrushProperty, "Brush.Border");
 
         var body = new StackPanel { Spacing = 12, Margin = new Thickness(20, 6, 20, 16) };
-        body.Children.Add(heading);
         body.Children.Add(toField);
         body.Children.Add(_checksBox);
+        body.Children.Add(_closeWhenDone);
         body.Children.Add(_disclose);
         body.Children.Add(_options);
         var root = new DockPanel();
@@ -248,13 +240,13 @@ public sealed class CopyMoveDialog : Window
         Closed += (_, _) => _scan?.Cancel();
     }
 
-    internal TextBlock Heading { get; }
-
     internal TextBox To => _to;
 
     internal Button Go => _go;
 
     internal Button QueueButton => _queue;
+
+    internal CheckBox CloseWhenDoneBox => _closeWhenDone;
 
     internal StackPanel Checks => _checks;
 
@@ -537,7 +529,7 @@ public sealed class CopyMoveDialog : Window
         {
             CheckKind.Error => ("!", "Brush.Danger"),
             CheckKind.Warning => ("!", "Brush.Warning"),
-            _ => ("i", "Brush.Accent"),
+            _ => ("i", "Brush.AccentFill"),
         };
         var icon = new Border
         {
@@ -792,6 +784,7 @@ public sealed class CopyMoveDialog : Window
         SpeedLimitMb = double.TryParse(_limit.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out var mb) && mb > 0 ? mb : _context.Settings.SpeedLimitMb,
         Verify = _verify.IsChecked == true,
         MaskInSubfolders = _maskInsideChosen,
+        CloseWhenDone = _closeWhenDone.IsChecked == true,
     };
 
     private void OptionsChanged()
@@ -838,7 +831,7 @@ public sealed class CopyMoveDialog : Window
 
         if (target.CreatesFolder && _context.ConfirmCreate)
         {
-            var ask = CreateQuestion = new ConfirmDialog(AppStrings.CreateFolder_Title, Loc.Format(AppStrings.CreateFolder_Text, target.Folder), AppStrings.CreateFolder_Create, AppStrings.Common_Cancel);
+            var ask = CreateQuestion = new ConfirmDialog(AppStrings.CreateFolder_Title, Loc.Format(AppStrings.CreateFolder_Text, target.Folder), AppStrings.CreateFolder_Create, AppStrings.Common_Cancel, group: Core.Settings.ConfirmGroup.Create);
             bool create;
             try
             {

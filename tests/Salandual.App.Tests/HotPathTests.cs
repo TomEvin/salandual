@@ -303,6 +303,36 @@ public sealed class HotPathTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task TheDriveList_ShowsTheKindsPictures_AsOptionsSays()
+    {
+        var w = await Open();
+        foreach (var look in new[] { Salandual.Core.Settings.DriveIconLook.Picture, Salandual.Core.Settings.DriveIconLook.Picture3D })
+        {
+            w.Services.Settings.Update(s => s with { DriveMenu = s.DriveMenu with { DriveListIcon = look } });
+            w.ToggleDriveMenu(w.LeftPanel);
+            for (var i = 0; i < 40 && !w.DriveMenuFlyout!.Items.OfType<MenuItem>().Any(m => m.Icon is Controls.DrivePicture or Controls.DrivePicture3D); i++)
+            {
+                await Task.Delay(100);
+                Dispatcher.UIThread.RunJobs();
+            }
+
+            var c = w.DriveMenuFlyout!.Items.OfType<MenuItem>().Single(i => i.Tag is char l && l == 'C');
+            var medium = Salandual.Platform.Windows.FileSystem.DriveMedia.Of("C:\\");
+            Assert.Equal(Controls.DrivePicture.CanDraw(medium), look == Salandual.Core.Settings.DriveIconLook.Picture ? c.Icon is Controls.DrivePicture : c.Icon is Controls.DrivePicture3D);
+            Assert.True(Avalonia.VisualTree.VisualExtensions.GetVisualAncestors((Avalonia.Visual)c.Icon!).OfType<ContentControl>().First(v => v.Name == "PART_IconPresenter").Bounds.Width >= 32);
+            if (TopLevel.GetTopLevel(c) is { } popup && Environment.GetEnvironmentVariable("SALANDUAL_CAPTURE_DIR") is { Length: > 0 } dir)
+            {
+                popup.CaptureRenderedFrame()?.Save(Path.Join(dir, $"drivelist-{look}.png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+            }
+
+            w.ToggleDriveMenu(w.LeftPanel);
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        w.CloseNow();
+    }
+
+    [AvaloniaFact]
     public async Task AltF2_OpensTheRightPanelsDriveMenu_AHotPathGoesThere()
     {
         var w = await Open();
@@ -400,7 +430,7 @@ public sealed class HotPathTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task Options_ChoicesForAHiddenBar_AreGreyed()
+    public async Task Options_TheDrivesStripIsOneChoice_AndChoicesForAHiddenBar_AreGreyed()
     {
         var w = await Open();
         Define(w, new HotPath(1, "Beta", _b));
@@ -408,17 +438,22 @@ public sealed class HotPathTests : IDisposable
         options.Show();
         options.ShowCategory("layout");
         Dispatcher.UIThread.RunJobs();
-        Control Cards() => options.Page.GetLogicalDescendants().OfType<Button>().First(b => Avalonia.Automation.AutomationProperties.GetName(b) == "Shared");
-        var cards = Cards();
-        Assert.True(cards.IsEffectivelyEnabled);
-        options.PageScroll.Offset = new Avalonia.Vector(0, 200);
-        Dispatcher.UIThread.RunJobs();
 
-        Bars(w, b => b with { DriveStrip = false });
-        Dispatcher.UIThread.RunJobs();
-        Assert.False(cards.IsEffectivelyEnabled);
-        Assert.Same(cards, Cards());
-        Assert.Equal(200, options.PageScroll.Offset.Y);
+        void Pick(string label)
+        {
+            options.Page.GetLogicalDescendants().OfType<Avalonia.Controls.Primitives.ToggleButton>().First(b => b.Content as string == label)
+                .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        Pick("One for both");
+        Assert.True(w.Services.Settings.Current.Layout.Bars.DriveStrip);
+        Assert.Equal(StripMode.Shared, w.Services.Settings.Current.Layout.Strip);
+        Pick("In each panel");
+        Assert.Equal(StripMode.PerPanel, w.Services.Settings.Current.Layout.Strip);
+        Pick("Off");
+        Assert.False(w.Services.Settings.Current.Layout.Bars.DriveStrip);
+        Assert.Equal(StripMode.PerPanel, w.Services.Settings.Current.Layout.Strip);
 
         options.ShowCategory("hotpaths");
         Dispatcher.UIThread.RunJobs();
@@ -464,6 +499,92 @@ public sealed class HotPathTests : IDisposable
         w.CloseNow();
     }
 
+    [AvaloniaFact]
+    public async Task DriveMenu_YourProposals_CloudsServersUsedLastHotPathIconsHeadingsAndGroups()
+    {
+        var w = await Open();
+        w.FindClouds = _ => [new CloudFolder("OneDrive – Personal", _a), new CloudFolder("Syncplicity", @"Y:\", IsDrive: true)];
+        Define(w, new HotPath(5, "Beta", _b), new HotPath(12, "Alpha far", _a));
+        var day = new DateTimeOffset(2026, 11, 4, 9, 0, 0, TimeSpan.Zero);
+        ServerBookmark B(string name, int daysAgo) => new() { Name = name, Host = name.ToLowerInvariant() + ".example.org", LastUsed = day.AddDays(-daysAgo) };
+        w.Services.Settings.Update(s => s with { Servers = s.Servers with { Bookmarks = [B("Shop", 9), B("Garden", 0), B("Photos", 1), B("Build", 2), B("Blog", 30)] } });
+
+        w.ToggleDriveMenu(w.LeftPanel);
+        await Until(() => w.DriveMenuFlyout!.Items.OfType<MenuItem>().Any(i => ContainsText(i.Header, "OneDrive – Personal")));
+        var items = w.DriveMenuFlyout!.Items.OfType<MenuItem>().ToList();
+
+        Assert.Contains(items, i => i.Classes.Contains("groupHead") && ContainsText(i.Header, "CLOUD"));
+        Assert.Contains(items, i => ContainsText(i.Header, "OneDrive – Personal"));
+        var cloudGroup = items.SkipWhile(i => !(i.Classes.Contains("groupHead") && ContainsText(i.Header, "CLOUD"))).Skip(1).TakeWhile(i => !i.Classes.Contains("groupHead")).ToList();
+        Assert.Contains(cloudGroup, i => ContainsText(i.Header, "OneDrive – Personal"));
+        Assert.DoesNotContain(cloudGroup, i => ContainsText(i.Header, "Syncplicity"));
+
+        Assert.Equal(["Garden", "Photos", "Build"], [.. new[] { "Shop", "Garden", "Photos", "Build", "Blog" }.Where(n => items.Any(i => ContainsText(i.Header, n)))]);
+        Assert.Contains(items, i => ContainsText(i.Header, "Connect to a server… (5)"));
+        Assert.DoesNotContain(items, i => ContainsText(i.Header, "All servers"));
+
+        var five = items.Single(i => i.Tag is char c && c == '5');
+        Assert.NotNull(five.Icon);
+        Assert.True(ContainsText(five.Header, "5"));
+        var twelve = items.Single(i => ContainsText(i.Header, "Alpha far"));
+        Assert.Null(twelve.Tag);
+        Assert.NotNull(twelve.Icon);
+        Assert.False(ContainsText(twelve.Header, "12"));
+
+        var heading = items.First(i => i.Classes.Contains("groupHead"));
+        Assert.False(heading.Focusable);
+        var presenter = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(heading).OfType<Control>().First(c => c.Name == "PART_HeaderPresenter");
+        Assert.Equal(0, Grid.GetColumn(presenter));
+        var icon = Avalonia.VisualTree.VisualExtensions.GetVisualAncestors((Avalonia.Visual)five.Icon!).OfType<Control>().First(c => c.Name == "PART_IconPresenter");
+        var headingText = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(heading).OfType<TextBlock>().First();
+        Assert.True(Avalonia.VisualExtensions.TranslatePoint(headingText, default, heading)!.Value.X <= Avalonia.VisualExtensions.TranslatePoint(icon, default, five)!.Value.X);
+
+        var folders = items.First(i => i.Classes.Contains("groupHead") && ContainsText(i.Header, "FOLDERS"));
+        var hide = folders.ContextMenu!.Items.OfType<MenuItem>().Single();
+        Assert.Equal("Hide this group", hide.Header);
+        hide.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(w.Services.Settings.Current.DriveMenu.FoldersInMenu);
+        Assert.True(w.Services.Settings.Current.DriveMenu.Place(DriveMenuSettings.Home).InMenu);
+        Assert.DoesNotContain(w.DriveMenuFlyout!.Items.OfType<MenuItem>(), i => ContainsText(i.Header, "FOLDERS"));
+        w.ToggleDriveMenu(w.LeftPanel);
+        Dispatcher.UIThread.RunJobs();
+
+        w.Services.Settings.Update(s => s with { DriveMenu = s.DriveMenu with { RowSpacing = MenuRowSpacing.Closer, SpaceShown = DriveSpaceShown.Total, HotPathsInMenu = false } });
+        w.ToggleDriveMenu(w.LeftPanel);
+        await Until(() => w.DriveMenuFlyout!.Items.OfType<MenuItem>().Any(i => ContainsText(i.Header, "OneDrive – Personal")));
+        items = w.DriveMenuFlyout!.Items.OfType<MenuItem>().ToList();
+        Assert.Equal(2, items.Single(i => i.Tag is char c && c == 'C').Padding.Top);
+        Assert.DoesNotContain(items, i => i.Tag is char c && c == '5');
+        Assert.DoesNotContain(items, i => ContainsText(i.Header, " free"));
+        w.ToggleDriveMenu(w.LeftPanel);
+        w.CloseNow();
+    }
+
+    [AvaloniaFact]
+    public void DriveMenu_TallerThanItsRoom_Scrolls()
+    {
+        var w = new MainWindow { Width = 800, Height = 600 };
+        w.Show();
+        var flyout = new Controls.DriveMenuFlyout { MaxMenuHeight = 200 };
+        for (var i = 0; i < 40; i++)
+        {
+            flyout.Items.Add(new MenuItem { Header = "Row " + i });
+        }
+
+        flyout.ShowAt(w.LeftPanel.DirectoryLine);
+        Dispatcher.UIThread.RunJobs();
+        var first = flyout.Items.OfType<MenuItem>().First();
+        var scroll = Avalonia.VisualTree.VisualExtensions.GetVisualAncestors(first).OfType<ScrollViewer>().First();
+        Assert.True(scroll.Bounds.Height <= 200);
+        Assert.True(scroll.Extent.Height > scroll.Viewport.Height);
+        flyout.Items.OfType<MenuItem>().Last().BringIntoView();
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(scroll.Offset.Y > 0);
+        flyout.Hide();
+        w.CloseNow();
+    }
+
     private static bool ContainsText(object? header, string text) => header switch
     {
         string s => s.Contains(text, StringComparison.Ordinal),
@@ -494,6 +615,9 @@ public sealed class HotPathCaptureTests : IDisposable
         var music = Folder("Music");
         var w = new MainWindow { Width = 1280, Height = 720 };
         w.Show();
+        w.FindClouds = _ => [new CloudFolder("OneDrive – Personal", Folder("OneDrive")), new CloudFolder("OneDrive – Example Ltd", Folder("OneDrive - Example Ltd")), new CloudFolder("Dropbox", Folder("Dropbox"))];
+        var day = new DateTimeOffset(2026, 11, 4, 9, 0, 0, TimeSpan.Zero);
+        w.Services.Settings.Update(s => s with { Servers = s.Servers with { Bookmarks = [.. new[] { "Garden site", "Photo backup", "Build server", "Shop", "Old blog" }.Select((n, i) => new ServerBookmark { Name = n, Host = "host" + i + ".example.org", LastUsed = day.AddDays(-i) })] } });
         w.Services.Settings.Update(s => s with
         {
             HotPaths = s.HotPaths
@@ -522,6 +646,9 @@ public sealed class HotPathCaptureTests : IDisposable
             if (w.DriveMenuFlyout?.Items.OfType<MenuItem>().FirstOrDefault() is { } first && TopLevel.GetTopLevel(first) is { } popup)
             {
                 Save(popup, $"m22-drivemenu-{suffix}.png");
+                w.DriveMenuFlyout.Items.OfType<MenuItem>().Last().BringIntoView();
+                Dispatcher.UIThread.RunJobs();
+                Save(popup, $"m22-drivemenu-end-{suffix}.png");
             }
 
             Save(w, $"m22-drivemenu-window-{suffix}.png");

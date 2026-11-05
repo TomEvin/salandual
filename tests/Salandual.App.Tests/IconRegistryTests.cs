@@ -14,7 +14,7 @@ namespace Salandual.App.Tests;
 
 public sealed partial class IconRegistryTests
 {
-    private static readonly HashSet<string> _drawsCharts = ["UsageRing.cs", "SpeedGraph.cs", "BusyRing.cs", "EditorWindow.Checking.cs", "SpaceChart.cs"];
+    private static readonly HashSet<string> _drawsCharts = ["UsageRing.cs", "SpeedGraph.cs", "BusyRing.cs", "EditorWindow.Checking.cs", "SpaceChart.cs", "ActivityChart.cs", "DirectoryLine.cs", "DrivePicture.cs", "DrivePicture3D.cs", "ImageView.cs", "TabStrip.cs", "GitGraphCell.cs"];
 
     [Fact]
     public void Outlines_live_only_in_the_icon_table()

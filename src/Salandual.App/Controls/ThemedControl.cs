@@ -68,7 +68,7 @@ public abstract class ThemedControl : Control
         }
 
         var family = Resource("Font.Panel") as FontFamily ?? new FontFamily("Segoe UI");
-        FontSize = Resource("Font.PanelSize") is { } s ? Convert.ToDouble(s, CultureInfo.InvariantCulture) : Salandual.Core.Settings.FontSetting.DefaultPanelSize;
+        FontSize = Resource("Font.PanelSizeShown") is { } s ? Convert.ToDouble(s, CultureInfo.InvariantCulture) : Salandual.Core.Settings.FontSetting.DefaultPanelSize;
 
         Face = new Typeface(family);
         Bold = new Typeface(family, FontStyle.Normal, FontWeight.SemiBold);

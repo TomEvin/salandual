@@ -116,7 +116,7 @@ public sealed class ThemeEditorTests : IDisposable
         Assert.False(Settings.Current.Appearance.Themes[0].Colors.ContainsKey(ColorTokens.SelectedText));
 
         Type(w.ThemeColorRows[ColorTokens.Hover].Hex, "#123456");
-        Click(ButtonNamed(w.Page, "Fill the other colours from these five"));
+        Click(ButtonNamed(w.Page, "Fill the other colors from these five"));
         theme = Settings.Current.Appearance.Themes[0];
         Assert.Equal([ColorTokens.Accent, ColorTokens.PanelBackground, ColorTokens.SelectionBackground, ColorTokens.Text, ColorTokens.WindowBackground], theme.Colors.Keys.Order(StringComparer.Ordinal));
         Assert.NotEqual(ColorMath.ParseHex("#123456"), w.ThemeLivePreview.Colors[ColorTokens.Hover]);
@@ -134,8 +134,18 @@ public sealed class ThemeEditorTests : IDisposable
         var w = Open();
         Click(ButtonNamed(w.Page, "Open in the Editor"));
         Assert.False(w.ThemeNameBox!.IsEnabled);
-        Assert.False(w.ThemeColorRows[ColorTokens.Text].Hex.IsEffectivelyEnabled);
+        Assert.True(w.ThemeColorRows[ColorTokens.Text].Hex.IsReadOnly);
+        Assert.False(w.ThemeColorRows[ColorTokens.Text].Swatch.IsHitTestVisible);
         Assert.False(w.ThemeColorRows[ColorTokens.Text].Reset.IsEnabled);
+
+        Assert.Equal(5, w.ThemeColorGroups.Count);
+        Assert.All(w.ThemeColorGroups, g => Assert.True(g.IsEffectivelyEnabled));
+        var git = w.ThemeColorGroups[^1];
+        Assert.False(git.IsExpanded);
+        git.IsExpanded = true;
+        w.ThemeColorGroups[0].IsExpanded = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("#A3BE8C", w.ThemeColorRows[ColorTokens.GitStaged].Hex.Text);
         Capture(w, "themes-editor-readonly.png");
 
         Click(ButtonNamed(w.Page, "Duplicate to change"));
@@ -144,6 +154,9 @@ public sealed class ThemeEditorTests : IDisposable
         Assert.True(copy.Dark);
         Assert.Equal(ThemeCatalog.Find(Settings.Current.Appearance, "nord").Colors, copy.Colors);
         Assert.True(w.ThemeNameBox!.IsEnabled);
+        Assert.True(w.ThemeColorGroups[^1].IsExpanded);
+        Assert.False(w.ThemeColorGroups[0].IsExpanded);
+        Assert.False(w.ThemeColorRows[ColorTokens.Text].Hex.IsReadOnly);
 
         Settings.Update(s => s with { Appearance = s.Appearance with { Schedule = s.Appearance.Schedule with { Active = copy.Id } } });
         Dispatcher.UIThread.RunJobs();

@@ -13,6 +13,7 @@ using Salandual.App.Resources;
 using Salandual.Core;
 using Salandual.Core.Resources;
 using Salandual.Core.Settings;
+using Salandual.Core.Settings.Salamander;
 
 namespace Salandual.App.Options;
 
@@ -64,6 +65,74 @@ internal sealed class SettingsFiles(AppServices services, Window owner, Action<s
         return null;
     }
 
+    public async Task ImportSalamanderAsync()
+    {
+        if (await PickSalamanderAsync() is var (import, parts))
+        {
+            Import(import, parts);
+        }
+    }
+
+    internal async Task<(SettingsImport Import, IReadOnlySet<SettingsPart> Parts)?> PickSalamanderAsync(SalamanderInstall? install = null)
+    {
+        var source = install ?? await SettingsTransferDialog.ForSalamanderSource(services.Salamander.Find()).ShowDialog<object?>(owner);
+        var import = source switch
+        {
+            SalamanderInstall found => ReadSalamander(found),
+            SettingsTransferDialog.RegFileChoice => await PickRegFileAsync() is { } path ? ReadSalamander(path) : null,
+            _ => null,
+        };
+        if (import is not null && await SettingsTransferDialog.ForImport(import).ShowDialog<object?>(owner) is IReadOnlySet<SettingsPart> parts)
+        {
+            return (import, parts);
+        }
+
+        return null;
+    }
+
+    private async Task<string?> PickRegFileAsync()
+    {
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = AppStrings.SalImp_Title,
+            FileTypeFilter = [new FilePickerFileType(AppStrings.SalImp_RegFileType) { Patterns = ["*.reg"] }, FilePickerFileTypes.All],
+        });
+        return files is [var picked] ? picked.TryGetLocalPath() : null;
+    }
+
+    internal SettingsImport? ReadSalamander(SalamanderInstall install)
+    {
+        var source = Loc.Format(AppStrings.SalImp_OnThisPc, install.Name);
+        return services.Salamander.Read(install) is { } root
+            ? Compared(root, source)
+            : Said(Loc.Format(AppStrings.Xfer_ImportFailed, source, AppStrings.SalImp_Unreadable));
+    }
+
+    internal SettingsImport? ReadSalamander(string path)
+    {
+        try
+        {
+            var (name, root) = RegFile.Read(path);
+            return Compared(root, Loc.Format(AppStrings.SalImp_FromFile, name, Path.GetFileName(path)));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            return Said(Loc.Format(AppStrings.Xfer_ImportFailed, Path.GetFileName(path), ex.Message));
+        }
+    }
+
+    private SettingsImport? Compared(RegKey root, string source)
+    {
+        var import = SalamanderImport.Read(root, source, Settings.Current);
+        return import.Changes.Count > 0 ? import : Said(Loc.Format(AppStrings.Xfer_NothingToImport, source));
+    }
+
+    private SettingsImport? Said(string text)
+    {
+        report(text, null);
+        return null;
+    }
+
     public async Task ResetAllAsync()
     {
         if (await SettingsTransferDialog.ForResetAll(Settings.Current).ShowDialog<object?>(owner) is ResetChoice choice)
@@ -110,7 +179,25 @@ internal sealed class SettingsFiles(AppServices services, Window owner, Action<s
     internal void Import(SettingsImport import, IReadOnlySet<SettingsPart> parts)
     {
         var count = import.Changes.Count(c => parts.Contains(c.Part));
-        Replace(import.Apply(parts), "import", Loc.Plural(count, AppStrings.Xfer_Imported_One, AppStrings.Xfer_Imported_Other, Path.GetFileName(import.File)));
+        if (import.Source is not { } source)
+        {
+            Replace(import.Apply(parts), "import", Loc.Plural(count, AppStrings.Xfer_Imported_One, AppStrings.Xfer_Imported_Other, Path.GetFileName(import.File)));
+            return;
+        }
+
+        var done = Loc.Plural(count, AppStrings.Xfer_Imported_One, AppStrings.Xfer_Imported_Other, source);
+        var notTaken = import.Parts.Where(p => !parts.Contains(p)).Select(SettingsTransferDialog.PartTitle).ToList();
+        if (notTaken.Count > 0)
+        {
+            done += " " + Loc.Format(AppStrings.SalImp_NotTaken, string.Join(", ", notTaken));
+        }
+
+        if (parts.Contains(SettingsPart.HotPaths) && import.Changes.Any(c => c.Part == SettingsPart.HotPaths && c.Path == "servers.bookmarks"))
+        {
+            done += " " + AppStrings.SalImp_ServersAsk;
+        }
+
+        Replace(import.Apply(parts), "salamander-import", done);
     }
 
     internal void ResetAll(ResetChoice choice) => Replace(SettingsTransfer.ResetAll(Settings.Current, choice), "reset", AppStrings.Xfer_ResetDone);

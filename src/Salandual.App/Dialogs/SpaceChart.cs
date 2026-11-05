@@ -186,7 +186,7 @@ internal sealed class SpaceChart : Control
             return;
         }
 
-        var layout = new FormattedText(text, System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(FontFamily.Default, FontStyle.Normal, weight), size, Brush(brush));
+        var layout = new FormattedText(text, System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(FontFamily.Default, FontStyle.Normal, weight), Salandual.App.Theme.TextScale.Of(size), Brush(brush));
         context.DrawText(layout, new Point(Cx - layout.Width / 2, y));
     }
 

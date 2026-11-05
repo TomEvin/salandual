@@ -6,13 +6,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Source  : tests/Salandual.App.Tests/OperationsUiTests.cs
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Salandual.App.Dialogs;
 using Salandual.Core.Operations;
 
@@ -100,7 +103,7 @@ public sealed class OperationsUiTests : IDisposable
         var dialog = await CopyDialog(w);
 
         Assert.Equal(_right + "\\", dialog.To.Text);
-        Assert.Contains("Copy 1 file", string.Concat(dialog.Heading.Inlines!.OfType<Avalonia.Controls.Documents.Run>().Select(r => r.Text)), StringComparison.Ordinal);
+        Assert.Contains("Copy 1 file", dialog.Title, StringComparison.Ordinal);
         await Until(() => Text(dialog.Checks).Contains("Nothing there has the same name.", StringComparison.Ordinal));
         Assert.True(dialog.Go.IsEnabled);
         Assert.Contains("dialog", dialog.Classes);
@@ -193,9 +196,75 @@ public sealed class OperationsUiTests : IDisposable
         await Until(() => w.OpenOperationDialog is DeleteDialog);
         var permanent = (DeleteDialog)w.OpenOperationDialog!;
         Assert.True(permanent.Permanent);
-        Assert.Contains("Delete permanently", permanent.Go.Content as string ?? "", StringComparison.Ordinal);
+        Assert.Equal("Delete permanently", permanent.Go.Content);
+        Assert.Equal("Cancel  Enter", permanent.CancelButton.Content);
+        Assert.Contains("accent", permanent.CancelButton.Classes);
         Press(permanent, Key.Enter);
+        await Until(() => w.OpenOperationDialog is null);
+        Assert.True(File.Exists(Path.Join(_left, "b.txt")));
+
+        Press(w, Key.Delete, RawInputModifiers.Shift);
+        await Until(() => w.OpenOperationDialog is DeleteDialog);
+        Click(((DeleteDialog)w.OpenOperationDialog!).Go);
         await Until(() => !File.Exists(Path.Join(_left, "b.txt")));
+        w.CloseNow();
+    }
+
+    [AvaloniaFact]
+    public async Task DeleteDialog_OpensOnItsEnterButton_ArrowsGoAcrossTheButtons()
+    {
+        var w = await Open();
+        Focus(w, "b.txt");
+        Press(w, Key.Delete, RawInputModifiers.Shift);
+        await Until(() => w.OpenOperationDialog is DeleteDialog);
+        var dialog = (DeleteDialog)w.OpenOperationDialog!;
+        await dialog.Counting;
+        Dispatcher.UIThread.RunJobs();
+        if (Environment.GetEnvironmentVariable("SALANDUAL_CAPTURE_DIR") is { Length: > 0 } dir)
+        {
+            Directory.CreateDirectory(dir);
+            dialog.CaptureRenderedFrame()!.Save(Path.Combine(dir, "delete-focus.png"), PngBitmapEncoderOptions.Default);
+        }
+
+        Assert.Same(dialog.CancelButton, dialog.FocusManager!.GetFocusedElement());
+        Press(dialog, Key.Right);
+        Press(dialog, Key.Right);
+        Assert.Same(dialog.Go, dialog.FocusManager!.GetFocusedElement());
+        Press(dialog, Key.Right);
+        Assert.Same(dialog.Go, dialog.FocusManager!.GetFocusedElement());
+        Press(dialog, Key.Left);
+        Press(dialog, Key.Left);
+        Assert.Same(dialog.CancelButton, dialog.FocusManager!.GetFocusedElement());
+        Press(dialog, Key.Escape);
+        await Until(() => w.OpenOperationDialog is null);
+        Assert.True(File.Exists(Path.Join(_left, "b.txt")));
+        w.CloseNow();
+    }
+
+    [AvaloniaFact]
+    public async Task Conflict_EnterSkips_WhenCreatingIsOnCancel_EvenForANewerFile()
+    {
+        File.WriteAllText(Path.Join(_right, "a.txt"), "old a");
+        File.SetLastWriteTimeUtc(Path.Join(_right, "a.txt"), new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var w = await Open();
+        var settings = ((App)Application.Current!).Services.Settings;
+        var before = settings.Current.Confirmations;
+        settings.Update(s => s with { Confirmations = s.Confirmations with { EnterCreate = false } });
+        try
+        {
+            Focus(w, "a.txt");
+            var dialog = await CopyDialog(w);
+            Press(dialog, Key.Enter);
+            await Until(() => w.OpenConflictDialog is not null);
+            Press(w.OpenConflictDialog!, Key.Enter);
+            await Until(() => w.Chip?.Text?.StartsWith('✓') == true || w.Chip?.Text?.Contains("not done", StringComparison.Ordinal) == true || w.Chip?.Text?.Contains("skipped", StringComparison.OrdinalIgnoreCase) == true);
+            Assert.Equal("old a", await File.ReadAllTextAsync(Path.Join(_right, "a.txt"), TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            settings.Update(s => s with { Confirmations = before });
+        }
+
         w.CloseNow();
     }
 
@@ -211,7 +280,7 @@ public sealed class OperationsUiTests : IDisposable
         var dialog = (DeleteDialog)w.OpenOperationDialog!;
         Assert.Equal("Its name ends with a dot or a space.", Assert.Single(dialog.Refused).Reason);
         dialog.SetRefusedPermanently(false);
-        Press(dialog, Key.Enter);
+        Click(dialog.Go);
         await Until(() => w.Chip?.Text?.Contains("not done", StringComparison.Ordinal) == true);
         Assert.True(File.Exists(@"\\?\" + odd));
         w.CloseNow();
@@ -230,6 +299,7 @@ public sealed class OperationsUiTests : IDisposable
         w.ToggleOperationsPanel();
         var view = Assert.Single(w.OpsPanel!.Views.Values);
         Assert.True(view.IsExpanded);
+        Assert.EndsWith(" %", view.PercentText, StringComparison.Ordinal);
         Assert.True(w.OpsPanel.PauseQueueLink.IsVisible);
         await Until(() => view.Graph.PointCount > 0);
         Assert.Equal("None", view.LimitBox.Items[0]);
@@ -265,27 +335,56 @@ public sealed class OperationsUiTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task DeletingAFolderThatIsntEmpty_AsksInADialog_SkipKeepsIt()
+    public async Task DeletingAFolderThatIsntEmpty_IsSaidInTheDeleteDialog_NoSecondQuestion()
     {
-        var full =Directory.CreateDirectory(Path.Join(_left, "Full")).FullName;
+        var full = Directory.CreateDirectory(Path.Join(_left, "Full")).FullName;
         File.WriteAllText(Path.Join(full, "inside.txt"), "x");
         var w = await Open();
         Focus(w, "Full");
         Press(w, Key.Delete, RawInputModifiers.Shift);
         await Until(() => w.OpenOperationDialog is DeleteDialog);
-        Press(w.OpenOperationDialog!, Key.Enter);
+        var dialog = (DeleteDialog)w.OpenOperationDialog!;
+        await dialog.Counting;
+        Assert.Equal([full], dialog.NonEmpty);
+        Click(dialog.Go);
+        await Until(() => !Directory.Exists(full));
+        Assert.Null(w.OpenCheckDialog);
+        Assert.DoesNotContain(w.Operations.Jobs, j => j.Question is CheckQuestion);
+        w.CloseNow();
+    }
+
+    [AvaloniaFact]
+    public async Task CopyingIntoAFolderThatIsThere_AsksInADialog_SkipKeepsIt()
+    {
+        var full = Directory.CreateDirectory(Path.Join(_left, "Full")).FullName;
+        File.WriteAllText(Path.Join(full, "inside.txt"), "x");
+        var there = Directory.CreateDirectory(Path.Join(_right, "Full")).FullName;
+        var w = await Open();
+        Focus(w, "Full");
+        Press(await CopyDialog(w), Key.Enter);
 
         await Until(() => w.OpenCheckDialog is not null);
         var check = w.OpenCheckDialog!;
-        Assert.Equal("Delete", check.Yes.Content);
+        Assert.Equal("Copy into it", check.Yes.Content);
+
+        var frame = check.CaptureRenderedFrame();
+        if (Environment.GetEnvironmentVariable("SALANDUAL_CAPTURE_DIR") is { Length: > 0 } dir)
+        {
+            frame!.Save(Path.Combine(dir, "check-dialog.png"), PngBitmapEncoderOptions.Default);
+        }
+
+        var tick = check.ForAll.Bounds.WithX(0).WithY(0).Translate(check.ForAll.TranslatePoint(default, check)!.Value);
+        Assert.True(check.ForAll.Bounds.Width >= check.ForAll.DesiredSize.Width - 0.5);
+        foreach (var button in new[] { check.Yes, check.Skip })
+        {
+            Assert.False(tick.Intersects(button.Bounds.WithX(0).WithY(0).Translate(button.TranslatePoint(default, check)!.Value)));
+        }
         Click(check.Skip);
         await Until(() => w.Operations.Jobs.All(j => j.IsFinished));
-        Assert.True(Directory.Exists(full));
+        Assert.False(File.Exists(Path.Join(there, "inside.txt")));
 
         Focus(w, "Full");
-        Press(w, Key.Delete, RawInputModifiers.Shift);
-        await Until(() => w.OpenOperationDialog is DeleteDialog);
-        Press(w.OpenOperationDialog!, Key.Enter);
+        Press(await CopyDialog(w), Key.Enter);
         await Until(() => w.OpenCheckDialog is not null);
         Press(w.OpenCheckDialog!, Key.Escape);
         await Until(() => w.Chip!.Look == "ask");
@@ -293,7 +392,7 @@ public sealed class OperationsUiTests : IDisposable
         w.Operations.BringToFront(w.Operations.Jobs.First(j => j.Question is CheckQuestion));
         await Until(() => w.OpenCheckDialog is not null);
         Click(w.OpenCheckDialog!.Yes);
-        await Until(() => !Directory.Exists(full));
+        await Until(() => File.Exists(Path.Join(there, "inside.txt")));
         w.CloseNow();
     }
 

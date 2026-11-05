@@ -24,6 +24,8 @@ public sealed class FunctionKeyBar : ThemedControl
     private int _hover = -1;
     private IBrush _bg = null!, _text = null!, _dim = null!, _faint = null!, _keyBg = null!, _hoverBg = null!, _border = null!;
 
+    static FunctionKeyBar() => AffectsMeasure<FunctionKeyBar>(Panels.BarSizing.BarHeightProperty);
+
     public event EventHandler<string>? CommandInvoked;
 
     public void Configure(CommandRegistry commands, Func<string, bool> canExecute)
@@ -60,7 +62,7 @@ public sealed class FunctionKeyBar : ThemedControl
     protected override Size MeasureOverride(Size availableSize)
     {
         EnsureTheme();
-        return new Size(0, Math.Round(FontSize * 2.3));
+        return new Size(0, Panels.BarSizing.CommandBar(Panels.BarSizing.GetBarHeight(this), FontSize));
     }
 
     public override void Render(DrawingContext context)

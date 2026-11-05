@@ -107,10 +107,10 @@ internal sealed class HexContentView : ContentView
 
     public override double ScrollFraction
     {
-        get => Rows <= ViewportRows ? 0 : (double)_topRow / (Rows - ViewportRows);
+        get => Rows <= ViewportRows ? 0 : (double)_topRow / Rows;
         set
         {
-            _topRow = (long)Math.Round(Math.Clamp(value, 0, 1) * Math.Max(0, Rows - ViewportRows));
+            _topRow = value >= 1 ? Math.Max(0, Rows - ViewportRows) : Math.Clamp((long)Math.Round(Math.Max(value, 0) * Rows), 0, Math.Max(0, Rows - ViewportRows));
             Changed();
         }
     }

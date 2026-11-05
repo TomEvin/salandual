@@ -33,7 +33,7 @@ public sealed class ProductInfoTests : IDisposable
     public void FormatVersion_LeavesOutAPatchOfZero(string version, string expected) => Assert.Equal(expected, ProductInfo.FormatVersion(version));
 
     [Fact]
-    public void Version_IsTheFirstRelease() => Assert.Equal("v0.1", ProductInfo.DisplayVersion);
+    public void Version_IsTheCurrentRelease() => Assert.Equal("v0.8", ProductInfo.DisplayVersion);
 
     [Fact]
     public void DataDirectory_DefaultsToRoamingAppData()

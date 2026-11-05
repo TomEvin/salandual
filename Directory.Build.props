@@ -16,13 +16,13 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest</AnalysisLevel>
-    <SatelliteResourceLanguages>en;hu</SatelliteResourceLanguages>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <NeutralLanguage>en</NeutralLanguage>
     <InvariantGlobalization>false</InvariantGlobalization>
 
     <Product>Salandual</Product>
     <Company>Salandual contributors</Company>
     <Copyright>Copyright © 2026 Salandual contributors. GPL-3.0-or-later.</Copyright>
-    <Version>0.1.0</Version>
+    <Version>0.8.0</Version>
   </PropertyGroup>
 </Project>

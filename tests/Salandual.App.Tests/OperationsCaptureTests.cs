@@ -210,6 +210,12 @@ public sealed class OperationsCaptureTests : IDisposable
         Save(w, "m32-panel-graph-dark.png");
         big.Cancel();
         await Until(() => big.IsFinished);
+        foreach (var progress in w.ProgressWindows.Values.ToList())
+        {
+            progress.Close();
+        }
+
+        Dispatcher.UIThread.RunJobs();
         w.ToggleOperationsPanel();
 
         app.Theme.Apply(AppearanceSettings.Fixed(ThemeCatalog.SalandualLightId));

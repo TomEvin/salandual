@@ -66,6 +66,7 @@ public sealed class SettingsFileTests
         var w = Started(new SettingsLoadResult(new AppSettings(), SettingsLoadStatus.NewerVersion));
         var said = w.NoticeMessage;
         Assert.StartsWith("Salandual's settings file ", said);
+        w.Services.Temp.Delete(w.Services.Temp.FindLeftovers());
         var folder = Path.Combine(w.Services.Temp.Root, "run-9-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(folder);
         System.IO.File.WriteAllBytes(Path.Combine(folder, "page-1.html"), new byte[2048]);

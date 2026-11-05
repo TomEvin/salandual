@@ -17,9 +17,9 @@ using YamlDotNet.Core.Events;
 
 namespace Salandual.Core.Viewer;
 
-public enum DataFormat { Json, JsonLines, Yaml, Xml }
+public enum DataFormat { Json, JsonLines, Yaml, Xml, Bencode }
 
-public enum DataKind : byte { Object, Array, String, Number, Boolean, Null, Element, Attribute, Text, Alias }
+public enum DataKind : byte { Object, Array, String, Number, Boolean, Null, Element, Attribute, Text, Alias, Bytes }
 
 public enum DataPathStyle { Dollar, Dotted, Slash }
 
@@ -28,6 +28,8 @@ public sealed class DataNode
     internal List<DataNode>? List;
 
     internal string? Own;
+
+    internal string? ShownText;
 
     internal int ValueStart;
 
@@ -150,7 +152,11 @@ public sealed partial class DataTree
     public string Shown(DataNode node, int max = 300)
     {
         string text;
-        if (node.Own is null && node.Kind == DataKind.String && Format is DataFormat.Json or DataFormat.JsonLines)
+        if (node.ShownText is { } own)
+        {
+            text = own;
+        }
+        else if (node.Own is null && node.Kind == DataKind.String && Format is DataFormat.Json or DataFormat.JsonLines)
         {
             var inner = Unescape(_text.AsSpan(node.ValueStart + 1, Math.Max(0, Math.Min(node.ValueLength - 2, max * 2))));
             text = "\"" + inner + (node.ValueLength - 2 > max * 2 ? "…" : "\"");

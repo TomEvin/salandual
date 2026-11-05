@@ -11,7 +11,7 @@ using Salandual.Core.Vfs;
 
 namespace Salandual.Core.Listing;
 
-public enum SortColumn { Name, Extension, Time, Size }
+public enum SortColumn { Name, Extension, Time, Size, Type, Created, Accessed }
 
 public readonly record struct SortSpec(SortColumn Column, bool Descending = false)
 {
@@ -30,6 +30,8 @@ public sealed class EntrySorter(CultureInfo culture, bool numericSort)
     public bool NumericSort { get; } = numericSort;
 
     public static EntrySorter ForCurrentCulture(bool numericSort) => new(CultureInfo.CurrentCulture, numericSort);
+
+    public Func<FileEntry, string>? TypeName { get; init; }
 
     public void Sort(FileEntry[] entries, SortSpec spec, int sortKeyThreshold = SortKeyThreshold)
     {
@@ -56,7 +58,12 @@ public sealed class EntrySorter(CultureInfo culture, bool numericSort)
         }
 
         var c = CompareColumn(a, b, spec.Column);
-        if (c == 0 && spec.Column == SortColumn.Extension && !a.IsDirectory)
+        if (c == 0 && spec.Column == SortColumn.Type && !a.IsDirectory && TypeName is { } type)
+        {
+            c = _compare.Compare(type(a), type(b), _options);
+        }
+
+        if (c == 0 && spec.Column is SortColumn.Extension or SortColumn.Type && !a.IsDirectory)
         {
             c = _compare.Compare(a.Extension, b.Extension, _options);
         }
@@ -77,6 +84,8 @@ public sealed class EntrySorter(CultureInfo culture, bool numericSort)
     private static int CompareColumn(in FileEntry a, in FileEntry b, SortColumn column) => column switch
     {
         SortColumn.Time => a.LastWriteUtcTicks.CompareTo(b.LastWriteUtcTicks),
+        SortColumn.Created => a.CreationUtcTicks.CompareTo(b.CreationUtcTicks),
+        SortColumn.Accessed => a.LastAccessUtcTicks.CompareTo(b.LastAccessUtcTicks),
         SortColumn.Size when !a.IsDirectory => a.Size.CompareTo(b.Size),
         _ => 0,
     };
@@ -85,13 +94,20 @@ public sealed class EntrySorter(CultureInfo culture, bool numericSort)
     {
         var source = (FileEntry[])entries.Clone();
         var nameKeys = new byte[source.Length][];
-        var extKeys = spec.Column == SortColumn.Extension ? new byte[source.Length][] : null;
+        var extKeys = spec.Column is SortColumn.Extension or SortColumn.Type ? new byte[source.Length][] : null;
+        var typeKeys = spec.Column == SortColumn.Type && TypeName is not null ? new byte[source.Length][] : null;
+        var types = typeKeys is null ? null : source.Select(e => e.IsDirectory ? "" : TypeName!(e)).ToArray();
         Parallel.For(0, source.Length, i =>
         {
             nameKeys[i] = SortKey(source[i].Name);
             if (extKeys is not null)
             {
                 extKeys[i] = SortKey(source[i].Extension);
+            }
+
+            if (typeKeys is not null)
+            {
+                typeKeys[i] = SortKey(types![i]);
             }
         });
 
@@ -111,6 +127,11 @@ public sealed class EntrySorter(CultureInfo culture, bool numericSort)
             }
 
             var c = CompareColumn(a, b, spec.Column);
+            if (c == 0 && typeKeys is not null && !a.IsDirectory)
+            {
+                c = typeKeys[x].AsSpan().SequenceCompareTo(typeKeys[y]);
+            }
+
             if (c == 0 && extKeys is not null && !a.IsDirectory)
             {
                 c = extKeys[x].AsSpan().SequenceCompareTo(extKeys[y]);

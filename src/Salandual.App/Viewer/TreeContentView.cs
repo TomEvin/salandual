@@ -419,7 +419,7 @@ internal sealed class TreeContentView : Control
 
     private Typeface MonoTypeface => new(this.TryFindResource("Font.Mono", ActualThemeVariant, out var f) && f is FontFamily family ? family : FontFamily.Default);
 
-    private double MonoSize => this.TryFindResource("Font.MonoSize", ActualThemeVariant, out var s) && s is double size ? size : 13;
+    private double MonoSize => this.TryFindResource("Font.MonoSizeShown", ActualThemeVariant, out var s) && s is double size ? size : 13;
 
     private IBrush Brush(string key) => this.TryFindResource(key, ActualThemeVariant, out var b) && b is IBrush brush ? brush : Brushes.Gray;
 
@@ -528,6 +528,7 @@ internal sealed class TreeContentView : Control
         {
             DataKind.Number => (shown, Token(ColorTokens.SyntaxNumber)),
             DataKind.Boolean or DataKind.Null or DataKind.Alias => (shown.Length == 0 ? "null" : shown, Token(ColorTokens.SyntaxKeyword)),
+            DataKind.Bytes => (shown, Token(ColorTokens.SyntaxPunctuation)),
             _ => (shown, Token(ColorTokens.SyntaxString)),
         };
     }

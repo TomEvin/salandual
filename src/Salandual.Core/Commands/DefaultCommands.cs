@@ -23,6 +23,7 @@ public static class DefaultCommands
         yield return C("File.ViewWith", "Files", "M4", "Ctrl+Shift+F3");
         yield return C("File.Edit", "Files", "M5", "F4");
         yield return C("File.EditNew", "Files", "M5", "Shift+F4");
+        yield return C("File.NewMenu", "Files", "Phase 3", "Ctrl+Shift+N");
         yield return C("File.EditWith", "Files", "M5", "Ctrl+Shift+F4");
         yield return C("File.Copy", "Files", "M3", "F5");
         yield return C("File.CopyToEach", "Files", "M3", "Shift+F5");
@@ -46,11 +47,14 @@ public static class DefaultCommands
         yield return C("Compare.Files", "Commands", "M6", "Ctrl+Shift+C");
         yield return C("Panel.Maximize", "Panel", "M2", "Ctrl+F11");
         yield return C("Panel.Filter", "Panel", "Phase 3", "Ctrl+F12");
+        yield return C("Panel.FlatView", "Panel", "Phase 3", "Ctrl+B");
+        yield return C("Panel.Peek", "Panel", "Phase 3", "Shift+Space");
         yield return C("Drive.ChangeLeft", "Panel", "M2", "Alt+F1");
         yield return C("Drive.ChangeRight", "Panel", "M2", "Alt+F2");
         yield return C("App.Exit", "Application", "M1", "Alt+F4");
         yield return C("Archive.Pack", "Files", "Phase 3", "Alt+F5");
         yield return C("Archive.Unpack", "Files", "Phase 3", "Alt+F6", "Alt+F9");
+        yield return C("Archive.Test", "Files", "Phase 3", "Alt+Shift+F9");
         yield return C("Find.Files", "Commands", "M6", "Alt+F7", "Ctrl+F");
         yield return C("Find.Duplicates", "Commands", "M6", "Alt+Shift+F7");
         yield return C("File.OccupiedSpace", "Commands", "M6", "Alt+F10", "Ctrl+Q");
@@ -63,6 +67,26 @@ public static class DefaultCommands
         yield return C("Selection.Save", "Edit", "Phase 3", "Ctrl+Shift+F5");
         yield return C("Selection.Load", "Edit", "Phase 3", "Ctrl+Shift+F6");
         yield return C("Network.SharedDirectories", "Commands", "Phase 3", "Ctrl+Shift+F9");
+        yield return C("Server.Connect", "Commands", "Phase 3", "Ctrl+Shift+F");
+        yield return C("Server.Disconnect", "Commands", "Phase 3");
+        yield return C("Server.Log", "Commands", "Phase 3");
+        yield return C("Git.Menu", "Commands", "Phase 5", "Ctrl+Shift+G");
+        yield return C("Git.NewBranch", "Commands", "Phase 5");
+        yield return C("Git.Changes", "Commands", "Phase 5");
+        yield return C("Git.Stage", "Files", "Phase 5", "Ctrl+Shift+S");
+        yield return C("Git.Unstage", "Files", "Phase 5", "Ctrl+Shift+U");
+        yield return C("Git.Discard", "Files", "Phase 5");
+        yield return C("Git.Commit", "Commands", "Phase 5");
+        yield return C("Git.History", "Commands", "Phase 5");
+        yield return C("Git.HistoryOfFile", "Commands", "Phase 5");
+        yield return C("Git.Graph", "Commands", "Phase 5");
+        yield return C("Git.Browse", "Commands", "Phase 5");
+        yield return C("Git.Blame", "Commands", "Phase 5");
+        yield return C("Git.Tags", "Commands", "Phase 5");
+        yield return C("Git.Fetch", "Commands", "Phase 5");
+        yield return C("Git.Pull", "Commands", "Phase 5");
+        yield return C("Git.Push", "Commands", "Phase 5");
+        yield return C("Git.Clone", "Commands", "Phase 5");
         yield return C("Panel.CalculateDirectorySizes", "Panel", "Phase 3", "Ctrl+Shift+F10");
         yield return C("App.MaximizeWindow", "Application", "M1", "Ctrl+Shift+F11");
         yield return C("Panel.DirectoryContextMenu", "Panel", "M3", "Alt+Shift+F10");
@@ -94,12 +118,14 @@ public static class DefaultCommands
         yield return C("Navigation.GoToFile", "Navigation", "M6", "Ctrl+J");
         yield return C("History.Back", "Navigation", "M2", "Alt+Left");
         yield return C("History.Forward", "Navigation", "M2", "Alt+Right");
-        yield return C("Navigation.ShortcutTarget", "Navigation", "Phase 3", "Ctrl+T");
+        yield return C("Navigation.ShortcutTarget", "Navigation", "Phase 3");
         yield return C("Navigation.Documents", "Navigation", "M2", "Ctrl+;");
         yield return C("Navigation.OtherPanelDirectory", "Navigation", "M2", "Ctrl+.", "Ctrl+Shift+`");
         yield return C("Network.Open", "Navigation", "Phase 3", "Ctrl+,", "Ctrl+`");
         yield return C("Panel.Swap", "Panel", "M2", "Ctrl+U");
         yield return C("Panel.ToggleHidden", "Panel", "M1", "Ctrl+H");
+        yield return C("Panel.ToggleDotFiles", "Panel", "Phase 3");
+        yield return C("Panel.FilterOff", "Panel", "Phase 3");
         yield return C("Panel.SmartNameWidth", "Panel", "Phase 3", "Ctrl+N");
 
         yield return C("Selection.ToggleAndNext", "Edit", "M1", "Insert");
@@ -122,7 +148,10 @@ public static class DefaultCommands
         yield return C("Selection.UnselectSameExtension", "Edit", "M1", "Shift+Num-");
         yield return C("Selection.SameName", "Edit", "M1", "Ctrl+Shift+Num+");
         yield return C("Selection.UnselectSameName", "Edit", "M1", "Ctrl+Shift+Num-");
-        yield return C("Selection.Restore", "Edit", "M1", "Ctrl+W");
+        yield return C("Selection.Restore", "Edit", "M1");
+        yield return C("Panel.HideSelectedNames", "Edit", "Phase 3");
+        yield return C("Panel.HideUnselectedNames", "Edit", "Phase 3");
+        yield return C("Panel.ShowHiddenNames", "Edit", "Phase 3");
 
         yield return C("Clipboard.Copy", "Edit", "M3", "Ctrl+C", "Ctrl+Insert");
         yield return C("Clipboard.Cut", "Edit", "M3", "Ctrl+X");
@@ -134,7 +163,7 @@ public static class DefaultCommands
         yield return C("Clipboard.CopyPath", "Edit", "M3", "Ctrl+Alt+Insert");
         yield return C("Clipboard.CopyUncName", "Edit", "M3", "Ctrl+Shift+Insert");
 
-        yield return C("CommandLine.Toggle", "Commands", "Phase 3", "Ctrl+Tab");
+        yield return C("CommandLine.Toggle", "Commands", "Phase 3");
         yield return C("CommandLine.InsertName", "Commands", "Phase 3", "Ctrl+Enter");
         yield return C("CommandLine.InsertDosName", "Commands", "Phase 3", "Ctrl+Shift+Enter");
         yield return C("CommandLine.InsertDirectory", "Commands", "Phase 3", "Ctrl+Space");
@@ -144,6 +173,7 @@ public static class DefaultCommands
         yield return C("CommandLine.InsertRightDirectory", "Commands", "Phase 3", "Ctrl+]");
         yield return C("CommandLine.InsertRightDirectoryDos", "Commands", "Phase 3", "Ctrl+Shift+]");
         yield return C("Shell.CommandPrompt", "Commands", "Phase 3", "Num/", "Ctrl+/");
+        yield return C("Shell.CommandPromptAdmin", "Commands", "Phase 3", "Shift+Num/");
 
         yield return C("File.Properties", "Files", "M3", "Alt+Enter");
         yield return C("File.WindowsProperties", "Files", "M3", "Alt+Shift+Enter");
@@ -159,34 +189,52 @@ public static class DefaultCommands
         for (var d = 0; d <= 9; d++)
         {
             var n = d.ToString(CultureInfo.InvariantCulture);
-            yield return N($"View.Mode{n}", Strings.Command_View_Mode, n, "View", "Phase 3", $"Alt+{n}");
+            yield return C($"View.Mode{n}", "View", "Phase 3", $"Alt+{n}");
             yield return N($"HotPaths.Define{n}", Strings.Command_HotPaths_Define, n, "Navigation", "M2", $"Ctrl+Shift+{n}");
             yield return N($"HotPaths.Go{n}", Strings.Command_HotPaths_Go, n, "Navigation", "M2", $"Ctrl+{n}", $"Shift+{n}");
             yield return N($"HotPaths.GoOther{n}", Strings.Command_HotPaths_GoOther, n, "Navigation", "M2", $"Ctrl+Alt+{n}", $"Alt+Shift+{n}");
         }
 
         yield return C("HotPaths.AddCurrent", "Navigation", "M2", "Ctrl+Shift+=");
+        yield return C("View.ThumbnailsBigger", "View", "Phase 3");
+        yield return C("View.ThumbnailsSmaller", "View", "Phase 3");
 
         for (var letter = 'A'; letter <= 'Z'; letter++)
         {
             yield return N($"Drive.Switch{letter}", Strings.Command_Drive_Switch, letter, "Navigation", "M2", $"Shift+{letter}");
         }
 
+        yield return C("Tab.New", "Tabs", "Phase 3", "Ctrl+T");
+        yield return C("Tab.Close", "Tabs", "Phase 3", "Ctrl+W");
+        yield return C("Tab.Next", "Tabs", "Phase 3", "Ctrl+Tab");
+        yield return C("Tab.Previous", "Tabs", "Phase 3", "Ctrl+Shift+Tab");
+        yield return C("Tab.Reopen", "Tabs", "Phase 3", "Ctrl+Shift+T");
+        yield return C("Tab.Duplicate", "Tabs", "Phase 3");
+        yield return C("Tab.CloseOthers", "Tabs", "Phase 3");
+        yield return C("Tab.Lock", "Tabs", "Phase 3");
+        yield return C("Tab.MoveToOther", "Tabs", "Phase 3");
+        yield return C("Tab.CopyToOther", "Tabs", "Phase 3");
+
         yield return C("App.Options", "Application", "M1", "Ctrl+Shift+O");
         yield return C("File.Duplicate", "Files", "M3", "Alt+Shift+D");
         yield return C("App.CommandSearch", "Application", "Phase 3", "Ctrl+Shift+P");
         yield return C("App.About", "Help", "M7");
         yield return C("Help.FirstSteps", "Help", "M7");
+        yield return C("Help.Logs", "Help", "M7");
         yield return C("Options.ExportSettings", "Options", "M7");
         yield return C("Options.ImportSettings", "Options", "M7");
+        yield return C("Options.ImportSalamander", "Options", "Phase 3");
         yield return C("Options.ResetAllSettings", "Options", "M7");
         yield return C("View.ToggleMenuBar", "Options", "M1");
         yield return C("View.ToggleDriveStrip", "Options", "M1");
         yield return C("View.ToggleHotPathBar", "Options", "M2");
+        yield return C("View.ToggleUserMenuBar", "Options", "Phase 3");
+        yield return C("View.ToggleBackForwardBar", "Options", "Phase 3");
         yield return C("View.ToggleDirectoryLine", "Options", "M1");
         yield return C("View.ToggleColumnHeader", "Options", "M1");
         yield return C("View.ToggleInformationLine", "Options", "M1");
         yield return C("View.ToggleFunctionKeyBar", "Options", "M1");
+        yield return C("View.ToggleCommandLine", "Options", "Phase 3");
         yield return C("View.ToggleMiddleToolbar", "Options", "M3");
     }
 

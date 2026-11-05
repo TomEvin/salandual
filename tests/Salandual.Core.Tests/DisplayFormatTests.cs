@@ -97,7 +97,7 @@ public sealed class DisplayFormatTests
     public void Samples_AreAtLeastAsWideAsRealValues()
     {
         var f = new DisplayFormat(SizeUnits.Binary, "en-US", _en);
-        var (size, date, time) = f.Samples;
+        var (size, date, time, _) = f.Samples;
         Assert.Equal("999.9 MiB", size);
         Assert.Equal("12/28/2026", date);
         Assert.StartsWith("10:58", time);

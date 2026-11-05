@@ -113,6 +113,19 @@ public static unsafe partial class FileDetailsReader
             : null;
     }
 
+    public static bool IsUnknownType(string extension)
+    {
+        var buffer = stackalloc char[260];
+        uint length = 260;
+        if (AssocQueryStringW(AssocfNoTruncate | AssocfInitIgnoreUnknown, AssocStrFriendlyAppName, extension, null, buffer, &length) == 0 && length > 1)
+        {
+            return false;
+        }
+
+        length = 260;
+        return !(AssocQueryStringW(AssocfNoTruncate | AssocfInitIgnoreUnknown, AssocStrDefaultIcon, extension, null, buffer, &length) == 0 && length > 1);
+    }
+
     public static long SizeOnDisk(string path, long size)
     {
         uint high;
@@ -249,6 +262,7 @@ public static unsafe partial class FileDetailsReader
     private const uint AssocfNoTruncate = 0x20;
     private const uint AssocfInitIgnoreUnknown = 0x400;
     private const uint AssocStrFriendlyAppName = 4;
+    private const uint AssocStrDefaultIcon = 15;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct ShFileInfo

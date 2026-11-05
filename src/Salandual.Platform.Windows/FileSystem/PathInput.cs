@@ -12,12 +12,59 @@ namespace Salandual.Platform.Windows.FileSystem;
 
 public static class PathInput
 {
+    public static bool IsServerAddress(string text)
+        => text.StartsWith("sftp://", StringComparison.OrdinalIgnoreCase) || text.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) || text.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasPassword(string text)
+    {
+        var rest = text[(text.IndexOf("://", StringComparison.Ordinal) + 3)..];
+        var authority = rest.IndexOf('/') is var slash and >= 0 ? rest[..slash] : rest;
+        var at = authority.LastIndexOf('@');
+        return at > 0 && authority[..at].Contains(':');
+    }
+
+    private static string OnServer(string basePath, string typed)
+    {
+        var start = basePath.IndexOf('/', basePath.IndexOf("://", StringComparison.Ordinal) + 3);
+        var root = start < 0 ? basePath : basePath[..start];
+        var folder = start < 0 ? "/" : basePath[start..];
+        typed = typed.Replace('\\', '/');
+        var parts = (typed.StartsWith('/') ? typed : folder.TrimEnd('/') + "/" + typed).Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+        var kept = new List<string>();
+        foreach (var part in parts)
+        {
+            if (part == "..")
+            {
+                if (kept.Count > 0)
+                {
+                    kept.RemoveAt(kept.Count - 1);
+                }
+            }
+            else if (part != ".")
+            {
+                kept.Add(part);
+            }
+        }
+
+        return root + "/" + string.Join('/', kept);
+    }
+
     public static string? Resolve(string text, string basePath)
     {
         var t = text.Trim().Trim('"').Trim();
         if (t.Length == 0)
         {
             return null;
+        }
+
+        if (IsServerAddress(t))
+        {
+            return HasPassword(t) ? null : t;
+        }
+
+        if (IsServerAddress(basePath) && !(t.Length >= 2 && t[1] == ':') && !t.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            return OnServer(basePath, t);
         }
 
         t = HotPathSettings.Expand(t).Replace('/', '\\');

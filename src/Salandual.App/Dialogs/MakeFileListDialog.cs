@@ -368,7 +368,7 @@ public sealed class MakeFileListDialog : Window
     {
         if (_confirmRemove())
         {
-            var ask = RemoveQuestion = new ConfirmDialog(AppStrings.FileList_RemoveTitle, Loc.Format(AppStrings.FileList_RemoveText, name), AppStrings.Common_Remove, AppStrings.Common_Cancel);
+            var ask = RemoveQuestion = new ConfirmDialog(AppStrings.FileList_RemoveTitle, Loc.Format(AppStrings.FileList_RemoveText, name), AppStrings.Common_Remove, AppStrings.Common_Cancel, group: Core.Settings.ConfirmGroup.Delete);
             var yes = await ask.ShowDialog<bool>(this);
             RemoveQuestion = null;
             if (!yes)
@@ -727,7 +727,7 @@ public sealed class MakeFileListDialog : Window
 
             if (_append.IsChecked != true && File.Exists(path))
             {
-                var ask = ReplaceQuestion = new ConfirmDialog(AppStrings.FileList_ReplaceTitle, Loc.Format(AppStrings.FileList_ReplaceText, path), AppStrings.FileList_Replace, AppStrings.Common_Cancel);
+                var ask = ReplaceQuestion = new ConfirmDialog(AppStrings.FileList_ReplaceTitle, Loc.Format(AppStrings.FileList_ReplaceText, path), AppStrings.FileList_Replace, AppStrings.Common_Cancel, group: Core.Settings.ConfirmGroup.Save);
                 var yes = await ask.ShowDialog<bool>(this);
                 ReplaceQuestion = null;
                 if (!yes)

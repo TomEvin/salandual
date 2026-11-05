@@ -26,6 +26,7 @@ using Salandual.Core.Commands;
 using Salandual.Core.Listing;
 using Salandual.Core.Resources;
 using Salandual.Core.Settings;
+using Salandual.Core.Settings.Salamander;
 using static Salandual.App.Options.OptionsUi;
 
 namespace Salandual.App.Wizard;
@@ -69,13 +70,14 @@ public sealed partial class FirstStepsWindow
             {
                 Text(AppStrings.Wizard_Language, 13, FontWeight.SemiBold),
                 Secondary(AppStrings.Wizard_Language_Desc, 12),
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { Combo([("en", AppStrings.Opt_Language_English)], "en", _ => { }, minWidth: 180), Badge(AppStrings.Wizard_MoreLanguages) } },
+                OptionsWindow.LanguageCombo(_services.LanguageFolders, Choices.Language, ChooseLanguage).Also(c => { c.Tag = "language"; c.HorizontalAlignment = HorizontalAlignment.Left; }),
             },
         };
 
         var importButton = ActionButton(AppStrings.Wizard_Import_Button, () => _ = ImportAsync());
         importButton.Tag = "import";
-        var salamander = Later(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ActionButton(AppStrings.Wizard_ImportSalamander, () => { }, enabled: false), Badge(AppStrings.Wizard_ComesLater) } });
+        var salamander = ActionButton(AppStrings.Wizard_ImportSalamander, () => _ = ImportSalamanderAsync(null, Step.Welcome));
+        salamander.Tag = "salamander";
         var import = new StackPanel
         {
             Spacing = 6,
@@ -126,6 +128,50 @@ public sealed partial class FirstStepsWindow
         }
 
         Show(Step.Welcome, "import");
+    }
+
+    private Control SalamanderPage()
+    {
+        var found = Salamanders[0];
+        var see = ActionButton(AppStrings.Wizard_Sal_Button, () => _ = ImportSalamanderAsync(found, Step.Salamander));
+        see.Tag = "salamander";
+        see.Classes.Add("accent");
+        var parts = new StackPanel { Spacing = 10, Children = { see.Also(b => b.HorizontalAlignment = HorizontalAlignment.Left) } };
+        if (Imported is var (picked, taken) && picked.Source is not null)
+        {
+            parts.Children.Add(Rich(Loc.Format(AppStrings.Wizard_Imported, picked.Source, PartNames(taken)), 12.5));
+        }
+        else if (_importProblem is not null)
+        {
+            parts.Children.Add(Text(_importProblem, 12.5, brush: "Brush.Danger", wrap: true));
+        }
+
+        parts.Children.Add(Secondary(AppStrings.Wizard_Sal_Later, 12));
+        return Page(AppStrings.Wizard_Sal_Title, Loc.Format(AppStrings.Wizard_Sal_Desc, found.Name), Box(parts));
+    }
+
+    internal Func<SalamanderInstall?, Task<(SettingsImport, IReadOnlySet<SettingsPart>)?>>? PickSalamander { get; set; }
+
+    private async Task ImportSalamanderAsync(SalamanderInstall? install, Step back)
+    {
+        _importProblem = null;
+        (SettingsImport, IReadOnlySet<SettingsPart>)? picked;
+        if (PickSalamander is not null)
+        {
+            picked = await PickSalamander(install);
+        }
+        else
+        {
+            var files = new SettingsFiles(_services, this, (text, _) => _importProblem = text);
+            picked = await files.PickSalamanderAsync(install);
+        }
+
+        if (picked is var (import, parts))
+        {
+            Imported = (import, parts);
+        }
+
+        Show(back, "salamander");
     }
 
     private Control ThemePage()
@@ -190,7 +236,7 @@ public sealed partial class FirstStepsWindow
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
                 Child = Text(tag, 10.5, FontWeight.SemiBold, "Brush.OnAccent"),
-            }.Res(Border.BackgroundProperty, "Brush.Accent"));
+            }.Res(Border.BackgroundProperty, "Brush.AccentFill"));
         }
 
         var name = Text(theme.Name, 12.5, picked ? FontWeight.SemiBold : FontWeight.Normal);
@@ -448,7 +494,11 @@ public sealed partial class FirstStepsWindow
     private Control BarsPage()
     {
         var c = Choices;
-        var preview = new BarsPreview(() => _services.Settings.Current.Layout with { Bars = Choices.Bars }) { Width = 250, VerticalAlignment = VerticalAlignment.Top };
+        var preview = new BarsPreview(() =>
+        {
+            var layout = _services.Settings.Current.Layout;
+            return layout with { Bars = Choices.Bars, BackForward = layout.BackForward.WithBar(Choices.BackForwardBar) };
+        }) { Width = 250, VerticalAlignment = VerticalAlignment.Top };
         var ticks = new StackPanel { Spacing = 10 };
         void Bar(string title, string description, bool on, Func<BarVisibility, bool, BarVisibility> set, string tag)
             => ticks.Children.Add(Tick(title, description, on, value =>
@@ -461,8 +511,18 @@ public sealed partial class FirstStepsWindow
         Bar(AppStrings.Wizard_Bar_Menu, AppStrings.Wizard_Bar_Menu_Desc, b.MenuBar, (v, on) => v with { MenuBar = on }, "bar:menu");
         Bar(AppStrings.Wizard_Bar_Drives, AppStrings.Wizard_Bar_Drives_Desc, b.DriveStrip, (v, on) => v with { DriveStrip = on }, "bar:drives");
         Bar(AppStrings.Wizard_Bar_HotPaths, AppStrings.Wizard_Bar_HotPaths_Desc, b.HotPathBar, (v, on) => v with { HotPathBar = on }, "bar:hot");
+        ticks.Children.Add(Tick(AppStrings.Wizard_Bar_BackForward, AppStrings.Wizard_Bar_BackForward_Desc, c.BackForwardBar, on =>
+        {
+            Choices = Choices with { BackForwardBar = on };
+            preview.Refresh();
+        }, "bar:backforward"));
         Bar(AppStrings.Wizard_Bar_Middle, AppStrings.Wizard_Bar_Middle_Desc, b.MiddleToolbar, (v, on) => v with { MiddleToolbar = on }, "bar:middle");
         Bar(AppStrings.Wizard_Bar_FKeys, Loc.Format(AppStrings.Wizard_Bar_FKeys_Desc, KeyMaps.Title(c.Keys)), b.FunctionKeyBar, (v, on) => v with { FunctionKeyBar = on }, "bar:fkeys");
+        ticks.Children.Add(Tick(AppStrings.Wizard_Bar_FreeSpace, AppStrings.Wizard_Bar_FreeSpace_Desc, c.FreeSpace, on => Choices = Choices with { FreeSpace = on }, "bar:space"));
+        ticks.Children.Add(Tick(AppStrings.Wizard_Bar_Activity, AppStrings.Wizard_Bar_Activity_Desc, c.DiskActivity, on => Choices = Choices with { DiskActivity = on }, "bar:activity"));
+        ticks.Children.Add(Field(AppStrings.Opt_BarHeight,
+            Pills([(BarHeight.Lower, AppStrings.Opt_BarHeight_Lower), (BarHeight.Normal, AppStrings.Opt_BarHeight_Normal), (BarHeight.Taller, AppStrings.Opt_BarHeight_Taller)], c.BarHeight, (x, h) => x with { BarHeight = h }, "barheight"),
+            description: AppStrings.Opt_BarHeight_Desc));
         var bars = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 24 };
         Grid.SetColumn(ticks, 1);
         bars.Children.Add(preview);
@@ -555,6 +615,10 @@ public sealed partial class FirstStepsWindow
             Pills([(TimeFormat.Windows, AppStrings.Opt_Time_Windows), (TimeFormat.Hours24, AppStrings.Opt_Time_24), (TimeFormat.Hours12, AppStrings.Opt_Time_12)], c.Time, (x, t) => x with { Time = t }, "time"),
             description: c.Time == TimeFormat.Windows ? AppStrings.Wizard_Time_Windows_Desc : AppStrings.Wizard_Time_Desc);
 
+        var stripes = Tick(AppStrings.Opt_RowStripes, AppStrings.Opt_RowStripes_Desc, c.RowStripes, on => Choices = Choices with { RowStripes = on }, "stripes");
+        var nameOnly = Tick(AppStrings.Wizard_SelectionNameOnly, AppStrings.Wizard_SelectionNameOnly_Desc, c.SelectionNameOnly, on => Choices = Choices with { SelectionNameOnly = on }, "selname");
+        var dotFiles = Tick(AppStrings.Opt_HideDotFiles, AppStrings.Wizard_HideDotFiles_Desc, c.HideDotFiles, on => Choices = Choices with { HideDotFiles = on }, "dotfiles");
+
         var start = new StackPanel { Spacing = 10 };
         void Radio(StartFolders value, string title, string description, Control? below = null)
         {
@@ -584,7 +648,7 @@ public sealed partial class FirstStepsWindow
         Radio(StartFolders.Home, AppStrings.Opt_StartFolders_Home, AppStrings.Wizard_Start_Home_Desc);
         Radio(StartFolders.These, AppStrings.Opt_StartFolders_These, AppStrings.Wizard_Start_These_Desc, c.Start == StartFolders.These ? FolderFields() : null);
 
-        return Page(AppStrings.Wizard_Panels_Title, AppStrings.Wizard_Panels_Sub, sizes, Columns(dates, time, 24), Field(AppStrings.Opt_StartFolders, start));
+        return Page(AppStrings.Wizard_Panels_Title, AppStrings.Wizard_Panels_Sub, sizes, Columns(dates, time, 24), stripes, nameOnly, dotFiles, Field(AppStrings.Opt_StartFolders, start));
     }
 
     internal Func<(string Left, string Right)>? PanelFolders { get; set; }
@@ -656,6 +720,10 @@ public sealed partial class FirstStepsWindow
             on => Choices = Choices with { StartWithWindows = on }, "startWithWindows");
         var updates = Later(Tick(AppStrings.Wizard_Ready_Updates, AppStrings.Wizard_Ready_Updates_Desc, on: false, null, "updates", enabled: false, badge: AppStrings.Wizard_ComesLater));
         var ticks = new StackPanel { Spacing = 10, Children = { startWithWindows, updates } };
+        if (LanguageChanged)
+        {
+            ticks.Children.Add(Text(Loc.Format(AppStrings.Wizard_Language_Restart, OptionsWindow.LanguageChoices(_services.LanguageFolders, c.Language).FirstOrDefault(l => l.Id == c.Language).Label ?? c.Language), 12.5, brush: "Brush.Accent", wrap: true));
+        }
         var title = FromHelp ? AppStrings.Wizard_Ready_TitleHelp : AppStrings.Wizard_Ready_Title;
 
         if (Imported is var (import, parts))
@@ -709,7 +777,7 @@ public sealed partial class FirstStepsWindow
 
         var b = c.Bars;
         var bars = new List<string>();
-        foreach (var (on, name) in new[] { (b.MenuBar, AppStrings.Wizard_Sum_Bar_Menu), (b.DriveStrip, AppStrings.Wizard_Sum_Bar_Drives), (b.HotPathBar, AppStrings.Wizard_Sum_Bar_HotPaths), (b.MiddleToolbar, AppStrings.Wizard_Sum_Bar_Middle), (b.FunctionKeyBar, AppStrings.Wizard_Sum_Bar_FKeys) })
+        foreach (var (on, name) in new[] { (b.MenuBar, AppStrings.Wizard_Sum_Bar_Menu), (b.DriveStrip, AppStrings.Wizard_Sum_Bar_Drives), (b.HotPathBar, AppStrings.Wizard_Sum_Bar_HotPaths), (c.BackForwardBar, AppStrings.Wizard_Sum_Bar_BackForward), (b.MiddleToolbar, AppStrings.Wizard_Sum_Bar_Middle), (b.FunctionKeyBar, AppStrings.Wizard_Sum_Bar_FKeys), (c.FreeSpace, AppStrings.Wizard_Sum_Bar_FreeSpace), (c.DiskActivity, AppStrings.Wizard_Sum_Bar_Activity) })
         {
             if (on)
             {
@@ -753,6 +821,9 @@ public sealed partial class FirstStepsWindow
             (AppStrings.Wizard_RowHeight, row),
             (AppStrings.Wizard_Sizes, units),
             (AppStrings.Wizard_Sum_DatesTime, date + " · " + time),
+            (AppStrings.Opt_RowStripes, c.RowStripes ? AppStrings.Common_On : AppStrings.Common_Off),
+            (AppStrings.Opt_SelectionLook, c.SelectionNameOnly ? AppStrings.Opt_Look_NameOnly : AppStrings.Opt_Look_WholeRow),
+            (AppStrings.Opt_HideDotFiles, c.HideDotFiles ? AppStrings.Common_On : AppStrings.Common_Off),
             (AppStrings.Opt_StartFolders, start),
         ];
     }

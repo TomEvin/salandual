@@ -219,6 +219,7 @@ internal sealed partial class ViewerWindow
         }
 
         _mediaMode = true;
+        _torrentPage = TorrentPage.None;
         _imageMode = false;
         _treeMode = false;
         _hexMode = false;

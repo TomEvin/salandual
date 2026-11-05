@@ -278,11 +278,13 @@ public sealed class CompareDirectoriesDialog : Window
         }
     }
 
+    internal Func<string, bool> FolderExists { get; init; } = Directory.Exists;
+
     internal void Accept()
     {
         var left = Clean(_leftBox.Text);
         var right = Clean(_rightBox.Text);
-        var missing = !Directory.Exists(left) ? left : !Directory.Exists(right) ? right : null;
+        var missing = !FolderExists(left) ? left : !FolderExists(right) ? right : null;
         if (missing is not null || SamePath(left, right))
         {
             _problem.Text = missing is not null ? Loc.Format(AppStrings.Compare_NoFolder, missing) : AppStrings.Compare_SamePaths;

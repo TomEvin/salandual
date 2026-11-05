@@ -52,6 +52,14 @@ internal sealed record FindRequest(string LookIn)
 
     public Action<string, IReadOnlyList<string>, bool, Window> Properties { get; init; } = (_, _, _, _) => { };
 
+    public IArchiveSearch? Archives { get; init; }
+
+    public Action<string> OpenInArchive { get; init; } = _ => { };
+
+    public Action<string, FindQuery?> ViewInArchive { get; init; } = (_, _) => { };
+
+    public Action<string> EditInArchive { get; init; } = _ => { };
+
     public Action<string> OpenWith { get; init; } = _ => { };
 
     public Func<OperationKind, IReadOnlyList<SearchHit>, Window, Task<OperationJob?>> CopyOrMove { get; init; } = (_, _, _) => Task.FromResult<OperationJob?>(null);
@@ -520,7 +528,7 @@ internal sealed partial class FindWindow : Window
                 return;
             }
 
-            var dialog = CloseQuestion = new ConfirmDialog(AppStrings.Find_Close_Title, IsSearching ? AppStrings.Find_Close_Searching : AppStrings.Find_Close_Text, AppStrings.Common_Close, AppStrings.Common_Cancel);
+            var dialog = CloseQuestion = new ConfirmDialog(AppStrings.Find_Close_Title, IsSearching ? AppStrings.Find_Close_Searching : AppStrings.Find_Close_Text, AppStrings.Common_Close, AppStrings.Common_Cancel, group: Core.Settings.ConfirmGroup.Close);
             bool close;
             try
             {
@@ -580,7 +588,7 @@ internal sealed partial class FindWindow : Window
         UpdateHeader();
         _flush.Start();
 
-        var search = new FileSearch(_request.Files, _request.Open);
+        var search = new FileSearch(_request.Files, _request.Open, _request.Archives);
         var callbacks = new SearchCallbacks
         {
             Found = hit => _incoming.Enqueue(hit),

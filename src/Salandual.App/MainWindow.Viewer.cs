@@ -49,6 +49,23 @@ public partial class MainWindow
     private static string? FocusedFile(PanelHost host)
         => host.Panel.FocusedEntry is { IsDirectory: false } entry && host.Panel.Path.Length > 0 ? WindowsPath.Join(host.Panel.Path, entry.Name) : null;
 
+    private string TorrentFolderOffered(PanelHost host, string torrent)
+    {
+        var other = OtherPanel(host).Panel.Path;
+        try
+        {
+            if (other.Length > 0 && Path.IsPathFullyQualified(other) && Directory.Exists(other))
+            {
+                return other;
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+        }
+
+        return Path.GetDirectoryName(torrent) ?? "";
+    }
+
     internal ViewerWindow? OpenViewer(PanelHost host, bool alternate)
     {
         if (FocusedFile(host) is not { } path)
@@ -57,10 +74,11 @@ public partial class MainWindow
         }
 
         var kind = _services.Settings.Current.Viewers.KindFor(WindowsPath.GetName(path), alternate);
+        RememberFile(path);
         return OpenViewer(host, path, kind);
     }
 
-    internal ViewerWindow OpenViewer(PanelHost host, string path, ViewerKind kind, bool fromEditor = false, IReadOnlyList<string>? siblings = null, Window? comeBackTo = null, Salandual.Core.Viewer.FindQuery? findText = null)
+    internal ViewerWindow OpenViewer(PanelHost host, string path, ViewerKind kind, bool fromEditor = false, IReadOnlyList<string>? siblings = null, Window? comeBackTo = null, Salandual.Core.Viewer.FindQuery? findText = null, ViewerBlame? blame = null)
     {
         var viewers = _services.Settings.Current.Viewers;
         var find = _services.Settings.Current.Find;
@@ -86,6 +104,8 @@ public partial class MainWindow
             FindText = find.ViewAtMatch || find.ViewerKeepsText ? findText : null,
             GoToFirstMatch = find.ViewAtMatch,
             KeepFindText = find.ViewerKeepsText,
+            TorrentFolder = torrent => TorrentFolderOffered(host, torrent),
+            Blame = blame,
         };
         var window = new ViewerWindow(_services.Settings, request);
 
@@ -98,8 +118,13 @@ public partial class MainWindow
 
         _viewers.Add(window);
         var wasActive = false;
-        window.Closing += (_, _) =>
+        window.Closing += (_, e) =>
         {
+            if (e.Cancel)
+            {
+                return;
+            }
+
             wasActive = !fromEditor && Viewer.NativeFocus.IsInFront(window);
             if (wasActive)
             {
@@ -435,6 +460,7 @@ public partial class MainWindow
         await SmokeEditAsync();
         await SmokeFindAsync();
         await SmokeCompareAsync();
+        await SmokeArchiveAsync();
         if (Diagnostics.StartupTrace.ExitAfterFirstFrame)
         {
             await SmokeCloseWithWindowsAsync();
@@ -495,7 +521,7 @@ public partial class MainWindow
             PlacementGravity = PopupGravity.BottomRight,
         };
         menu.Items.Add(new MenuItem { Header = AppStrings.ViewWith_Title, IsEnabled = false });
-        foreach (var (kind, label) in new[] { (ViewerKind.Automatic, AppStrings.ViewerKind_Automatic), (ViewerKind.Text, AppStrings.ViewerKind_Text), (ViewerKind.Hex, AppStrings.ViewerKind_Hex), (ViewerKind.Image, AppStrings.ViewerKind_Image), (ViewerKind.Media, AppStrings.ViewerKind_Media), (ViewerKind.Markdown, AppStrings.ViewerKind_Markdown), (ViewerKind.Notebook, AppStrings.ViewerKind_Notebook), (ViewerKind.Tree, AppStrings.ViewerKind_Tree), (ViewerKind.Html, AppStrings.ViewerKind_Html) })
+        foreach (var (kind, label) in new[] { (ViewerKind.Automatic, AppStrings.ViewerKind_Automatic), (ViewerKind.Text, AppStrings.ViewerKind_Text), (ViewerKind.Hex, AppStrings.ViewerKind_Hex), (ViewerKind.Image, AppStrings.ViewerKind_Image), (ViewerKind.Media, AppStrings.ViewerKind_Media), (ViewerKind.Markdown, AppStrings.ViewerKind_Markdown), (ViewerKind.Notebook, AppStrings.ViewerKind_Notebook), (ViewerKind.Tree, AppStrings.ViewerKind_Tree), (ViewerKind.Html, AppStrings.ViewerKind_Html), (ViewerKind.Torrent, AppStrings.ViewerKind_Torrent) })
         {
             var item = new MenuItem { Header = label };
             item.Click += (_, _) => OpenViewer(host, path, kind);

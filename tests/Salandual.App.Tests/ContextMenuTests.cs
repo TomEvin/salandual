@@ -184,6 +184,19 @@ public sealed class ContextMenuTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task CopyAndMove_PointTowardTheOtherPanel()
+    {
+        var w = await Open();
+        RightClick(w, "notes.txt");
+        Assert.Null(((Control)Item(w.QuickMenu!, "Copy to other panel").Icon!).RenderTransform);
+        w.CloseNow();
+
+        Assert.Equal(-1, Assert.IsType<Avalonia.Media.ScaleTransform>(Theme.AppIcons.ForPanel("File.Copy", rightPanel: true)!.RenderTransform).ScaleX);
+        Assert.Equal(-1, Assert.IsType<Avalonia.Media.ScaleTransform>(Theme.AppIcons.ForPanel("File.Move", rightPanel: true)!.RenderTransform).ScaleX);
+        Assert.Null(Theme.AppIcons.ForPanel("File.View", rightPanel: true)!.RenderTransform);
+    }
+
+    [AvaloniaFact]
     public async Task RightClick_OnASelectedItem_IsForTheWholeSelection()
     {
         var w = await Open();

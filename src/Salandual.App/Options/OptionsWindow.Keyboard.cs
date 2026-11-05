@@ -59,12 +59,14 @@ public partial class OptionsWindow
 
     internal Border? KeyBox => _keyBox;
 
+    internal Button? WhichKeyChange { get; private set; }
+
     internal TextBlock? CheatSheetNote { get; private set; }
 
     private void AddKeyboard()
     {
         const string page = "keyboard";
-        _services.Commands.UseKeyMap(Current.Keyboard.KeyMap);
+        _services.Commands.UseKeyMap(Current.Keyboard.KeyMap, Current.Keyboard.Keys);
         Add(page, "", AppStrings.Opt_KeyMap, AppStrings.Opt_KeyMap_Desc, () => new Panel(), keywords: AppStrings.Opt_KeyMap_Kw, below: KeyMapChoice);
         Add(page, "", AppStrings.Opt_WhichKey, AppStrings.Opt_WhichKey_Desc, WhichKey, keywords: AppStrings.Opt_WhichKey_Kw);
         Add(page, "", AppStrings.Opt_CheatSheet, AppStrings.Opt_CheatSheet_Desc, CheatSheetButtons, keywords: AppStrings.Opt_CheatSheet_Kw);
@@ -128,6 +130,17 @@ public partial class OptionsWindow
         answer.MinHeight = 18;
         answer.TextAlignment = TextAlignment.Right;
         answer.HorizontalAlignment = HorizontalAlignment.Right;
+        answer.VerticalAlignment = VerticalAlignment.Center;
+        string? found = null;
+        var change = new Button { Content = AppStrings.Opt_WhichKey_Change, Padding = new Thickness(8, 1), MinHeight = 0, IsVisible = false, VerticalAlignment = VerticalAlignment.Center };
+        change.Click += (_, _) =>
+        {
+            if (found is not null)
+            {
+                OpenKeyRow(found);
+            }
+        };
+        WhichKeyChange = change;
         box.KeyDown += (_, e) =>
         {
             if (e.KeyModifiers == Avalonia.Input.KeyModifiers.None && e.Key is Key.Tab or Key.Escape
@@ -144,10 +157,13 @@ public partial class OptionsWindow
             }
 
             answer.Text = Answer(chord);
+            found = _services.Commands.Resolve(chord);
+            change.IsVisible = found is not null;
         };
         _keyBox = box;
         KeyAnswer = answer;
-        return new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Children = { box, answer } };
+        var under = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { answer, change } };
+        return new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Children = { box, under } };
     }
 
     private static IEnumerable<string> Parts(KeyChord chord)
@@ -266,8 +282,10 @@ public partial class OptionsWindow
         top.Children.Add(filter);
 
         var list = new StackPanel();
-        var groups = new List<(Control Heading, List<(Control Row, string Text, bool Changed)> Rows)>();
+        var groups = new List<(Control Heading, List<KeyListRow> Rows)>();
         var commands = _services.Commands;
+        _keyRows.Clear();
+        _keyRowControls.Clear();
         var total = 0;
         foreach (var group in CommandGroups())
         {
@@ -279,45 +297,12 @@ public partial class OptionsWindow
                 Child = Text(CommandText.Category(group.Category), 12, FontWeight.SemiBold, "Brush.SecondaryText"),
             }.Res(Border.BorderBrushProperty, "Brush.Border");
             list.Children.Add(heading);
-            var rows = new List<(Control Row, string Text, bool Changed)>();
+            var rows = new List<KeyListRow>();
             foreach (var command in group.Commands)
             {
-                var built = MainWindow.IsBuilt(command.Id);
-                var chords = commands.ChordsFor(command.Id).ToList();
-                var was = WasKeys(command, chords);
-                var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 4) };
-                var text = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
-                text.Children.Add(Text(command.Title, 13, brush: built ? "Brush.Text" : "Brush.TertiaryText"));
-                if (!built)
-                {
-                    text.Children.Add(Text(Loc.Format(AppStrings.Opt_NotYet, CommandText.Milestone(command.PlannedFor)), 11, brush: "Brush.TertiaryText"));
-                }
-
-                grid.Children.Add(text);
-                var keys = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 320 };
-                foreach (var chord in chords)
-                {
-                    keys.Children.Add(KeyCap(chord.ToString()));
-                }
-
-                if (chords.Count == 0)
-                {
-                    keys.Children.Add(KeyCap("—"));
-                }
-
-                if (was is not null)
-                {
-                    var wasText = Text(was, 11, brush: "Brush.TertiaryText");
-                    wasText.VerticalAlignment = VerticalAlignment.Center;
-                    wasText.Margin = new Thickness(8, 0, 0, 0);
-                    keys.Children.Add(wasText);
-                }
-
-                keys.Opacity = built ? 1 : 0.6;
-                Grid.SetColumn(keys, 1);
-                grid.Children.Add(keys);
-                list.Children.Add(Changed(grid, was is not null));
-                rows.Add((list.Children[^1], string.Join(' ', command.Title, CommandText.Category(command.Category), command.Id, string.Join(' ', chords)), was is not null));
+                var row = KeyRow(command);
+                list.Children.Add(row.Container);
+                rows.Add(row);
             }
 
             total += rows.Count;
@@ -334,7 +319,7 @@ public partial class OptionsWindow
                 Child = Text(Loc.Format(AppStrings.Opt_KeyMap_NotYetGroup, KeyMaps.Title(commands.KeyMap)), 12, FontWeight.SemiBold, "Brush.SecondaryText"),
             }.Res(Border.BorderBrushProperty, "Brush.Border");
             list.Children.Add(heading);
-            var rows = new List<(Control Row, string Text, bool Changed)>();
+            var rows = new List<KeyListRow>();
             foreach (var key in commands.NotYetKeys)
             {
                 var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 4) };
@@ -347,12 +332,16 @@ public partial class OptionsWindow
                 Grid.SetColumn(cap, 1);
                 grid.Children.Add(cap);
                 list.Children.Add(Changed(grid, true));
-                rows.Add((list.Children[^1], string.Join(' ', key.Title, key.Chord), true));
+                var title = string.Join(' ', key.Title, key.Chord);
+                rows.Add(new KeyListRow(list.Children[^1], () => title, () => true, () => false));
             }
 
             total += rows.Count;
             groups.Add((heading, rows));
         }
+
+        var onlyYours = new ToggleSwitch { OnContent = null, OffContent = null, MinWidth = 0, VerticalAlignment = VerticalAlignment.Center };
+        OnlyYourKeys = onlyYours;
 
         ToggleSwitch? onlyChanged = null;
         OnlyChangedKeys = null;
@@ -363,44 +352,58 @@ public partial class OptionsWindow
             OnlyChangedKeys = onlyChanged;
         }
 
+        onlyYours.IsCheckedChanged += (_, _) => Apply();
+
         void Apply()
         {
             var q = filter.Text?.Trim() ?? "";
             var compare = CultureInfo.CurrentCulture.CompareInfo;
             var only = onlyChanged?.IsChecked == true;
+            var mine = onlyYours.IsChecked == true;
             var shown = 0;
             foreach (var (heading, rows) in groups)
             {
                 var any = false;
-                foreach (var (row, text, changed) in rows)
+                foreach (var row in rows)
                 {
-                    row.IsVisible = (!only || changed) && (q.Length == 0 || compare.IndexOf(text, q, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0);
-                    any |= row.IsVisible;
-                    shown += row.IsVisible ? 1 : 0;
+                    row.Container.IsVisible = (!only || row.Changed()) && (!mine || row.Yours()) && (q.Length == 0 || compare.IndexOf(row.Text(), q, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0)
+                        || row.Container is Border { Tag: "open" };
+                    var visible = row.Container.IsVisible;
+                    any |= visible;
+                    shown += visible ? 1 : 0;
                 }
 
                 heading.IsVisible = any;
             }
 
-            count.Text = q.Length == 0 && !only ? Loc.Format(AppStrings.Opt_Shortcuts_All, total) : Loc.Format(AppStrings.Opt_Shortcuts_Count, shown, total);
+            count.Text = q.Length == 0 && !only && !mine ? Loc.Format(AppStrings.Opt_Shortcuts_All, total) : Loc.Format(AppStrings.Opt_Shortcuts_Count, shown, total);
         }
 
         filter.TextChanged += (_, _) => Apply();
+        _keyListChanged = Apply;
         Apply();
         var panel = new StackPanel { Spacing = 8 };
         panel.Children.Add(top);
-        if (onlyChanged is not null)
+        var toggles = new WrapPanel { ItemSpacing = 24, LineSpacing = 6 };
+        foreach (var (toggle, text) in new[] { ((ToggleSwitch?)onlyYours, AppStrings.Opt_Keys_OnlyYours), (onlyChanged, AppStrings.Opt_KeyMap_OnlyChanged) })
         {
-            var label = Text(AppStrings.Opt_KeyMap_OnlyChanged, 13);
-            label.VerticalAlignment = VerticalAlignment.Center;
-            panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { onlyChanged, label } });
+            if (toggle is not null)
+            {
+                var label = Text(text, 13);
+                label.VerticalAlignment = VerticalAlignment.Center;
+                toggles.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { toggle, label } });
+            }
         }
+
+        panel.Children.Add(toggles);
 
         panel.Children.Add(list);
         return panel;
     }
 
     internal ToggleSwitch? OnlyChangedKeys { get; private set; }
+
+    internal ToggleSwitch? OnlyYourKeys { get; private set; }
 
     private static Control Changed(Control row, bool changed)
         => changed

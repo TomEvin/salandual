@@ -259,6 +259,30 @@ public sealed class DirectoryLineCommandTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task APlace_IsListedByItsName_AndFoldersKeptComesFromOptions()
+    {
+        var w = await Open();
+        w.Working.Remember(Core.Vfs.ShellPlace.ThisPc, 0);
+        Press(w, Key.F12, RawInputModifiers.Alt);
+        var texts = w.WorkingDirectoriesMenu!.Items.OfType<MenuItem>().Where(i => i.Tag is char)
+            .Select(i => ((Grid)i.Header!).Children.OfType<TextBlock>().ElementAt(1).Text).ToList();
+        Assert.Equal("This PC", texts[0]);
+        Assert.DoesNotContain(texts, t => t!.Contains("::{", StringComparison.Ordinal));
+        w.WorkingDirectoriesMenu.Hide();
+
+        Assert.Equal(20, w.Working.Limit);
+        for (var i = 0; i < 10; i++)
+        {
+            w.Working.Remember(Path.Join(_dir, $"F{i}"), 0);
+        }
+
+        Settings(w, d => d with { FoldersKept = 5 });
+        Assert.Equal(5, w.Working.Limit);
+        Assert.Equal(5, w.Working.For(0, shared: false).Count);
+        w.CloseNow();
+    }
+
+    [AvaloniaFact]
     public async Task CtrlF1_ShowsDriveInformation_ForThePanelsDrive()
     {
         var w = await Open();

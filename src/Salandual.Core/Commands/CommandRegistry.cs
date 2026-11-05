@@ -20,6 +20,9 @@ public sealed class CommandRegistry
     private Dictionary<KeyChord, string> _keyMap = [];
     private Dictionary<string, List<KeyChord>> _chords = new(StringComparer.Ordinal);
     private List<NotYetKey> _notYet = [];
+    private Dictionary<string, List<KeyChord>> _mapChords = new(StringComparer.Ordinal);
+    private HashSet<string> _yours = new(StringComparer.Ordinal);
+    private string _yoursText = "";
 
     public IReadOnlyCollection<CommandDefinition> Commands => _order;
 
@@ -49,23 +52,70 @@ public sealed class CommandRegistry
 
             _chords[command.Id].Add(chord);
         }
+
+        _mapChords[command.Id] = [.. _chords[command.Id]];
     }
 
-    public void UseKeyMap(KeyMapName name)
+    public void UseKeyMap(KeyMapName name, IReadOnlyList<CommandKeys>? yours = null)
     {
         if (!Enum.IsDefined(name))
         {
             name = KeyMapName.Salamander;
         }
 
+        yours ??= Yours;
         (_keyMap, _chords, _notYet) = KeyMaps.Build(name, _order);
-        var changed = name != KeyMap;
+        _mapChords = _chords.ToDictionary(p => p.Key, p => p.Value.ToList(), StringComparer.Ordinal);
+        _yours = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in yours.Where(e => _commands.ContainsKey(e.Command)))
+        {
+            foreach (var chord in _chords[entry.Command])
+            {
+                _keyMap.Remove(chord);
+            }
+
+            _chords[entry.Command] = [];
+            foreach (var chord in entry.Chords())
+            {
+                if (_keyMap.TryGetValue(chord, out var other))
+                {
+                    _chords[other].Remove(chord);
+                }
+
+                _notYet.RemoveAll(k => k.Chord == chord);
+                _keyMap[chord] = entry.Command;
+                _chords[entry.Command].Add(chord);
+            }
+
+            _yours.Add(entry.Command);
+        }
+
+        Yours = [.. yours];
+        var text = string.Join('|', Yours.Select(e => e.Command + "=" + string.Join(' ', e.Keys)));
+        var changed = name != KeyMap || text != _yoursText;
         KeyMap = name;
+        _yoursText = text;
         if (changed)
         {
             KeyMapChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    public IReadOnlyList<CommandKeys> Yours { get; private set; } = [];
+
+    public bool IsYours(string id) => _yours.Contains(id);
+
+    public IReadOnlyList<KeyChord> MapChordsFor(string id) => _mapChords.TryGetValue(id, out var chords) ? chords : [];
+
+    public IReadOnlyList<(KeyChord Chord, string To)> TakenFrom(string id)
+        => [.. MapChordsFor(id).Where(c => !_yours.Contains(id) || !_chords[id].Contains(c))
+            .Select(c => (Chord: c, To: Resolve(c)))
+            .Where(t => t.To is not null && t.To != id)
+            .Select(t => (t.Chord, t.To!))];
+
+    public bool MapsGive(KeyChord chord, string id)
+        => (_commands.TryGetValue(id, out var command) && command.DefaultChords.Contains(chord))
+           || KeysOf(KeyMapName.TotalCommander).Map.TryGetValue(chord, out var tc) && tc == id;
 
     public bool TryGet(string id, out CommandDefinition command) => _commands.TryGetValue(id, out command!);
 

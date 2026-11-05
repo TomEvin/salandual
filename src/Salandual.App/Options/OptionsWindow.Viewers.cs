@@ -80,6 +80,7 @@ public sealed partial class OptionsWindow
 
         var images = AppStrings.OptSec_Images;
         Add(page, images, AppStrings.Opt_Canvas, AppStrings.Opt_Canvas_Desc, CanvasPicker, keywords: AppStrings.Opt_Images_Kw);
+        Add(page, images, AppStrings.Opt_Transparent, AppStrings.Opt_Transparent_Desc, TransparentPicker, keywords: AppStrings.Opt_Images_Kw);
         Add(page, images, AppStrings.Opt_ImageZoom, null, () => Segmented(
             [(ImageZoom.Fit, AppStrings.Viewer_Fit), (ImageZoom.Width, AppStrings.Viewer_Width), (ImageZoom.Actual, AppStrings.Viewer_Actual)],
             Current.Viewers.ImageZoom, v => UpdateViewers(x => x with { ImageZoom = v })), keywords: AppStrings.Opt_Images_Kw);
@@ -236,45 +237,91 @@ public sealed partial class OptionsWindow
     private Control CanvasPicker()
     {
         var v = Current.Viewers;
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        Button Choice(CanvasColor canvas, IBrush look)
-        {
-            var swatch = new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), Background = look, BorderBrush = new SolidColorBrush(Color.FromArgb(0x40, 0x80, 0x80, 0x80)) };
-            var button = new Button { Padding = new Thickness(3), MinWidth = 0, Content = swatch, Background = Brushes.Transparent };
-            if (v.ImageCanvas == canvas)
-            {
-                button.Res(Button.BorderBrushProperty, "Brush.Text");
-                button.BorderThickness = new Thickness(2);
-            }
+        Button Choice(CanvasColor canvas, IBrush look) => ColourChoice(v.ImageCanvas == canvas, look, Salandual.App.Viewer.ViewerWindow.CanvasLabel(canvas),
+            () => UpdateViewers(x => x with { ImageCanvas = canvas }));
 
-            var label = Salandual.App.Viewer.ViewerWindow.CanvasLabel(canvas);
-            ToolTip.SetTip(button, label);
-            Avalonia.Automation.AutomationProperties.SetName(button, label);
-            button.Click += (_, _) =>
+        var custom = ColorMath.TryParseHex(v.CanvasCustom, out var c) ? c : new Rgb(0x1C, 0x1C, 0x1C);
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Children =
             {
-                UpdateViewers(x => x with { ImageCanvas = canvas });
-                RebuildLater();
-            };
-            return button;
+                Choice(CanvasColor.Dark, new SolidColorBrush(Color.FromRgb(0x1C, 0x1C, 0x1C))),
+                Choice(CanvasColor.Black, Brushes.Black),
+                Choice(CanvasColor.Grey, new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x5A))),
+                Choice(CanvasColor.Magenta, new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0xFF))),
+                Choice(CanvasColor.Theme, new LinearGradientBrush
+                {
+                    StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                    EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+                    GradientStops = { new GradientStop(Colors.White, 0.5), new GradientStop(Color.FromRgb(0x27, 0x27, 0x27), 0.5) },
+                }),
+                AnyColour(v.ImageCanvas == CanvasColor.Custom, custom, color => UpdateViewers(x => x with { ImageCanvas = CanvasColor.Custom, CanvasCustom = ColorMath.ToHex(color) })),
+            },
+        };
+    }
+
+    private Control TransparentPicker()
+    {
+        var v = Current.Viewers;
+        Button Choice(TransparentParts parts, IBrush look) => ColourChoice(v.ImageTransparent == parts, look, Salandual.App.Viewer.ViewerWindow.TransparentLabel(parts),
+            () => UpdateViewers(x => x with { ImageTransparent = parts }));
+
+        var custom = ColorMath.TryParseHex(v.TransparentCustom, out var c) ? c : new Rgb(0xFF, 0xFF, 0xFF);
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Children =
+            {
+                Choice(TransparentParts.CheckerLight, Salandual.App.Viewer.ViewerWindow.CheckerSwatch(dark: false)),
+                Choice(TransparentParts.CheckerDark, Salandual.App.Viewer.ViewerWindow.CheckerSwatch(dark: true)),
+                Choice(TransparentParts.Canvas, new LinearGradientBrush
+                {
+                    StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                    EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+                    GradientStops =
+                    {
+                        new GradientStop(Colors.Transparent, 0.44), new GradientStop(Color.FromRgb(0x8A, 0x8A, 0x8A), 0.44),
+                        new GradientStop(Color.FromRgb(0x8A, 0x8A, 0x8A), 0.56), new GradientStop(Colors.Transparent, 0.56),
+                    },
+                }),
+                Choice(TransparentParts.White, Brushes.White),
+                Choice(TransparentParts.Black, Brushes.Black),
+                AnyColour(v.ImageTransparent == TransparentParts.Custom, custom, color => UpdateViewers(x => x with { ImageTransparent = TransparentParts.Custom, TransparentCustom = ColorMath.ToHex(color) })),
+            },
+        };
+    }
+
+    private Button ColourChoice(bool chosen, IBrush look, string label, Action pick)
+    {
+        var swatch = new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), Background = look, BorderBrush = new SolidColorBrush(Color.FromArgb(0x40, 0x80, 0x80, 0x80)) };
+        var button = new Button { Padding = new Thickness(3), MinWidth = 0, Content = swatch, Background = Brushes.Transparent };
+        if (chosen)
+        {
+            button.Res(Button.BorderBrushProperty, "Brush.Text");
+            button.BorderThickness = new Thickness(2);
         }
 
-        row.Children.Add(Choice(CanvasColor.Dark, new SolidColorBrush(Color.FromRgb(0x1C, 0x1C, 0x1C))));
-        row.Children.Add(Choice(CanvasColor.Black, Brushes.Black));
-        row.Children.Add(Choice(CanvasColor.Grey, new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x5A))));
-        row.Children.Add(Choice(CanvasColor.Magenta, new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0xFF))));
-        row.Children.Add(Choice(CanvasColor.Theme, new LinearGradientBrush
+        ToolTip.SetTip(button, label);
+        Avalonia.Automation.AutomationProperties.SetName(button, label);
+        button.Click += (_, _) =>
         {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-            GradientStops = { new GradientStop(Colors.White, 0.5), new GradientStop(Color.FromRgb(0x27, 0x27, 0x27), 0.5) },
-        }));
-        var custom = ColorMath.TryParseHex(v.CanvasCustom, out var c) ? c : new Rgb(0x1C, 0x1C, 0x1C);
+            pick();
+            RebuildLater();
+        };
+        return button;
+    }
+
+    private Button AnyColour(bool chosen, Rgb custom, Action<Rgb> pick)
+    {
         var more = ColorButton(custom, color =>
         {
-            UpdateViewers(x => x with { ImageCanvas = CanvasColor.Custom, CanvasCustom = ColorMath.ToHex(color) });
+            pick(color);
             RebuildLater();
         }, AppStrings.Viewer_Canvas_Custom);
-        if (v.ImageCanvas == CanvasColor.Custom)
+        if (chosen)
         {
             more.Res(Button.BorderBrushProperty, "Brush.Text");
             more.BorderThickness = new Thickness(2);
@@ -299,8 +346,7 @@ public sealed partial class OptionsWindow
         }
 
         ToolTip.SetTip(more, AppStrings.Viewer_Canvas_Custom);
-        row.Children.Add(more);
-        return row;
+        return more;
     }
 
     private Control EncodingPicker()
@@ -333,6 +379,7 @@ public sealed partial class OptionsWindow
         ViewerKind.Notebook => AppStrings.ViewerKind_Notebook,
         ViewerKind.Tree => AppStrings.ViewerKind_Tree,
         ViewerKind.Html => AppStrings.ViewerKind_Html,
+        ViewerKind.Torrent => AppStrings.ViewerKind_Torrent,
         _ => AppStrings.ViewerKind_Markdown,
     };
 

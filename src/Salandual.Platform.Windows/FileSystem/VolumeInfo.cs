@@ -32,6 +32,8 @@ public sealed record VolumeDetails(
     public int MaxLabelLength => FileSystem.StartsWith("FAT", StringComparison.OrdinalIgnoreCase) ? 11 : 32;
 
     public bool IsReadOnly => (Features & VolumeFeatures.ReadOnly) != 0;
+
+    public DriveMedium Medium { get; init; }
 }
 
 [Flags]
@@ -87,8 +89,11 @@ public static partial class VolumeInfo
         };
         var labelText = new string(label[..label.IndexOf('\0')]);
         var share = kind == DriveKind.Network ? (dir.StartsWith(@"\\", StringComparison.Ordinal) ? root : Drives.ShareOf(root)) : null;
-        return new VolumeDetails(root, kind, kind == DriveKind.Fixed ? IsSolidState(root) : null, labelText.Length > 0 ? labelText : null,
-            new string(fs[..fs.IndexOf('\0')]), serial, (int)maxName, cluster, free, total, (VolumeFeatures)flags, share);
+        return new VolumeDetails(root, kind, kind == DriveKind.Fixed ? DriveMedia.SeekPenalty(root) is { } head ? !head : null : null, labelText.Length > 0 ? labelText : null,
+            new string(fs[..fs.IndexOf('\0')]), serial, (int)maxName, cluster, free, total, (VolumeFeatures)flags, share)
+        {
+            Medium = DriveMedia.Of(root),
+        };
     }
 
     public static void SetLabel(string root, string label)
@@ -140,39 +145,6 @@ public static partial class VolumeInfo
     public static void ShowProperties(IntPtr owner, string root)
         => SHObjectProperties(owner, 2 , root.EndsWith('\\') ? root : root + "\\", null);
 
-    private static bool? IsSolidState(string root)
-    {
-        using var handle = CreateFileW($@"\\.\{root[..2]}", 0, 3 , IntPtr.Zero, 3 , 0, IntPtr.Zero);
-        if (handle.IsInvalid)
-        {
-            return null;
-        }
-
-        var query = new StoragePropertyQuery { PropertyId = 7 , QueryType = 0 };
-        if (!DeviceIoControl(handle, 0x2D1400 , ref query, Marshal.SizeOf<StoragePropertyQuery>(), out var result, Marshal.SizeOf<SeekPenaltyDescriptor>(), out _, IntPtr.Zero))
-        {
-            return null;
-        }
-
-        return result.IncursSeekPenalty == 0;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct StoragePropertyQuery
-    {
-        public int PropertyId;
-        public int QueryType;
-        public byte AdditionalParameters;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct SeekPenaltyDescriptor
-    {
-        public int Version;
-        public int Size;
-        public byte IncursSeekPenalty;
-    }
-
     [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetVolumeInformationW(string rootPathName, ref char volumeNameBuffer, int volumeNameSize, out uint volumeSerialNumber, out uint maximumComponentLength, out uint fileSystemFlags, ref char fileSystemNameBuffer, int fileSystemNameSize);
@@ -187,13 +159,6 @@ public static partial class VolumeInfo
     [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetVolumeLabelW(string rootPathName, string? volumeName);
-
-    [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
-    private static partial Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string fileName, uint desiredAccess, uint shareMode, IntPtr securityAttributes, uint creationDisposition, uint flagsAndAttributes, IntPtr templateFile);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool DeviceIoControl(Microsoft.Win32.SafeHandles.SafeFileHandle device, uint ioControlCode, ref StoragePropertyQuery inBuffer, int inBufferSize, out SeekPenaltyDescriptor outBuffer, int outBufferSize, out int bytesReturned, IntPtr overlapped);
 
     [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]

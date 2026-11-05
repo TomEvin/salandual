@@ -291,13 +291,7 @@ public sealed class OperationsPanel : Border
         return stack;
     }
 
-    private string Summary(OperationJob job)
-    {
-        var p = job.Progress;
-        var seconds = Math.Max(1, (int)Math.Round(job.Elapsed.TotalSeconds));
-        var what = job.Kind == OperationKind.Delete || p.TotalBytes == 0 ? Ui.Items(p.TotalItems) : _format().Size(p.TotalBytes);
-        return Loc.Format(AppStrings.Ops_SummaryIn, what, Ui.Duration(TimeSpan.FromSeconds(seconds)));
-    }
+    private string Summary(OperationJob job) => Ui.Summary(job, _format());
 }
 
 internal sealed class JobView : StackPanel
@@ -315,23 +309,47 @@ internal sealed class JobView : StackPanel
     private readonly StackPanel _current = new() { Spacing = 2 };
     private readonly TextBlock _currentText = OptionsUi.Text("", 12, brush: "Brush.SecondaryText");
     private readonly ProgressBar _currentBar = Ui.Bar(3);
-    private readonly Button _pause, _expand;
+    private readonly TextBlock _currentPercent = OptionsUi.Text("", 12, brush: "Brush.SecondaryText");
+    private readonly TextBlock _percent = OptionsUi.Text("", 12, FontWeight.SemiBold);
+    private readonly TextBlock _side = OptionsUi.Text("", 12, brush: "Brush.SecondaryText");
+    private string? _status;
+    private string? _statusDetail;
+    private readonly Button _pause, _expand, _startAnyway;
     private readonly ComboBox _limit;
     private readonly ContentControl _question = new();
     private OperationQuestion? _shownQuestion;
     private bool _questionInPanel;
+    private readonly bool _inWindow;
     private bool _expanded;
     private DisplayFormat _format = DisplayFormat.Default;
 
-    public JobView(OperationJob job, OperationsService service, bool expanded)
+    public JobView(OperationJob job, OperationsService service, bool expanded, bool inWindow = false)
     {
         _job = job;
         _service = service;
-        _expanded = expanded;
+        _inWindow = inWindow;
+        _expanded = expanded || inWindow;
         Spacing = 4;
-        _expand = Ui.Link(expanded ? "▴" : "▾", ToggleExpanded);
+        _expand = Ui.Link(_expanded ? "▴" : "▾", ToggleExpanded);
         ToolTip.SetTip(_expand, AppStrings.Ops_SpeedGraph);
-        Children.Add(Ui.TitleRow(job.Title, job.Route, trailing: _expand));
+        if (inWindow)
+        {
+            _line.TextWrapping = TextWrapping.NoWrap;
+            _line.TextTrimming = TextTrimming.CharacterEllipsis;
+            _currentText.TextTrimming = TextTrimming.CharacterEllipsis;
+            _side.TextTrimming = TextTrimming.CharacterEllipsis;
+            _side.VerticalAlignment = VerticalAlignment.Center;
+            _bar.Height = _bar.MinHeight = 10;
+            _currentBar.Height = _currentBar.MinHeight = 6;
+            var route = OptionsUi.Text(job.Route, 12, brush: "Brush.SecondaryText");
+            route.TextTrimming = TextTrimming.PathSegmentEllipsis;
+            Children.Add(route);
+        }
+        else
+        {
+            Children.Add(Ui.TitleRow(job.Title, job.Route, trailing: new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { _percent, _expand } }));
+        }
+
         Children.Add(_graph);
         string[] labels = [AppStrings.Ops_Stat_Done, AppStrings.Ops_Stat_Now, AppStrings.Ops_Stat_Peak, AppStrings.Ops_Stat_Left];
         for (var i = 0; i < 4; i++)
@@ -343,10 +361,24 @@ internal sealed class JobView : StackPanel
         }
 
         Children.Add(_stats);
-        _current.Children.Add(_currentText);
-        _current.Children.Add(_currentBar);
-        Children.Add(_current);
-        Children.Add(_bar);
+        if (inWindow)
+        {
+            Children.Add(_bar);
+            var fileRow = new DockPanel();
+            DockPanel.SetDock(_currentPercent, Dock.Right);
+            fileRow.Children.Add(_currentPercent);
+            fileRow.Children.Add(_currentText);
+            _current.Children.Add(fileRow);
+            _current.Children.Add(_currentBar);
+            Children.Add(_current);
+        }
+        else
+        {
+            _current.Children.Add(_currentText);
+            _current.Children.Add(_currentBar);
+            Children.Add(_current);
+            Children.Add(_bar);
+        }
 
         _limit = new ComboBox { MinWidth = 104, Height = 26, FontSize = 12, Padding = new Thickness(8, 0) };
         foreach (var (label, _) in _limits)
@@ -382,20 +414,50 @@ internal sealed class JobView : StackPanel
                 _job.Pause();
             }
         });
+        _startAnyway = Ui.Link(AppStrings.Ops_StartNow, () => _service.Queue.StartAnyway(_job));
+        ToolTip.SetTip(_startAnyway, AppStrings.Ops_StartAnyway_Tip);
+        var window = Ui.Link(AppStrings.Ops_ShowWindow, () => _service.ShowWindow(_job));
+        ToolTip.SetTip(window, AppStrings.Ops_ShowWindow_Tip);
         var actions = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 12,
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { _pause, Ui.Link(AppStrings.Common_Cancel, () => _job.Cancel()) },
+            Children = { _startAnyway, window, _pause, Ui.Link(AppStrings.Common_Cancel, () => _job.Cancel()) },
         };
         var limitRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { OptionsUi.Text(AppStrings.Ops_SpeedLimit, 12, brush: "Brush.SecondaryText").Also(t => t.VerticalAlignment = VerticalAlignment.Center), _limit } };
-        Children.Add(_line);
-        Children.Add(Ui.SubRow(job.Kind == OperationKind.Delete ? new Control() : limitRow, actions));
-        Children.Add(_question);
+        if (!inWindow)
+        {
+            Children.Add(_line);
+            Children.Add(Ui.SubRow(CountsOnly ? new Control() : limitRow, actions));
+        }
+        else if (!CountsOnly)
+        {
+            var row = new DockPanel { MinHeight = 28 };
+            DockPanel.SetDock(limitRow, Dock.Left);
+            row.Children.Add(limitRow);
+            _side.HorizontalAlignment = HorizontalAlignment.Right;
+            _side.Margin = new Thickness(12, 0, 0, 0);
+            row.Children.Add(_side);
+            Children.Add(row);
+        }
+        else
+        {
+            Children.Add(_line);
+            Children.Add(_side);
+        }
+
+        if (!inWindow)
+        {
+            Children.Add(_question);
+        }
     }
 
+    private const string Blank = "\u00A0";
+
     internal OperationJob Job => _job;
+
+    private bool CountsOnly => _job.Kind is OperationKind.Delete or OperationKind.Run or OperationKind.Git;
 
     internal bool IsExpanded => _expanded;
 
@@ -403,7 +465,22 @@ internal sealed class JobView : StackPanel
 
     internal ComboBox LimitBox => _limit;
 
+    internal Button StartAnywayLink => _startAnyway;
+
     internal Control? QuestionCard => _question.Content as Control;
+
+    internal string PercentText => _percent.IsVisible ? _percent.Text ?? "" : "";
+
+    internal string SideText => _side.Text ?? "";
+
+    internal void SetStatus(string? status, string brush = "Brush.SecondaryText", string? detail = null)
+    {
+        _status = status;
+        _statusDetail = detail;
+        _side.Res(TextBlock.ForegroundProperty, brush);
+        _side.FontWeight = brush == "Brush.SecondaryText" ? FontWeight.Normal : FontWeight.SemiBold;
+        Update(_format);
+    }
 
     private void ToggleExpanded()
     {
@@ -418,15 +495,16 @@ internal sealed class JobView : StackPanel
         var p = _job.Progress;
         var state = _job.State;
         var paused = state == JobState.Paused;
-        var bytesJob = !p.CountsFiles && _job.Kind != OperationKind.Delete;
-        var graph = _expanded && state != JobState.Waiting && _job.Kind != OperationKind.Delete;
+        var bytesJob = !p.CountsFiles && !CountsOnly;
+        var graph = !CountsOnly && (_inWindow || (_expanded && state != JobState.Waiting));
         _graph.IsVisible = graph;
+        _startAnyway.IsVisible = state == JobState.Waiting;
         _stats.IsVisible = graph;
-        _bar.IsVisible = !graph;
+        _bar.IsVisible = !graph || _inWindow;
         _bar.Value = p.Fraction * 100;
-        _expand.IsVisible = _job.Kind != OperationKind.Delete;
+        _expand.IsVisible = !CountsOnly && !_inWindow;
         _pause.Content = paused ? AppStrings.Common_Resume : AppStrings.Common_Pause;
-        _pause.IsEnabled = state is JobState.Running or JobState.Paused;
+        _pause.IsEnabled = state is JobState.Running or JobState.Paused && _job.Kind != OperationKind.Git;
 
         var now = bytesJob ? Ui.Speed(format, p.BytesPerSecond) : Ui.FilesPerSecond(p.ItemsPerSecond);
         var left = p.Remaining is { } r ? Ui.Left(r) : "–";
@@ -436,23 +514,36 @@ internal sealed class JobView : StackPanel
                 Loc.Format(AppStrings.Ops_Average, bytesJob ? Ui.Speed(format, p.AverageBytesPerSecond) : Ui.FilesPerSecond(p.AverageItemsPerSecond)));
             _statValues[0].Text = Loc.Format(AppStrings.Common_XOfY, bytesJob ? format.Size(p.DoneBytes) : p.DoneItems.ToString("N0", CultureInfo.CurrentCulture), bytesJob ? format.Size(p.TotalBytes) : p.TotalItems.ToString("N0", CultureInfo.CurrentCulture));
             _statValues[1].Text = now;
-            _statValues[2].Text = bytesJob ? Ui.Speed(format, p.PeakBytesPerSecond) : "";
+            _statValues[2].Text = bytesJob ? Ui.Speed(format, p.PeakBytesPerSecond) : _inWindow ? Blank : "";
             _statValues[3].Text = left;
         }
 
         var bigFile = p.CurrentTotal >= 64L << 20 && state is JobState.Running or JobState.Paused;
-        _current.IsVisible = bigFile;
+        _current.IsVisible = bigFile || (_inWindow && !CountsOnly);
+        _currentPercent.Text = "";
         if (bigFile)
         {
             _currentText.Text = Loc.Format(AppStrings.Ops_CurrentFile, Path.GetFileName(p.Current), format.Size(p.CurrentDone), format.Size(p.CurrentTotal));
             _currentBar.Value = p.CurrentTotal > 0 ? 100.0 * p.CurrentDone / p.CurrentTotal : 0;
+            if (_inWindow)
+            {
+                _currentPercent.Text = Ui.Percent(p.CurrentTotal > 0 ? (double)p.CurrentDone / p.CurrentTotal : 0);
+            }
         }
+        else if (_inWindow)
+        {
+            _currentText.Text = _statusDetail ?? (state is JobState.Running or JobState.Paused && p.Current is { Length: > 0 } name ? Path.GetFileName(name) : Blank);
+        }
+
+        _currentBar.Opacity = bigFile ? 1 : 0;
 
         _line.Text = state switch
         {
             JobState.Waiting => Loc.Format(AppStrings.Ops_WaitsForJob, Blocker()),
             _ when p.Phase == OperationPhase.Scanning => Loc.Format(AppStrings.Ops_Scanning, Ui.Items(p.TotalItems)),
             _ when _job.Kind == OperationKind.Delete => Loc.Format(AppStrings.Ops_DeleteProgress, p.DoneItems, Ui.Items(p.TotalItems)),
+            _ when _job.Kind == OperationKind.Git => p.Current is { Length: > 0 } said ? said : AppStrings.Ops_GitStarting,
+            _ when _job.Kind == OperationKind.Run => Loc.Format(paused ? AppStrings.Ops_RunPaused : AppStrings.Ops_RunProgress, Math.Min(p.DoneItems + 1, Math.Max(1, p.TotalItems)), p.TotalItems, p.Current ?? ""),
             _ when graph => "",
             _ => Loc.Format(paused ? AppStrings.Ops_LinePaused : _job.Question is not null ? AppStrings.Ops_LineAsking : AppStrings.Ops_Line,
                 (int)(p.Fraction * 100),
@@ -460,6 +551,27 @@ internal sealed class JobView : StackPanel
                 now,
                 left),
         };
+        if (_inWindow && CountsOnly)
+        {
+            _line.Text = _statusDetail is { } skipped ? _line.Text + " · " + skipped
+                : state is JobState.Running or JobState.Paused && p.Current is { Length: > 0 } item && _job.Kind == OperationKind.Delete ? _line.Text + " · " + Path.GetFileName(item)
+                : _line.Text.Length > 0 ? _line.Text : Blank;
+        }
+
+        if (_inWindow)
+        {
+            _side.Text = _status ?? (state == JobState.Waiting || p.Phase == OperationPhase.Scanning || CountsOnly
+                ? (CountsOnly ? Blank : _line.Text)
+                : p.TotalItems > 0 && state is JobState.Running or JobState.Paused
+                    ? Loc.Format(AppStrings.Progress_FileOf, Math.Min(p.DoneItems + 1, p.TotalItems), p.TotalItems)
+                    : Blank);
+        }
+        else
+        {
+            _percent.Text = Ui.Percent(p.Fraction);
+            _percent.IsVisible = graph || CountsOnly;
+        }
+
         _line.IsVisible = _line.Text.Length > 0;
 
         var question = _job.Question;
@@ -536,7 +648,8 @@ internal static class QuestionCards
         var text = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12 };
         Rich.Add(text.Inlines!, AppStrings.Ops_AlreadyIn, null, Ui.Bold(Path.GetFileName(c.Target)), Ui.Plain(where));
         var buttons = new WrapPanel { ItemSpacing = 6, LineSpacing = 6 };
-        foreach (var (label, kind, primary) in new[] { (AppStrings.Conflict_Overwrite, AnswerKind.Overwrite, newer), (AppStrings.Ops_Skip, AnswerKind.Skip, !newer), (AppStrings.Conflict_KeepBoth, AnswerKind.KeepBoth, false), (AppStrings.Conflict_IfNewer, AnswerKind.OverwriteOlder, false) })
+        var resume = c.CanResume ? new[] { (AppStrings.Conflict_Resume, AnswerKind.Resume, true) } : [];
+        foreach (var (label, kind, primary) in resume.Concat([(AppStrings.Conflict_Overwrite, AnswerKind.Overwrite, newer && !c.CanResume), (AppStrings.Ops_Skip, AnswerKind.Skip, !newer && !c.CanResume), (AppStrings.Conflict_KeepBoth, AnswerKind.KeepBoth, false), (AppStrings.Conflict_IfNewer, AnswerKind.OverwriteOlder, false)]))
         {
             buttons.Children.Add(Ui.Mini(label, () => job.Answer(new OperationAnswer(kind, forAll.IsChecked == true)), primary));
         }
@@ -612,6 +725,8 @@ internal static class Ui
         return button;
     }
 
+    public static string Percent(double fraction) => Loc.Format(AppStrings.Ops_Percent, (int)(Math.Clamp(fraction, 0, 1) * 100));
+
     public static ProgressBar Bar(double height = 4) => new() { Minimum = 0, Maximum = 100, Height = height, MinHeight = height, Margin = new Thickness(0, 2, 0, 2) };
 
     public static Control TitleRow(string title, string route, Control? leading = null, Control? trailing = null)
@@ -662,6 +777,19 @@ internal static class Ui
     public static Avalonia.Controls.Documents.Run Bold(string text) => new(text) { FontWeight = FontWeight.SemiBold };
 
     public static Avalonia.Controls.Documents.Run Plain(string text) => new(text);
+
+    public static string Summary(OperationJob job, DisplayFormat format)
+    {
+        var p = job.Progress;
+        var seconds = Math.Max(1, (int)Math.Round(job.Elapsed.TotalSeconds));
+        if (job.Kind == OperationKind.Git)
+        {
+            return job.Outcome is { Length: > 0 } said ? Loc.Format(AppStrings.Ops_GitSummary, said, Duration(TimeSpan.FromSeconds(seconds))) : Duration(TimeSpan.FromSeconds(seconds));
+        }
+
+        var what = job.Kind is OperationKind.Delete or OperationKind.Run || p.TotalBytes == 0 ? Items(p.TotalItems) : format.Size(p.TotalBytes);
+        return Loc.Format(AppStrings.Ops_SummaryIn, what, Duration(TimeSpan.FromSeconds(seconds)));
+    }
 
     public static string Speed(DisplayFormat format, double bytesPerSecond) => format.Size((long)Math.Max(0, bytesPerSecond)) + "/s";
 

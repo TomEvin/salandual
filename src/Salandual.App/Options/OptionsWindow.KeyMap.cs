@@ -47,6 +47,8 @@ public partial class OptionsWindow
 
         KeyMapCards = list;
         var panel = new StackPanel { Spacing = 10, Children = { cards } };
+        panel.Children.Add(YourKeysLine());
+
         if (KeyMapNotice() is { } notice)
         {
             panel.Children.Add(notice);

@@ -100,7 +100,13 @@ public sealed partial class OptionsWindow
 
         var now = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto"), ColumnSpacing = 6 };
         now.Children.Add(Text(AppStrings.Themes_OnScreen, 13));
-        now.Children.Add(Text(onScreen.Name, 13, FontWeight.SemiBold).Also(t => Grid.SetColumn(t, 1)));
+        var names = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { Text(onScreen.Name, 13, FontWeight.SemiBold) } };
+        if (Settings.KeptLook is { } kept && ThemeCatalog.Find(kept, ActiveId(kept.Schedule)) is { } before && before.Id != onScreen.Id)
+        {
+            names.Children.Add(Text(before.Name, 13, brush: "Brush.TertiaryText").Also(t => t.TextDecorations = TextDecorations.Strikethrough));
+        }
+
+        now.Children.Add(names.Also(n => Grid.SetColumn(n, 1)));
         now.Children.Add(Text("— " + Why(a.Schedule), 13, brush: "Brush.SecondaryText").Also(t => Grid.SetColumn(t, 2)));
         now.Children.Add(ActionButton(AppStrings.Themes_ScheduleButton, () => ShowThemesTab("schedule")).Also(b => Grid.SetColumn(b, 3)));
         panel.Children.Add(Boxed(now));
@@ -122,7 +128,7 @@ public sealed partial class OptionsWindow
                 preview.View = v;
             }).Also(s => Grid.SetColumn(s, 2)));
         var actionSets = new List<(Button Use, Button Edit, Button Delete)>();
-        StackPanel Actions()
+        WrapPanel Actions()
         {
             var use = new Button { Padding = new Thickness(16, 6) };
             use.Classes.Add("accent");
@@ -137,7 +143,7 @@ public sealed partial class OptionsWindow
             var delete = ActionButton(AppStrings.Themes_Delete, () => _ = ConfirmDeleteAsync(_pickedTheme));
             delete.Res(Button.ForegroundProperty, "Brush.Danger");
             actionSets.Add((use, edit, delete));
-            return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { use, duplicate, edit, export, delete } };
+            return new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { use, duplicate, edit, export, delete } };
         }
 
         void UpdateActions(ColorTheme t)
@@ -214,6 +220,7 @@ public sealed partial class OptionsWindow
         {
             t.VerticalAlignment = VerticalAlignment.Center;
             t.TextTrimming = TextTrimming.CharacterEllipsis;
+            t.MaxWidth = 220;
         });
         void Pick(ColorTheme t)
         {
@@ -245,9 +252,9 @@ public sealed partial class OptionsWindow
                 continue;
             }
 
-            var group = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 6, 0, 0) };
+            var group = new WrapPanel { ItemSpacing = 8, Margin = new Thickness(0, 6, 0, 0) };
             group.Children.Add(Text(heading, 13, FontWeight.SemiBold, "Brush.SecondaryText"));
-            group.Children.Add(Text(note, 12, brush: "Brush.TertiaryText"));
+            group.Children.Add(Text(note, 12, brush: "Brush.TertiaryText", wrap: true));
             cards.Children.Add(group);
             var wrap = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             foreach (var theme in list)
@@ -263,9 +270,13 @@ public sealed partial class OptionsWindow
             cards.Children.Add(wrap);
         }
 
-        var barRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 8 };
+        var barRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8 };
         barRow.Children.Add(barName);
-        barRow.Children.Add(Actions().Also(s => Grid.SetColumn(s, 1)));
+        barRow.Children.Add(Actions().Also(s =>
+        {
+            s.HorizontalAlignment = HorizontalAlignment.Right;
+            Grid.SetColumn(s, 1);
+        }));
         var back = ActionButton("↑", () => bigBox.BringIntoView());
         ToolTip.SetTip(back, AppStrings.Themes_BackToPreview);
         Avalonia.Automation.AutomationProperties.SetName(back, AppStrings.Themes_BackToPreview);
@@ -316,7 +327,7 @@ public sealed partial class OptionsWindow
         foreach (var (label, strong) in Badges(a.Schedule, theme, onScreen))
         {
             var badge = new Border { CornerRadius = new CornerRadius(999), Padding = new Thickness(6, 0), Child = Text(label, 10.5, FontWeight.SemiBold, strong ? "Brush.OnAccent" : "Brush.Text") };
-            badge.Res(Border.BackgroundProperty, strong ? "Brush.Accent" : "Brush.PanelBackground");
+            badge.Res(Border.BackgroundProperty, strong ? "Brush.AccentFill" : "Brush.PanelBackground");
             badges.Children.Add(badge);
         }
 
@@ -433,7 +444,7 @@ public sealed partial class OptionsWindow
             {
                 if (radio.IsChecked == true && Current.Appearance.Schedule.Mode != mode)
                 {
-                    UpdateAppearance(x => x with { Schedule = x.Schedule with { Mode = mode } });
+                    TryAppearance(x => x with { Schedule = x.Schedule with { Mode = mode } });
                     RebuildLater();
                 }
             };
@@ -460,8 +471,8 @@ public sealed partial class OptionsWindow
         panel.Children.Add(ModeCard(ScheduleMode.None, AppStrings.Themes_None, AppStrings.Themes_None_Desc, none));
 
         var windows = new WrapPanel { ItemSpacing = 16, LineSpacing = 8 };
-        windows.Children.Add(Labeled(AppStrings.Themes_WhenLight, Combo(names, s.Light, id => UpdateAppearance(x => x with { Schedule = x.Schedule with { Light = id } }), 220)));
-        windows.Children.Add(Labeled(AppStrings.Themes_WhenDark, Combo(names, s.Dark, id => UpdateAppearance(x => x with { Schedule = x.Schedule with { Dark = id } }), 220)));
+        windows.Children.Add(Labeled(AppStrings.Themes_WhenLight, Combo(names, s.Light, id => TryAppearance(x => x with { Schedule = x.Schedule with { Light = id } }), 220)));
+        windows.Children.Add(Labeled(AppStrings.Themes_WhenDark, Combo(names, s.Dark, id => TryAppearance(x => x with { Schedule = x.Schedule with { Dark = id } }), 220)));
         panel.Children.Add(ModeCard(ScheduleMode.Windows, AppStrings.Themes_Windows, AppStrings.Themes_Windows_Desc, windows));
 
         var times = new StackPanel { Spacing = 6 };
@@ -478,7 +489,7 @@ public sealed partial class OptionsWindow
         {
             var sorted = Current.Appearance.Schedule.Sorted().ToList();
             sorted[index] = sorted[index] with { Minute = minute };
-            UpdateAppearance(x => x with { Schedule = x.Schedule with { Changes = sorted } });
+            TryAppearance(x => x with { Schedule = x.Schedule with { Changes = sorted } });
         };
         timeline.Released += RebuildLater;
         times.Children.Add(timeline);
@@ -502,7 +513,7 @@ public sealed partial class OptionsWindow
             row.Children.Add(Combo(names, change.Theme, id => SetChange(index, c => c with { Theme = id }), 220));
             row.Children.Add(ActionButton(AppStrings.Themes_RemoveChange, () =>
             {
-                UpdateAppearance(x => x with { Schedule = x.Schedule with { Changes = [.. x.Schedule.Sorted().Where((_, j) => j != index)] } });
+                TryAppearance(x => x with { Schedule = x.Schedule with { Changes = [.. x.Schedule.Sorted().Where((_, j) => j != index)] } });
                 RebuildLater();
             }, enabled: sortedChanges.Count > 1));
             times.Children.Add(row);
@@ -512,13 +523,13 @@ public sealed partial class OptionsWindow
         buttons.Children.Add(ActionButton("＋ " + AppStrings.Themes_AddChange, () =>
         {
             var free = Enumerable.Range(0, 24).Select(h => h * 60).FirstOrDefault(m => Current.Appearance.Schedule.Changes.All(c => c.Minute != m), 0);
-            UpdateAppearance(x => x with { Schedule = x.Schedule with { Changes = [.. x.Schedule.Changes, new ThemeChange { Minute = free, Theme = OnScreenTheme.Id }] } });
+            TryAppearance(x => x with { Schedule = x.Schedule with { Changes = [.. x.Schedule.Changes, new ThemeChange { Minute = free, Theme = OnScreenTheme.Id }] } });
             RebuildLater();
         }));
         var defaults = new ThemeSchedule().Changes;
         buttons.Children.Add(ActionButton(AppStrings.Themes_DefaultTimes, () =>
         {
-            UpdateAppearance(x => x with { Schedule = x.Schedule with { Changes = new ThemeSchedule().Changes } });
+            TryAppearance(x => x with { Schedule = x.Schedule with { Changes = new ThemeSchedule().Changes } });
             RebuildLater();
         }, enabled: !sortedChanges.SequenceEqual(defaults)));
         times.Children.Add(buttons);
@@ -533,7 +544,7 @@ public sealed partial class OptionsWindow
         if (index < sorted.Count)
         {
             sorted[index] = change(sorted[index]);
-            UpdateAppearance(x => x with { Schedule = x.Schedule with { Changes = sorted } });
+            TryAppearance(x => x with { Schedule = x.Schedule with { Changes = sorted } });
             RebuildLater();
         }
     }
@@ -597,7 +608,7 @@ internal sealed class ScheduleTimeline : Control
             var colors = Paint(id);
             var rect = new Rect(start * w / 1440, 0, (end - start) * w / 1440, h);
             context.FillRectangle(Brush(colors[ColorTokens.PanelBackground]), rect);
-            var label = new FormattedText(NameOf(id), System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 11.5, Brush(colors[ColorTokens.Text]));
+            var label = new FormattedText(NameOf(id), System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), Salandual.App.Theme.TextScale.Of(11.5), Brush(colors[ColorTokens.Text]));
             if (label.Width + 12 < rect.Width)
             {
                 context.DrawText(label, new Point(rect.Center.X - (label.Width / 2), (h - label.Height) / 2));
@@ -611,7 +622,7 @@ internal sealed class ScheduleTimeline : Control
             var x = c.Minute * w / 1440;
             context.FillRectangle(Brushes.White, new Rect(x - 2.5, -3, 5, h + 6));
             context.FillRectangle(Brushes.Black, new Rect(x - 1.5, -3, 3, h + 6));
-            var time = new FormattedText(TimeOf(c.Minute), System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("Cascadia Mono, Consolas"), 11, ink);
+            var time = new FormattedText(TimeOf(c.Minute), System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("Cascadia Mono, Consolas"), Salandual.App.Theme.TextScale.Of(11), ink);
             context.DrawText(time, new Point(Math.Clamp(x - (time.Width / 2), 0, w - time.Width), h + 3));
         }
     }

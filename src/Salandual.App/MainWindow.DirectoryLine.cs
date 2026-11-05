@@ -20,6 +20,7 @@ using Salandual.Core.Listing;
 using Salandual.Core.Panels;
 using Salandual.Core.Resources;
 using Salandual.Core.Settings;
+using Salandual.Core.Vfs;
 using Salandual.Platform.Windows.FileSystem;
 using static Salandual.App.Options.OptionsUi;
 
@@ -138,7 +139,7 @@ public partial class MainWindow
             flyout.HorizontalOffset = line.HistoryButtonBounds.Center.X - (line.Bounds.Width / 2);
         }
 
-        var header = Text((shared ? "Working directories" : "Working directories of this panel").ToUpperInvariant(), 11, FontWeight.SemiBold, "Brush.TertiaryText");
+        var header = Text((shared ? AppStrings.Dir_WorkingBoth : AppStrings.Dir_WorkingHere).ToUpper(CultureInfo.CurrentCulture), 11, FontWeight.SemiBold, "Brush.TertiaryText");
         flyout.Items.Add(new MenuItem { Header = header, IsEnabled = false, Focusable = false, Padding = new Thickness(10, 6, 10, 0), MinHeight = 0 });
         var list = _working.For(side, shared);
         for (var i = 0; i < list.Count; i++)
@@ -149,7 +150,7 @@ public partial class MainWindow
             var number = Text(digit?.ToString() ?? "", 13, brush: "Brush.TertiaryText");
             number.MinWidth = 16;
             number.TextAlignment = TextAlignment.Right;
-            var path = new TextBlock { Text = w.Path, FontSize = 12, MaxWidth = shared ? 320 : 370, TextTrimming = TextTrimming.PrefixCharacterEllipsis, FontWeight = isCurrent ? FontWeight.Bold : FontWeight.Normal, VerticalAlignment = VerticalAlignment.Center };
+            var path = new TextBlock { Text = ShellPlace.Display(w.Path), FontSize = 12, MaxWidth = shared ? 320 : 370, TextTrimming = TextTrimming.PrefixCharacterEllipsis, FontWeight = isCurrent ? FontWeight.Bold : FontWeight.Normal, VerticalAlignment = VerticalAlignment.Center };
             path.Res(TextBlock.FontFamilyProperty, "Font.Mono");
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 10 };
             row.Children.Add(number);
@@ -157,7 +158,7 @@ public partial class MainWindow
             row.Children.Add(path);
             if (shared)
             {
-                var tag = Text(w.Side == 0 ? "left" : "right", 11, brush: "Brush.TertiaryText");
+                var tag = Text(w.Side == 0 ? AppStrings.Quick_Left : AppStrings.Quick_Right, 11, brush: "Brush.TertiaryText");
                 tag.Margin = new Thickness(20, 0, 0, 0);
                 tag.VerticalAlignment = VerticalAlignment.Center;
                 Grid.SetColumn(tag, 2);
@@ -213,18 +214,43 @@ public partial class MainWindow
             return;
         }
 
-        _driveInfo = new DriveInfoDialog(host.Panel.Path, DisplayFormat.From(_services.Settings.Current.Panels, CultureInfo.CurrentCulture));
+        _driveInfo = new DriveInfoDialog(host.Panel.Path, DisplayFormat.From(_services.Settings.Current.Panels, CultureInfo.CurrentCulture), Activity, _services.Settings.Current.DriveMenu.DriveInfoLook);
+        var drive = Core.DiskActivity.DriveOf(host.Panel.Path);
+        SampleActivityOf(drive, on: true);
         try
         {
             await _driveInfo.ShowDialog(this);
         }
         finally
         {
+            SampleActivityOf(drive, on: false);
             _driveInfo = null;
             host.View.Focus();
             _ = LoadDrivesAsync();
         }
     }
+
+    internal void ShowSpaceMenu(PanelHost host)
+    {
+        SetActive(Array.IndexOf(_panels, host), focus: false);
+        var menu = _services.Settings.Current.DriveMenu;
+        var info = new MenuItem { Header = AppStrings.Dir_DriveInfoMenu, InputGesture = new KeyGesture(Key.F1, KeyModifiers.Control) };
+        info.Click += (_, _) => _ = ShowDriveInfoAsync(host);
+        var space = new MenuItem { Header = AppStrings.Dir_ShowFreeSpace, ToggleType = MenuItemToggleType.CheckBox, IsChecked = menu.FreeSpaceInLine };
+        space.Click += (_, _) => _services.Settings.Update(s => s with { DriveMenu = s.DriveMenu with { FreeSpaceInLine = !s.DriveMenu.FreeSpaceInLine } });
+        var activity = new MenuItem { Header = AppStrings.Dir_ShowActivity, ToggleType = MenuItemToggleType.CheckBox, IsChecked = menu.ActivityInLine };
+        activity.Click += (_, _) => _services.Settings.Update(s => s with { DriveMenu = s.DriveMenu with { ActivityInLine = !s.DriveMenu.ActivityInLine } });
+        var options = new MenuItem { Header = AppStrings.Dir_SpaceOptions };
+        options.Click += (_, _) => _ = OpenOptionsAsync(HotPathsPage);
+        var context = new ContextMenu { Items = { info, new Separator(), space, activity, new Separator(), options } };
+        context.Closed += (_, _) => host.View.Focus();
+        SpaceMenu = context;
+        context.Open(host.DirectoryLine);
+    }
+
+    internal const string HotPathsPage = "hotpaths";
+
+    internal ContextMenu? SpaceMenu { get; private set; }
 
     internal async Task GoDroppedAsync(PanelHost host, string text)
     {

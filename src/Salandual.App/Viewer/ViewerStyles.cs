@@ -74,7 +74,7 @@ internal static class ViewerStyles
             Presenter<ToggleButton>(s => s.Class("vmode").Class(":pointerover"), (ContentPresenter.BackgroundProperty, "Brush.Hover"), (ContentPresenter.ForegroundProperty, "Brush.Text")),
             Presenter<ToggleButton>(s => s.Class("vtool").Class(":checked"), (ContentPresenter.BackgroundProperty, "Brush.TextSelection"), (ContentPresenter.ForegroundProperty, "Brush.SelectedText")),
             Presenter<ToggleButton>(s => s.Class("vflag").Class(":checked"), (ContentPresenter.BackgroundProperty, "Brush.TextSelection"), (ContentPresenter.ForegroundProperty, "Brush.SelectedText")),
-            Presenter<ToggleButton>(s => s.Class("vmode").Class(":checked"), (ContentPresenter.BackgroundProperty, "Brush.Accent"), (ContentPresenter.ForegroundProperty, "Brush.OnAccent")),
+            Presenter<ToggleButton>(s => s.Class("vmode").Class(":checked"), (ContentPresenter.BackgroundProperty, "Brush.AccentFill"), (ContentPresenter.ForegroundProperty, "Brush.OnAccent")),
 
             Own<ToggleButton>("vpill", [.. flat, (TemplatedControl.BorderThicknessProperty, new Thickness(1)), (TemplatedControl.PaddingProperty, new Thickness(8, 1)), (TemplatedControl.CornerRadiusProperty, new CornerRadius(10)), (TemplatedControl.FontSizeProperty, 11.0)]),
             Presenter<ToggleButton>(s => s.Class("vpill"), (ContentPresenter.BorderBrushProperty, "Brush.Border"), (ContentPresenter.ForegroundProperty, "Brush.SecondaryText")),

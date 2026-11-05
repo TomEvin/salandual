@@ -70,7 +70,7 @@ public sealed class SettingsTests : IDisposable
         SettingsStore.InDirectory(_dir).Save(new AppSettings { Appearance = AppearanceSettings.Fixed("nord") });
         var json = File.ReadAllText(FilePath);
 
-        Assert.Contains("\"schemaVersion\": 8", json, StringComparison.Ordinal);
+        Assert.Contains("\"schemaVersion\": 10", json, StringComparison.Ordinal);
         Assert.Contains("\"mode\": \"None\"", json, StringComparison.Ordinal);
         Assert.False(File.Exists(FilePath + ".tmp"));
     }
@@ -199,7 +199,7 @@ public sealed class SettingsTests : IDisposable
         }
 
         var json = File.ReadAllText(FilePath);
-        Assert.Contains("\"schemaVersion\": 8", json, StringComparison.Ordinal);
+        Assert.Contains("\"schemaVersion\": 10", json, StringComparison.Ordinal);
         Assert.Null(SettingsStore.InDirectory(_dir).Load().MigratedFrom);
     }
 
@@ -218,7 +218,7 @@ public sealed class SettingsTests : IDisposable
 
         var viewers = SettingsStore.InDirectory(_dir).Load().Settings.Viewers;
 
-        Assert.Equal(["*.ipynb", "*.YML;*.log", TreeRows[0], TreeRows[2], HtmlRow, "*.*"], viewers.Masks.Select(m => m.Mask));
+        Assert.Equal(["*.ipynb", "*.YML;*.log", TreeRows[0], TreeRows[2], HtmlRow, TorrentRow, "*.*"], viewers.Masks.Select(m => m.Mask));
         Assert.Equal(ViewerKind.Tree, viewers.KindFor("settings.json", alternate: false));
         Assert.Equal(ViewerKind.Text, viewers.KindFor("settings.json", alternate: true));
         Assert.Equal(ViewerKind.Text, viewers.KindFor("compose.yml", alternate: false));
@@ -255,7 +255,7 @@ public sealed class SettingsTests : IDisposable
             """);
 
         var s = SettingsStore.InDirectory(_dir).Load().Settings;
-        Assert.Equal(["*.xml;*.CSPROJ;*.slnx;*.props", "*.*"], s.Viewers.Masks.Select(m => m.Mask));
+        Assert.Equal(["*.xml;*.CSPROJ;*.slnx;*.props", TorrentRow, "*.*"], s.Viewers.Masks.Select(m => m.Mask));
         Assert.Equal(ViewerKind.Tree, s.Viewers.KindFor("Salandual.slnx", alternate: false));
         Assert.Equal(["*.slnx;*.txt", "*.xml;*.csproj", "*.*"], s.Editors.Masks.Select(m => m.Mask));
     }
@@ -273,15 +273,38 @@ public sealed class SettingsTests : IDisposable
             """);
 
         var viewers = SettingsStore.InDirectory(_dir).Load().Settings.Viewers;
-        Assert.Equal(["*.json", HtmlRow, "*.*"], viewers.Masks.Select(m => m.Mask));
+        Assert.Equal(["*.json", HtmlRow, TorrentRow, "*.*"], viewers.Masks.Select(m => m.Mask));
         Assert.Equal(ViewerKind.Html, viewers.KindFor("Report.HTM", alternate: false));
         Assert.Equal(ViewerKind.Text, viewers.KindFor("index.html", alternate: true));
 
         File.WriteAllText(FilePath, """
             { "schemaVersion": 5, "viewers": { "masks": [ { "mask": "*.htm", "view": "Text", "alternate": "Hex" }, { "mask": "*.*" } ] } }
             """);
-        Assert.Equal(["*.htm", "*.*"], SettingsStore.InDirectory(_dir).Load().Settings.Viewers.Masks.Select(m => m.Mask));
+        Assert.Equal(["*.htm", TorrentRow, "*.*"], SettingsStore.InDirectory(_dir).Load().Settings.Viewers.Masks.Select(m => m.Mask));
     }
+
+    [Fact]
+    public void Schema10_AddsTheTorrentRow_AboveTheCatchAll_UnlessARowAlreadyNamesTorrent()
+    {
+        File.WriteAllText(FilePath, """
+            { "schemaVersion": 9,
+              "viewers": { "masks": [
+                { "mask": "*.json", "view": "Tree", "alternate": "Text" },
+                { "mask": "*.*", "view": "Automatic", "alternate": "Hex" } ] } }
+            """);
+
+        var viewers = SettingsStore.InDirectory(_dir).Load().Settings.Viewers;
+        Assert.Equal(["*.json", TorrentRow, "*.*"], viewers.Masks.Select(m => m.Mask));
+        Assert.Equal(ViewerKind.Torrent, viewers.KindFor("Garden.torrent", alternate: false));
+        Assert.Equal(ViewerKind.Hex, viewers.KindFor("Garden.torrent", alternate: true));
+
+        File.WriteAllText(FilePath, """
+            { "schemaVersion": 9, "viewers": { "masks": [ { "mask": "*.torrent", "view": "Hex", "alternate": "Text" }, { "mask": "*.*" } ] } }
+            """);
+        Assert.Equal(["*.torrent", "*.*"], SettingsStore.InDirectory(_dir).Load().Settings.Viewers.Masks.Select(m => m.Mask));
+    }
+
+    private const string TorrentRow = "*.torrent";
 
     [Fact]
     public void HtmlPages_OpenUpTo5MB_WithScriptsAndWebContentOn()
@@ -319,7 +342,7 @@ public sealed class SettingsTests : IDisposable
 
         var masks = SettingsStore.InDirectory(_dir).Load().Settings.Viewers.Masks;
 
-        Assert.Equal(["*.md;*.markdown", "*.log", "*.ipynb", .. TreeRows, HtmlRow, "*.*"], masks.Select(m => m.Mask));
+        Assert.Equal(["*.md;*.markdown", "*.log", "*.ipynb", .. TreeRows, HtmlRow, TorrentRow, "*.*"], masks.Select(m => m.Mask));
         Assert.Equal(ViewerKind.Notebook, masks[2].View);
         Assert.Equal(ViewerKind.Text, masks[2].Alternate);
 
@@ -327,7 +350,7 @@ public sealed class SettingsTests : IDisposable
             { "schemaVersion": 2, "viewers": { "masks": [ { "mask": "*.IPYNB", "view": "Text", "alternate": "Hex" }, { "mask": "*.*" } ] } }
             """);
         masks = SettingsStore.InDirectory(_dir).Load().Settings.Viewers.Masks;
-        Assert.Equal(["*.IPYNB", .. TreeRows, HtmlRow, "*.*"], masks.Select(m => m.Mask));
+        Assert.Equal(["*.IPYNB", .. TreeRows, HtmlRow, TorrentRow, "*.*"], masks.Select(m => m.Mask));
         Assert.Equal(ViewerKind.Text, masks[0].View);
         Assert.Equal(ViewerKind.Notebook, new ViewerSettings().KindFor("analysis.ipynb", alternate: false));
     }

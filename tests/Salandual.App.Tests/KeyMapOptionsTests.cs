@@ -56,7 +56,7 @@ public sealed class KeyMapOptionsTests
         Assert.Equal(RightClickUnselected.RightButtonSelects, s.Mouse.RightClickUnselected);
         Assert.Equal(KeyMapName.TotalCommander, services.Commands.KeyMap);
         Assert.Matches(@"^You're using Total Commander's keys: \d+ keys changed, with Quick search: Ctrl\+Alt\+letter and Right-click: The right button selects\.$", w.KeyMapNoticeText!.Text);
-        Assert.Equal("→ New tab (Total Commander), not yet in Salandual", w.Answer(KeyChord.Parse("Ctrl+T")));
+        Assert.Equal("→ Open in a new tab (Total Commander), not yet in Salandual", w.Answer(KeyChord.Parse("Ctrl+Up")));
         Assert.Equal("→ Refresh (Panel)", w.Answer(KeyChord.Parse("F2")));
         Assert.Contains("(Total Commander's key map)", w.CheatSheet(), StringComparison.Ordinal);
         Assert.Contains("Total Commander's keys not yet in Salandual", w.CheatSheet(), StringComparison.Ordinal);
@@ -66,7 +66,7 @@ public sealed class KeyMapOptionsTests
         Dispatcher.UIThread.RunJobs();
         var texts = w.GetLogicalDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text).ToList();
         Assert.Contains("was F2", texts);
-        Assert.Contains("New tab", texts);
+        Assert.Contains("Open in a new tab", texts);
         Assert.DoesNotContain("Move", texts);
         Assert.Contains(texts, t => t is not null && Regex.IsMatch(t, @"^\d+ of \d+ commands$"));
 

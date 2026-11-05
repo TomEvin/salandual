@@ -16,9 +16,22 @@ public static class ProductInfo
     public const string ExecutableName = "salandual.exe";
     public const string PortableFlagFileName = "portable.flag";
 
-    public static string Version { get; } = (System.Reflection.Assembly.GetExecutingAssembly()
+    public static string FullVersion { get; } = System.Reflection.Assembly.GetExecutingAssembly()
         .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-        .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "0").Split('+')[0];
+        .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "0";
+
+    public static string Version { get; } = FullVersion.Split('+')[0];
+
+    public static string Commit { get; } = FullVersion.Split('+') is [_, var commit, ..] ? commit[..Math.Min(7, commit.Length)] : "";
+
+    public static DateTime? BuildDate { get; } = System.Reflection.Assembly.GetExecutingAssembly()
+        .GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+        .OfType<System.Reflection.AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "BuildDate")?.Value is { } day
+        && DateTime.TryParseExact(day, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date)
+            ? date
+            : null;
+
+    public const string RepositoryUrl = "https://github.com/TomEvin/salandual";
 
     public static string DisplayVersion { get; } = FormatVersion(Version);
 

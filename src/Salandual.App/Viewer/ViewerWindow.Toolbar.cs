@@ -95,7 +95,7 @@ internal sealed partial class ViewerWindow
         _textMode.Click += (_, _) => SetMode(false);
         _imageModeButton.Click += (_, _) => ShowImage();
         _hexModeButton.Click += (_, _) => _ = ShowHexAsync();
-        var modes = _modes = Segment(BuildPageModeButton(), BuildTreeModeButton(), _textMode, _imageModeButton, BuildMediaModeButton(), _hexModeButton);
+        var modes = _modes = Segment(BuildTorrentModeButton(), BuildFilesModeButton(), BuildPageModeButton(), BuildTreeModeButton(), _textMode, _imageModeButton, BuildMediaModeButton(), _hexModeButton);
 
         _encoding = Drop(AppStrings.Viewer_EncodingTip);
         _encoding.Click += (_, _) => ShowEncodingMenu(_encoding, characters: false);
@@ -132,7 +132,7 @@ internal sealed partial class ViewerWindow
 
         var imageTools = BuildImageTools();
         var left = ToolbarLeft = Row(_previousFile, _counter, _nextFile, Separator(), modes, _afterModes = Separator(), _textTools, _hexTools, imageTools, BuildPageTools(), BuildTreeTools());
-        var right = ToolbarRight = Row(_infoButton, _copyImage, BuildCopyValueButton(), BuildContentsButton(), _findToggle, _goTo, _more);
+        var right = ToolbarRight = Row(_infoButton, _copyImage, BuildCopyValueButton(), BuildCopyMagnetButton(), BuildCopyHashButton(), BuildCheckButton(), BuildContentsButton(), _findToggle, _goTo, _more);
         WatchOverflow();
         var dock = new DockPanel { Margin = new Thickness(8, 4) };
         DockPanel.SetDock(right, Dock.Right);
@@ -157,7 +157,7 @@ internal sealed partial class ViewerWindow
         _counter.IsVisible = navigable;
         _previousFile.IsVisible = _nextFile.IsVisible = navigable;
 
-        var textual = !_imageMode && !_mediaMode && !_pageMode && !_treeMode;
+        var textual = !_imageMode && !_mediaMode && !_pageMode && !_treeMode && _torrentPage == TorrentPage.None;
         _treeModeButton.IsVisible = _isTree;
         _treeModeButton.IsChecked = _treeMode;
         _treeTools.IsVisible = _treeMode;
@@ -165,6 +165,7 @@ internal sealed partial class ViewerWindow
         _copyValue.IsEnabled = _treeView.Selected is not null && _request.Clipboard is not null;
         ToolTip.SetTip(_findToggle, _treeMode ? AppStrings.Viewer_FindTreeTip : AppStrings.Viewer_FindTip);
         OrderModes();
+        UpdateTorrentTools();
         SetModeLabel(_textMode, _isNotebook ? AppStrings.Viewer_Json : AppStrings.Viewer_Text);
         _textMode.IsVisible = !_isImage && !_isMedia;
         _imageModeButton.IsVisible = _isImage;
@@ -183,11 +184,12 @@ internal sealed partial class ViewerWindow
         _textTools.IsVisible = !_hexMode && textual;
         _hexTools.IsVisible = _hexMode && textual;
         _imageTools.IsVisible = _imageMode;
+        UpdateAnimationTools();
         _copyImage.IsVisible = _imageMode;
         _copyImage.IsEnabled = _imageView.Image is not null;
         _findToggle.IsVisible = textual || _pageMode || _treeMode;
         _goTo.IsVisible = textual;
-        _afterModes.IsVisible = !_mediaMode;
+        _afterModes.IsVisible = !_mediaMode && _torrentPage == TorrentPage.None;
         UpdateImageTools();
         _wrap.IsChecked = Options.Wrap;
         _numbers.IsChecked = Options.LineNumbers;
@@ -203,9 +205,9 @@ internal sealed partial class ViewerWindow
     private void OrderModes()
     {
         var row = (StackPanel)_modes.Child!;
-        ToggleButton[] used = [_pageModeButton, _treeModeButton, _textMode, _imageModeButton, _mediaModeButton, _hexModeButton];
+        ToggleButton[] used = [_torrentModeButton, _filesModeButton, _pageModeButton, _treeModeButton, _textMode, _imageModeButton, _mediaModeButton, _hexModeButton];
         ToggleButton[] wanted = Options.ViewButtons == ViewButtonOrder.KeyOrder
-            ? [_imageModeButton, _mediaModeButton, _hexModeButton, _textMode, _treeModeButton, _pageModeButton]
+            ? [_imageModeButton, _mediaModeButton, _torrentModeButton, _filesModeButton, _hexModeButton, _textMode, _treeModeButton, _pageModeButton]
             : used;
         if (!row.Children.SequenceEqual(wanted))
         {
@@ -236,6 +238,7 @@ internal sealed partial class ViewerWindow
         ViewerKind.Markdown => AppStrings.Viewer_Kind_Markdown,
         ViewerKind.Notebook => AppStrings.Viewer_Kind_Notebooks,
         ViewerKind.Html => AppStrings.Viewer_Kind_Html,
+        ViewerKind.Torrent => AppStrings.Viewer_Kind_Torrents,
         _ => AppStrings.Viewer_Kind_Text,
     };
 
@@ -337,6 +340,10 @@ internal sealed partial class ViewerWindow
             Item(AppStrings.Viewer_FlipHorizontally, "H", () => _imageView.Flip(horizontally: true), _imageView.Image is not null);
             Item(AppStrings.Viewer_FlipVertically, "V", () => _imageView.Flip(horizontally: false), _imageView.Image is not null);
         }
+        else if (_torrentPage != TorrentPage.None)
+        {
+            TorrentMenuItems(Item);
+        }
         else if (_mediaMode)
         {
             Item(AppStrings.Viewer_MediaCopy, "Ctrl+C", CopyMediaText, Media is not null);
@@ -406,6 +413,20 @@ internal sealed partial class ViewerWindow
             custom.Click += (_, _) => _request.OpenOptions?.Invoke("viewers");
             canvas.Items.Add(custom);
             menu.Items.Add(canvas);
+
+            var transparent = new MenuItem { Header = AppStrings.Viewer_TransparentParts };
+            foreach (var value in new[] { TransparentParts.CheckerLight, TransparentParts.CheckerDark, TransparentParts.Canvas, TransparentParts.White, TransparentParts.Black })
+            {
+                var item = new MenuItem { Header = TransparentLabel(value), ToggleType = MenuItemToggleType.Radio, IsChecked = Options.ImageTransparent == value };
+                item.Click += (_, _) => UpdateViewer(v => v with { ImageTransparent = value });
+                transparent.Items.Add(item);
+            }
+
+            transparent.Items.Add(new Separator());
+            var anyColour = new MenuItem { Header = AppStrings.Viewer_Canvas_Custom, ToggleType = MenuItemToggleType.Radio, IsChecked = Options.ImageTransparent == TransparentParts.Custom, IsEnabled = _request.OpenOptions is not null };
+            anyColour.Click += (_, _) => _request.OpenOptions?.Invoke("viewers");
+            transparent.Items.Add(anyColour);
+            menu.Items.Add(transparent);
 
             var zoom = new MenuItem { Header = AppStrings.Opt_ImageZoom };
             foreach (var (label, value) in new[] { (AppStrings.Viewer_Fit, ImageZoom.Fit), (AppStrings.Viewer_Width, ImageZoom.Width), (AppStrings.Viewer_Actual, ImageZoom.Actual) })

@@ -8,7 +8,7 @@
 
 namespace Salandual.Core.Vfs;
 
-public readonly record struct FileEntry(string Name, long Size, long LastWriteUtcTicks, FileAttributes Attributes)
+public readonly record struct FileEntry(string Name, long Size, long LastWriteUtcTicks, FileAttributes Attributes, long CreationUtcTicks = 0, long LastAccessUtcTicks = 0)
 {
     public bool IsDirectory => (Attributes & FileAttributes.Directory) != 0;
 

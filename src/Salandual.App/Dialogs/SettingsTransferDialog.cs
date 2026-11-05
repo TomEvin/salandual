@@ -19,12 +19,14 @@ using Salandual.Core.Commands;
 using Salandual.Core.Resources;
 
 using Salandual.Core.Settings;
+using Salandual.Core.Settings.Salamander;
 
 namespace Salandual.App.Dialogs;
 
 public sealed class SettingsTransferDialog : Window
 {
     private readonly List<(CheckBox Box, object Value)> _ticks = [];
+    private readonly List<(RadioButton Button, object Value)> _picks = [];
     private readonly Func<object?> _result;
 
     private SettingsTransferDialog(string title, string lead, Func<SettingsTransferDialog, IEnumerable<Control>> rows, string note, string primary, Func<IReadOnlyList<object>, object?> result)
@@ -86,7 +88,7 @@ public sealed class SettingsTransferDialog : Window
         root.Children.Add(footer);
         root.Children.Add(new ScrollViewer { Content = body, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
         Content = TitleBarParts.ForDialog(this, root);
-        _result = () => result([.. _ticks.Where(t => t.Box.IsChecked == true).Select(t => t.Value)]);
+        _result = () => result([.. _ticks.Where(t => t.Box.IsChecked == true).Select(t => t.Value), .. _picks.Where(p => p.Button.IsChecked == true).Select(p => p.Value)]);
         Opened += (_, _) => Primary.Focus();
     }
 
@@ -110,13 +112,16 @@ public sealed class SettingsTransferDialog : Window
 
     public static SettingsTransferDialog ForImport(SettingsImport import)
     {
-        var lead = import is { Exported: { } when, ExportedBy: { } by }
-            ? Loc.Format(AppStrings.Xfer_Import_Lead, Path.GetFileName(import.File), when.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), by)
-            : Loc.Format(AppStrings.Xfer_Import_LeadPlain, Path.GetFileName(import.File));
+        var lead = import switch
+        {
+            { Source: { } source } => Loc.Format(AppStrings.SalImp_Lead, source),
+            { Exported: { } when, ExportedBy: { } by } => Loc.Format(AppStrings.Xfer_Import_Lead, Path.GetFileName(import.File), when.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), by),
+            _ => Loc.Format(AppStrings.Xfer_Import_LeadPlain, Path.GetFileName(import.File)),
+        };
 
         SettingsTransferDialog? dialog = null;
         dialog = new SettingsTransferDialog(
-            AppStrings.Xfer_Import_Title,
+            import.Source is null ? AppStrings.Xfer_Import_Title : AppStrings.SalImp_Title,
             lead,
             d =>
             {
@@ -125,14 +130,26 @@ public sealed class SettingsTransferDialog : Window
                 {
                     var changes = import.Changes.Where(c => c.Part == part).ToList();
                     var programs = part == SettingsPart.Programs;
-                    rows.Add(d.Tick(part, PartTitle(part), null, on: !programs,
+                    var all = programs || part is SettingsPart.Unusual or SettingsPart.Viewers && import.Source is not null;
+                    var warning = part switch
+                    {
+                        SettingsPart.Programs => AppStrings.Xfer_Programs_Warn,
+                        SettingsPart.Unusual => AppStrings.SalImp_Unusual_Warn,
+                        _ => null,
+                    };
+                    rows.Add(d.Tick(part, PartTitle(part), null, on: !import.OffAtFirst.Contains(part),
                         right: programs ? Loc.Plural(changes.Count, AppStrings.Xfer_Programs_One, AppStrings.Xfer_Programs_Other) : Loc.Plural(changes.Count, AppStrings.Xfer_Changes_One, AppStrings.Xfer_Changes_Other),
-                        detail: Summary(changes, programs ? int.MaxValue : 3), warning: programs ? AppStrings.Xfer_Programs_Warn : null));
+                        detail: Summary(changes, all ? int.MaxValue : 3), warning: warning));
                 }
 
                 if (import.Same.Count > 0)
                 {
                     rows.Add(d.Tick(null, string.Join(", ", import.Same.Select(PartTitle)), AppStrings.Xfer_Same, on: false, enabled: false));
+                }
+
+                if (import.LeftOut.Count > 0)
+                {
+                    rows.Add(d.Tick(null, AppStrings.SalImp_LeftOut, string.Join(" · ", import.LeftOut), on: false, enabled: false));
                 }
 
                 return rows;
@@ -156,6 +173,22 @@ public sealed class SettingsTransferDialog : Window
         Count();
         return dialog;
     }
+
+    public static SettingsTransferDialog ForSalamanderSource(IReadOnlyList<SalamanderInstall> found) => new(
+        AppStrings.SalImp_Title,
+        AppStrings.SalImp_Source_Lead,
+        d =>
+        [
+            .. found.Select((install, i) => d.Pick(install, Loc.Format(AppStrings.SalImp_OnThisPc, install.Name), AppStrings.SalImp_OnThisPc_Desc, on: i == 0)),
+            d.Pick(RegFileChoice, AppStrings.SalImp_RegFile, AppStrings.SalImp_RegFile_Desc, on: found.Count == 0),
+        ],
+        AppStrings.SalImp_PasswordsNote,
+        AppStrings.SalImp_Next,
+        picked => picked.FirstOrDefault());
+
+    public const string RegFileChoice = "reg-file";
+
+    internal IReadOnlyList<(RadioButton Button, object Value)> Picks => _picks;
 
     public static SettingsTransferDialog ForResetAll(AppSettings settings) => new(
         AppStrings.Xfer_Reset_Title,
@@ -227,6 +260,16 @@ public sealed class SettingsTransferDialog : Window
                     rows.Add(SectionHeading(AppStrings.KeyMapDlg_NotYet));
                     var examples = string.Join(", ", notYet.Take(5).Select(k => k.Title + " (" + k.Chord + ")"));
                     var text = OptionsUi.Secondary(Loc.Format(AppStrings.KeyMapDlg_NotYet_Desc, notYet.Count, title, examples), 12.5);
+                    text.Margin = new Thickness(12, 8);
+                    rows.Add(text);
+                }
+
+                var yours = commands.Yours.Where(k => commands.TryGet(k.Command, out _)).ToList();
+                if (yours.Count > 0)
+                {
+                    rows.Add(SectionHeading(AppStrings.KeyMapDlg_YoursKept));
+                    var list = string.Join('\n', yours.Select(k => commands[k.Command].Title + ": " + (k.Keys.Count > 0 ? string.Join("  ", k.Chords()) : "—")));
+                    var text = OptionsUi.Secondary(list, 12.5);
                     text.Margin = new Thickness(12, 8);
                     rows.Add(text);
                 }
@@ -307,6 +350,7 @@ public sealed class SettingsTransferDialog : Window
         SettingsPart.General => AppStrings.OptCat_General,
         SettingsPart.Advanced => AppStrings.OptCat_Advanced,
         SettingsPart.History => AppStrings.Xfer_History,
+        SettingsPart.Unusual => AppStrings.SalImp_Part_Unusual,
         _ => AppStrings.Xfer_Programs,
     };
 
@@ -392,6 +436,15 @@ public sealed class SettingsTransferDialog : Window
             }
         };
         return grid;
+    }
+
+    private Control Pick(object value, string title, string description, bool on)
+    {
+        var text = new StackPanel { Spacing = 2, Children = { OptionsUi.Text(title, 13, wrap: true), OptionsUi.Secondary(description, 12) } };
+        var button = new RadioButton { IsChecked = on, GroupName = "pick", Content = text, VerticalContentAlignment = VerticalAlignment.Top, Margin = new Thickness(12, 6) };
+        Avalonia.Automation.AutomationProperties.SetName(button, title);
+        _picks.Add((button, value));
+        return button;
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

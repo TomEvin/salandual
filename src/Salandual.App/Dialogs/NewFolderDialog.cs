@@ -38,24 +38,13 @@ public sealed class NewFolderDialog : Window
         _confirmCreate = confirmCreate;
         _fs = fs;
         _folder = folder;
-        Title = AppStrings.NewFolder_Title;
+        Title = Loc.Format(AppStrings.NewFolder_Heading, AppStrings.NewFolder_Title, WindowsPath.GetName(folder).TrimEnd('\\') is { Length: > 0 } n ? n : folder);
         Width = 480;
         SizeToContent = SizeToContent.Height;
         CanResize = false;
         ShowInTaskbar = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         this.Res(BackgroundProperty, "Brush.PanelBackground");
-
-        var heading = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 15 };
-        heading.Res(TextBlock.ForegroundProperty, "Brush.Text");
-        Rich.Add(heading.Inlines!, AppStrings.NewFolder_Heading, text =>
-            {
-                var run = new Run(text);
-                run.Bind(Run.ForegroundProperty, heading.GetResourceObservable("Brush.SecondaryText"));
-                return run;
-            },
-            new Run(AppStrings.NewFolder_Title) { FontWeight = FontWeight.SemiBold },
-            new Run(WindowsPath.GetName(folder).TrimEnd('\\') is { Length: > 0 } n ? n : folder) { FontWeight = FontWeight.SemiBold });
 
         _name = new TextBox { MinHeight = 32, VerticalContentAlignment = VerticalAlignment.Center };
         Avalonia.Automation.AutomationProperties.SetName(_name, AppStrings.Common_Name);
@@ -69,8 +58,7 @@ public sealed class NewFolderDialog : Window
         Rich.Add(hint.Inlines!, AppStrings.NewFolder_PathHint, null, sample);
 
         var body = new StackPanel { Spacing = 8, Margin = new Thickness(20, 6, 20, 16) };
-        body.Children.Add(heading);
-        body.Children.Add(new StackPanel { Spacing = 5, Margin = new Thickness(0, 4, 0, 0), Children = { OptionsUi.Text(AppStrings.Common_Name, 13, FontWeight.SemiBold), _name, _error, hint } });
+        body.Children.Add(new StackPanel { Spacing = 5, Children = { OptionsUi.Text(AppStrings.Common_Name, 13, FontWeight.SemiBold), _name, _error, hint } });
         if (selected > 0)
         {
             MoveBox = new CheckBox
@@ -177,7 +165,7 @@ public sealed class NewFolderDialog : Window
             if (_confirmCreate && made.Missing.Count > 1)
             {
                 var ask = CreateQuestion = new ConfirmDialog(AppStrings.CreateFolder_Title,
-                    Loc.Format(AppStrings.CreateFolder_Many, string.Join(", ", made.Missing.Select(WindowsPath.GetName))), AppStrings.CreateFolder_Create, AppStrings.Common_Cancel);
+                    Loc.Format(AppStrings.CreateFolder_Many, string.Join(", ", made.Missing.Select(WindowsPath.GetName))), AppStrings.CreateFolder_Create, AppStrings.Common_Cancel, group: Core.Settings.ConfirmGroup.Create);
                 bool create;
                 try
                 {

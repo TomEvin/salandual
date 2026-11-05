@@ -28,9 +28,24 @@ internal static partial class NativeFocus
         => (window as Window)?.IsActive == true
             || (OperatingSystem.IsWindows() && window.TryGetPlatformHandle()?.Handle is { } hwnd && hwnd != 0 && GetForegroundWindow() == hwnd);
 
+    public static bool IsSalandualInFront()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        var front = GetForegroundWindow();
+        return front != 0 && GetWindowThreadProcessId(front, out var process) != 0 && process == (uint)Environment.ProcessId;
+    }
+
     [LibraryImport("user32.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static partial nint GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static partial uint GetWindowThreadProcessId(nint hwnd, out uint process);
 
     [LibraryImport("user32.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

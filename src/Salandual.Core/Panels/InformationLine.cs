@@ -45,8 +45,8 @@ public static class InformationLine
                 "FileNameOnly" => entry.BaseName.ToString(),
                 "FileExt" => entry.Extension.ToString(),
                 "FileSize" => !entry.IsDirectory ? format.Size(entry.Size) : directorySize is { } d ? format.Size(d) : Strings.InfoLine_Folder,
-                "FileDate" => format.Date(local),
-                "FileTime" => format.Time(local),
+                "FileDate" => entry.LastWriteUtcTicks > 0 ? format.Date(local) : "",
+                "FileTime" => entry.LastWriteUtcTicks > 0 ? format.Time(local) : "",
                 "FileAttributes" => DisplayFormat.Attributes(entry.Attributes),
                 _ => null,
             };
@@ -54,7 +54,18 @@ public static class InformationLine
             i = end + 1;
         }
 
-        return sb.ToString();
+        if (entry.LastWriteUtcTicks > 0)
+        {
+            return sb.ToString();
+        }
+
+        var text = sb.ToString();
+        while (text.Contains(", ,", StringComparison.Ordinal))
+        {
+            text = text.Replace(", ,", ",", StringComparison.Ordinal);
+        }
+
+        return text.TrimEnd(',', ' ');
     }
 
     public static string Summary(FilePanel panel, DisplayFormat format, CultureInfo culture)
@@ -64,6 +75,11 @@ public static class InformationLine
         if (selection.Count > 0)
         {
             return string.Format(culture, Strings.InfoLine_Selected, selection.Count, total, format.Size(selection.Bytes));
+        }
+
+        if (FilterSummary(panel, culture) is { } filter)
+        {
+            return filter;
         }
 
         long bytes = 0;
@@ -76,5 +92,29 @@ public static class InformationLine
         }
 
         return string.Format(culture, total == 1 ? Strings.InfoLine_Items_One : Strings.InfoLine_Items_Other, total, format.Size(bytes));
+    }
+
+    public static string? FilterSummary(FilePanel panel, CultureInfo culture)
+    {
+        if (panel.Results is not null)
+        {
+            return null;
+        }
+
+        var (shown, all, names) = (panel.ShownCount, panel.ListedCount, panel.HiddenNameCount);
+        var hidden = names == 0 ? null : string.Format(culture, names == 1 ? Strings.InfoLine_NamesHidden_One : Strings.InfoLine_NamesHidden_Other, names);
+        if (panel.IsQuickFiltering)
+        {
+            return string.Format(culture, Strings.InfoLine_QuickFilter, shown, all);
+        }
+
+        if (panel.IsFiltered)
+        {
+            return hidden is null
+                ? string.Format(culture, Strings.InfoLine_Filter, shown, all, all - shown)
+                : string.Format(culture, Strings.InfoLine_FilterAndNames, shown, all, hidden);
+        }
+
+        return hidden;
     }
 }

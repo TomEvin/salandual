@@ -50,9 +50,9 @@ public sealed class OptionsStartupKeyboardTests
     public void StartupAndGeneral_IsFirst_WithTheMockupsRows()
     {
         var w = Open(AppServices.CreateIsolated(), "general");
-        Assert.Equal(["One Salandual at a time", "Folders at start", "Start with Windows", "Language", "Keep running in the background", "Import from Altap Salamander", "Updates"],
+        Assert.Equal(["One Salandual at a time", "Folders at start", "Start with Windows", "Remember what I open", "Forget what Quick open remembered", "Enter on a file", "Files on all drives", "On this PC", "Drives Salandual walks", "At most", "For at most", "Leave out hidden files and folders", "Leave out system files and folders", "Leave out Windows' own folders", "Folders left out", "Language", "Language files", "Keep running in the background", "Updates"],
             w.Items.Where(i => i.Category == "general").Select(i => i.Title));
-        Assert.Equal(["Later", "Phase 3", "Phase 3"], w.Items.Where(i => i.Badge is not null).Select(i => i.Badge));
+        Assert.Equal(["Phase 3", "Later", "Phase 3"], w.Items.Where(i => i.Badge is not null).Select(i => i.Badge));
         Assert.Contains(w.Find("autostart"), i => i.Title == "Start with Windows");
         Assert.Contains(w.Find("magyar"), i => i.Title == "Language");
         w.Close();
@@ -130,8 +130,10 @@ public sealed class OptionsStartupKeyboardTests
         var free = KeyChord.Parse("Ctrl+Alt+Shift+F12");
         Assert.Null(services.Commands.Resolve(free));
         Assert.Equal("→ free: no command has these keys", w.Answer(free));
-        var later = services.Commands["UserMenu.Open"];
-        Assert.Equal($"→ {later.Title} ({CommandText.Category(later.Category)}), not yet in Salandual", w.Answer(KeyChord.Parse("F9")));
+        var later = services.Commands["Help.WhatIsThis"];
+        Assert.Equal($"→ {later.Title} ({CommandText.Category(later.Category)}), not yet in Salandual", w.Answer(KeyChord.Parse("Shift+F1")));
+        var built = services.Commands["UserMenu.Open"];
+        Assert.Equal($"→ {built.Title} ({CommandText.Category(built.Category)})", w.Answer(KeyChord.Parse("F9")));
         w.Close();
     }
 

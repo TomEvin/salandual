@@ -15,15 +15,19 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Salandual.App.Controls;
 using Salandual.App.Options;
+using Salandual.App.Panels;
 using Salandual.App.Resources;
 using Salandual.App.Theme;
+using Salandual.Core;
 using Salandual.Core.Listing;
 using Salandual.Core.Resources;
+using Salandual.Core.Settings;
 using Salandual.Platform.Windows.FileSystem;
+using Salandual.Platform.Windows.Shell;
 
 namespace Salandual.App.Dialogs;
 
-public sealed class DriveInfoDialog : Window
+public sealed partial class DriveInfoDialog : Window
 {
     private static readonly char[] _fatForbidden = ['*', '?', '.', ',', ';', ':', '/', '\\', '|', '+', '=', '<', '>', '[', ']', '"'];
     private const string PencilGlyph = "Icon.Rename";
@@ -33,6 +37,8 @@ public sealed class DriveInfoDialog : Window
     private const string ShieldGlyph = "Icon.Shield";
     private const string CopyGlyph = "Icon.CopyText";
     private const string ExternalGlyph = "Icon.External";
+
+    internal const int BusyFrom = 5;
 
     private readonly string _path;
     private readonly DisplayFormat _format;
@@ -44,11 +50,34 @@ public sealed class DriveInfoDialog : Window
     private string? _error;
     private bool _renamed;
     private TextBox? _labelBox;
+    private readonly DiskActivityMonitor? _activity;
+    private readonly string? _drive;
+    private int _tab;
+    private readonly Grid _tabBody = new();
+    private readonly StackPanel _tabHeader = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
+    private TextBlock? _activityNow;
+    private string? _activityNowText;
+    private readonly TextBlock[] _nowValues = new TextBlock[3];
+    private readonly DriveSpaceLook _look;
+    private bool _busyNow;
 
     public DriveInfoDialog(string path, DisplayFormat format)
+        : this(path, format, null)
+    {
+    }
+
+    internal DriveInfoDialog(string path, DisplayFormat format, DiskActivityMonitor? activity, DriveSpaceLook look = DriveSpaceLook.Ring)
     {
         _path = path;
         _format = format;
+        _activity = activity;
+        _look = look;
+        _drive = Core.DiskActivity.DriveOf(path);
+        if (activity is not null)
+        {
+            activity.Sampled += OnSampled;
+            Closed += (_, _) => activity.Sampled -= OnSampled;
+        }
         var root = WindowsPath.GetRoot(path) ?? path;
         Title = Loc.Format(AppStrings.Drive_Title, root.TrimEnd('\\'));
         Width = 540;
@@ -95,9 +124,25 @@ public sealed class DriveInfoDialog : Window
 
     internal UsageRing? Ring { get; private set; }
 
+    internal DrivePicture? Picture { get; private set; }
+
+    internal DrivePicture3D? Picture3D { get; private set; }
+
     internal Control? StatusLine { get; private set; }
 
     internal Button? Elevate { get; private set; }
+
+    internal int Tab => _tab;
+
+    internal ActivityChart? BusyChart { get; private set; }
+
+    internal ActivityChart? SpeedChart { get; private set; }
+
+    internal Control? DetailsTable { get; private set; }
+
+    internal string? ActivityNowText => _activityNowText ?? _activityNow?.Text;
+
+    internal IReadOnlyList<TextBlock> NowValues => _nowValues;
 
     internal bool CanRename => _details is { } d && d.Kind is not (DriveKind.Network or DriveKind.Optical) && !d.IsReadOnly;
 
@@ -112,6 +157,11 @@ public sealed class DriveInfoDialog : Window
         if (e.Key == Key.F2 && !_editing && CanRename)
         {
             StartRename();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Tab && e.KeyModifiers.HasFlag(KeyModifiers.Control) && _details is not null)
+        {
+            ShowTab((_tab + 1) % 3);
             e.Handled = true;
         }
         else if (e.Key == Key.Escape)
@@ -154,7 +204,185 @@ public sealed class DriveInfoDialog : Window
             _body.Children.Add(StatusLine);
         }
 
-        _body.Children.Add(Table(d));
+        DetailsTable = Table(d);
+        _body.Children.Add(Tabs(d));
+    }
+
+    private StackPanel Tabs(VolumeDetails d)
+    {
+        _tabBody.Children.Clear();
+        _tabBody.MinHeight = 0;
+        var activity = ActivityPart(d);
+        activity.Margin = new Thickness(0, 12, 0, 0);
+        DetailsTable!.Margin = new Thickness(0, 12, 0, 0);
+        _tabBody.Children.Add(activity);
+        _tabBody.Children.Add(DetailsTable);
+        _tabBody.Children.Add(HealthPart());
+        var line = new Border { Height = 1 }.Res(Border.BackgroundProperty, "Brush.Border");
+        var panel = new StackPanel { Children = { _tabHeader, line, _tabBody } };
+        ShowTab(_tab);
+        return panel;
+    }
+
+    internal void ShowTab(int tab)
+    {
+        _tabBody.MinHeight = Math.Max(_tabBody.MinHeight, _tabBody.Bounds.Height);
+        _tab = tab;
+        _tabHeader.Children.Clear();
+        _tabHeader.Children.Add(TabButton(AppStrings.Drive_Tab_Activity, 0));
+        _tabHeader.Children.Add(TabButton(AppStrings.Drive_Tab_Details, 1));
+        _tabHeader.Children.Add(TabButton(AppStrings.Drive_Tab_Health, HealthTab));
+        for (var i = 0; i < _tabBody.Children.Count; i++)
+        {
+            _tabBody.Children[i].IsVisible = i == tab;
+        }
+
+        HealthShown(tab == HealthTab);
+    }
+
+    private Button TabButton(string label, int index)
+    {
+        var on = index == _tab;
+        var text = OptionsUi.Text(label, 13, on ? FontWeight.SemiBold : FontWeight.Normal, on ? "Brush.Text" : "Brush.SecondaryText");
+        var underline = new Border { Height = 2, CornerRadius = new CornerRadius(1), Margin = new Thickness(0, 6, 0, 0) };
+        if (on)
+        {
+            underline.Res(Border.BackgroundProperty, "Brush.Accent");
+        }
+        var button = new Button
+        {
+            Content = new StackPanel { Children = { text, underline } },
+            Padding = new Thickness(10, 6, 10, 0),
+            Background = Brushes.Transparent,
+            BorderThickness = default,
+            Tag = "tab" + index,
+        };
+        ToolTip.SetTip(button, AppStrings.Drive_Tab_Tip);
+        button.Click += (_, _) => ShowTab(index);
+        return button;
+    }
+
+    private StackPanel ActivityPart(VolumeDetails d)
+    {
+        var part = new StackPanel { Spacing = 4 };
+        BusyChart = SpeedChart = null;
+        if (_activity is null || _drive is null || d.Kind == DriveKind.Network || DiskSpace.IsMadeUp(d.Total))
+        {
+            _activityNow = OptionsUi.Text(AppStrings.Drive_Activity_None, 13, brush: "Brush.SecondaryText", wrap: true);
+            _activityNowText = null;
+            part.Children.Add(_activityNow);
+            return part;
+        }
+
+        var tiles = new Grid { ColumnDefinitions = new ColumnDefinitions("110,130,130,*"), Margin = new Thickness(0, 0, 0, 10) };
+        string[] labels = [AppStrings.Drive_Activity_BusyNow, AppStrings.Drive_Activity_Reading, AppStrings.Drive_Activity_Writing];
+        for (var i = 0; i < labels.Length; i++)
+        {
+            _nowValues[i] = OptionsUi.Text("–", 17, FontWeight.SemiBold);
+            var tile = new StackPanel { Children = { OptionsUi.Text(labels[i], 11, brush: "Brush.SecondaryText"), _nowValues[i] } };
+            Grid.SetColumn(tile, i);
+            tiles.Children.Add(tile);
+        }
+
+        _activityNow = OptionsUi.Text("", 12, brush: "Brush.SecondaryText");
+        Grid.SetColumn(_activityNow, 3);
+        _activityNow.VerticalAlignment = VerticalAlignment.Bottom;
+        _activityNow.HorizontalAlignment = HorizontalAlignment.Right;
+        tiles.Children.Add(_activityNow);
+        part.Children.Add(tiles);
+        part.Children.Add(OptionsUi.Text(AppStrings.Drive_Activity_Busy, 13, FontWeight.SemiBold));
+        BusyChart = new ActivityChart { Format = _format };
+        part.Children.Add(BusyChart);
+        var axis = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*,*") };
+        string[] marks = [AppStrings.Drive_Activity_Ago15, AppStrings.Drive_Activity_Ago10, AppStrings.Drive_Activity_Ago5, AppStrings.Drive_Activity_Now];
+        for (var i = 0; i < marks.Length; i++)
+        {
+            var mark = OptionsUi.Text(marks[i], 11, brush: "Brush.TertiaryText");
+            mark.HorizontalAlignment = i == 0 ? HorizontalAlignment.Left : i == marks.Length - 1 ? HorizontalAlignment.Right : HorizontalAlignment.Center;
+            Grid.SetColumn(mark, i);
+            axis.Children.Add(mark);
+        }
+
+        part.Children.Add(axis);
+        part.Children.Add(OptionsUi.Text(AppStrings.Drive_Activity_Gaps, 11, brush: "Brush.TertiaryText", wrap: true));
+
+        _speedMax = OptionsUi.Text("", 12, brush: "Brush.SecondaryText");
+        var speeds = Heading(AppStrings.Drive_Activity_Speeds, _speedMax);
+        speeds.Margin = new Thickness(0, 12, 0, 0);
+        part.Children.Add(speeds);
+        SpeedChart = new ActivityChart { Speeds = true, Format = _format };
+        part.Children.Add(SpeedChart);
+        part.Children.Add(Keys());
+        RefreshActivity();
+        return part;
+    }
+
+    private TextBlock? _speedMax;
+
+    private static Grid Heading(string title, TextBlock right)
+    {
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+        grid.Children.Add(OptionsUi.Text(title, 13, FontWeight.SemiBold));
+        right.HorizontalAlignment = HorizontalAlignment.Right;
+        right.VerticalAlignment = VerticalAlignment.Bottom;
+        Grid.SetColumn(right, 1);
+        grid.Children.Add(right);
+        return grid;
+    }
+
+    private static StackPanel Keys()
+    {
+        static StackPanel Key(string label, string brush, bool dashed)
+        {
+            var stroke = new Avalonia.Controls.Shapes.Line { StartPoint = new Point(0, 1), EndPoint = new Point(14, 1), StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center };
+            stroke.Res(Avalonia.Controls.Shapes.Shape.StrokeProperty, brush);
+            if (dashed)
+            {
+                stroke.StrokeDashArray = [2, 1.5];
+            }
+
+            return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, Children = { stroke, OptionsUi.Text(label, 12, brush: "Brush.SecondaryText") } };
+        }
+
+        return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { Key(AppStrings.Drive_Activity_Reading, "Brush.Accent", false), Key(AppStrings.Drive_Activity_Writing, "Brush.SecondaryText", true) } };
+    }
+
+    private void OnSampled(object? sender, EventArgs e) => RefreshActivity();
+
+    internal void RefreshActivity()
+    {
+        if (_activity is not { } monitor || _drive is null || BusyChart is null || SpeedChart is null || _activityNow is null)
+        {
+            return;
+        }
+
+        var now = monitor.Now();
+        var points = monitor.History.Since(_drive, now - DiskActivityHistory.Kept);
+        BusyChart.Show(points, now);
+        SpeedChart.Show(points, now);
+        if (monitor.Get(_drive) is { } a)
+        {
+            _nowValues[0].Text = Loc.Format(AppStrings.Drive_Activity_Percent, a.Percent);
+            _nowValues[1].Text = Loc.Format(AppStrings.Drive_Activity_PerSecond, _format.Size((long)a.ReadPerSecond));
+            _nowValues[2].Text = Loc.Format(AppStrings.Drive_Activity_PerSecond, _format.Size((long)a.WritePerSecond));
+            _activityNow.Text = "";
+            _activityNowText = Loc.Format(AppStrings.Drive_Activity_Current, a.Percent, _format.Size((long)a.ReadPerSecond), _format.Size((long)a.WritePerSecond));
+        }
+        else
+        {
+            _activityNow.Text = AppStrings.Drive_Activity_Waiting;
+            _activityNowText = null;
+        }
+
+        _busyNow = monitor.Get(_drive) is { Percent: >= BusyFrom };
+        if (Picture3D is not null)
+        {
+            Picture3D.Busy = _busyNow;
+        }
+        if (_speedMax is not null)
+        {
+            _speedMax.Text = points.Count > 0 ? Loc.Format(AppStrings.Drive_Activity_AtMost, _format.Size((long)SpeedChart.SpeedMax)) : "";
+        }
     }
 
     private void UpdateHeader()
@@ -166,7 +394,8 @@ public sealed class DriveInfoDialog : Window
 
         var icon = AppIcons.Glyph(d.Kind == DriveKind.Network ? "Icon.NetworkLarge" : "Icon.DriveLarge", 26, 26, 1.2);
         icon.HorizontalAlignment = HorizontalAlignment.Center;
-        var tile = new Border { Width = 44, Height = 44, CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), Child = icon, VerticalAlignment = VerticalAlignment.Top }
+        icon.VerticalAlignment = VerticalAlignment.Center;
+        var tile = new Border { Width = 44, Height = 44, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), Child = icon, VerticalAlignment = VerticalAlignment.Top }
             .Res(Border.BackgroundProperty, "Brush.WindowBackground").Res(Border.BorderBrushProperty, "Brush.Border");
 
         var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, MinHeight = 34 };
@@ -291,7 +520,15 @@ public sealed class DriveInfoDialog : Window
         _ => AppStrings.Drive_Kind_Other,
     };
 
-    private static string? MediaText(VolumeDetails d) => d.SolidState switch { true => "SSD", false => "HDD", _ => null };
+    private static string? MediaText(VolumeDetails d) => d.Medium switch
+    {
+        DriveMedium.Nvme => AppStrings.Drive_Medium_Nvme,
+        DriveMedium.UsbStick => AppStrings.Drive_Medium_UsbStick,
+        DriveMedium.External => AppStrings.Drive_Medium_External,
+        DriveMedium.SdCard => AppStrings.Drive_Medium_SdCard,
+        DriveMedium.CardReader => AppStrings.Drive_Medium_CardReader,
+        _ => d.SolidState switch { true => "SSD", false => "HDD", _ => null },
+    };
 
     private Grid Usage(VolumeDetails d)
     {
@@ -309,7 +546,29 @@ public sealed class DriveInfoDialog : Window
 
         var used = Math.Max(0, d.Total - d.Free);
         var level = UsageRing.LevelOf(d.Free, d.Total);
-        Ring = new UsageRing { Fraction = d.Total > 0 ? (double)used / d.Total : 0, CenterText = _format.Size(d.Free), Level = level, Width = 116, Height = 116 };
+        Ring = null;
+        Picture = null;
+        Picture3D = null;
+        Control space;
+        if (_look == DriveSpaceLook.Picture && DrivePicture.CanDraw(d.Medium))
+        {
+            Picture = new DrivePicture { Medium = d.Medium, Fill = true, Fraction = d.Total > 0 ? (double)used / d.Total : 0, Level = level, Width = 180, Height = 99, Animate = SystemFacts.AnimationEffects() };
+            Avalonia.Automation.AutomationProperties.SetName(Picture, Loc.Format(AppStrings.Drive_PictureName, MediaText(d) ?? KindText(d), _format.Size(used), _format.Size(d.Total)));
+            var free = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, HorizontalAlignment = HorizontalAlignment.Center, Children = { OptionsUi.Text(_format.Size(d.Free), 16, FontWeight.SemiBold), Centered(OptionsUi.Text(AppStrings.Ring_Free, 13, brush: "Brush.SecondaryText")) } };
+            space = new StackPanel { Spacing = 6, Children = { Picture, free } };
+        }
+        else if (_look == DriveSpaceLook.Picture3D && DrivePicture3D.CanDraw(d.Medium))
+        {
+            Picture3D = new DrivePicture3D { Medium = d.Medium, Fill = true, Fraction = d.Total > 0 ? (double)used / d.Total : 0, Level = level, Width = 200, Height = 130, Busy = _busyNow, Animate = SystemFacts.AnimationEffects() };
+            Avalonia.Automation.AutomationProperties.SetName(Picture3D, Loc.Format(AppStrings.Drive_PictureName, MediaText(d) ?? KindText(d), _format.Size(used), _format.Size(d.Total)));
+            var free = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, HorizontalAlignment = HorizontalAlignment.Center, Children = { OptionsUi.Text(_format.Size(d.Free), 16, FontWeight.SemiBold), Centered(OptionsUi.Text(AppStrings.Ring_Free, 13, brush: "Brush.SecondaryText")) } };
+            space = new StackPanel { Spacing = 4, Children = { Picture3D, free } };
+        }
+        else
+        {
+            space = Ring = new UsageRing { Fraction = d.Total > 0 ? (double)used / d.Total : 0, CenterText = _format.Size(d.Free), Level = level, Width = 116, Height = 116 };
+        }
+
         var amounts = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), RowDefinitions = new RowDefinitions("Auto,Auto,Auto"), ColumnSpacing = 12, RowSpacing = 8, VerticalAlignment = VerticalAlignment.Center };
         void Row(int row, string? swatch, string label, string value, string labelBrush = "Brush.Text")
         {
@@ -336,7 +595,7 @@ public sealed class DriveInfoDialog : Window
         Row(2, null, AppStrings.Drive_Capacity, _format.Size(d.Total), "Brush.SecondaryText");
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 24 };
-        grid.Children.Add(Ring);
+        grid.Children.Add(space);
         Grid.SetColumn(amounts, 1);
         grid.Children.Add(amounts);
         return grid;
@@ -375,7 +634,6 @@ public sealed class DriveInfoDialog : Window
 
         var table = new StackPanel();
         static Border Line() => new Border { Height = 1 }.Res(Border.BackgroundProperty, "Brush.Border");
-        table.Children.Add(Line());
         foreach (var (key, value) in rows)
         {
             table.Children.Add(TableRow(key, ValueWithCopy(value)));

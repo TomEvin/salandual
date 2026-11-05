@@ -11,6 +11,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Media.Immutable;
 using Avalonia.Platform;
 using Salandual.Imaging;
 
@@ -18,9 +19,15 @@ namespace Salandual.App.Viewer;
 
 internal enum ZoomMode { Fit, Width, Actual, Free }
 
+internal sealed record Checkerboard(Color Light, Color Dark);
+
 internal sealed class ImageView : Control
 {
     public static readonly StyledProperty<IBrush?> BackgroundProperty = Border.BackgroundProperty.AddOwner<ImageView>();
+
+    public static readonly StyledProperty<IBrush?> BackdropProperty = AvaloniaProperty.Register<ImageView, IBrush?>(nameof(Backdrop));
+
+    public static readonly StyledProperty<Checkerboard?> CheckerProperty = AvaloniaProperty.Register<ImageView, Checkerboard?>(nameof(Checker));
 
     private const double MinZoom = 0.01, MaxZoom = 64, Step = 1.25;
 
@@ -31,10 +38,12 @@ internal sealed class ImageView : Control
     private double _zoom = 1;
     private Vector _pan;
     private Point? _dragFrom;
+    private StreamGeometry? _squares;
+    private (int Left, int Top, int Right, int Bottom, double Size) _squaresKey;
 
     static ImageView()
     {
-        AffectsRender<ImageView>(BackgroundProperty);
+        AffectsRender<ImageView>(BackgroundProperty, BackdropProperty, CheckerProperty);
         FocusableProperty.OverrideDefaultValue<ImageView>(true);
     }
 
@@ -43,6 +52,20 @@ internal sealed class ImageView : Control
         get => GetValue(BackgroundProperty);
         set => SetValue(BackgroundProperty, value);
     }
+
+    public IBrush? Backdrop
+    {
+        get => GetValue(BackdropProperty);
+        set => SetValue(BackdropProperty, value);
+    }
+
+    public Checkerboard? Checker
+    {
+        get => GetValue(CheckerProperty);
+        set => SetValue(CheckerProperty, value);
+    }
+
+    public bool IsAnimated { get; private set; }
 
     public event Action? ViewChanged;
 
@@ -66,7 +89,7 @@ internal sealed class ImageView : Control
 
     private double Scaling => TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
 
-    public bool NeedsDetail => _image is { IsReduced: true } image && _detail is null && _zoom > image.Density * 1.02;
+    public bool NeedsDetail => !IsAnimated && _image is { IsReduced: true } image && _detail is null && _zoom > image.Density * 1.02;
 
     public void SetImage(DecodedImage image, Bitmap bitmap, ZoomMode mode, bool keepTurn = false)
     {
@@ -74,6 +97,7 @@ internal sealed class ImageView : Control
         (_image, _bitmap, _detail, _detailBitmap) = (image, bitmap, null, null);
         old._bitmap?.Dispose();
         old._detailBitmap?.Dispose();
+        IsAnimated = false;
         if (!keepTurn)
         {
             Turns = 0;
@@ -90,11 +114,28 @@ internal sealed class ImageView : Control
         Changed();
     }
 
+    public void Replace(DecodedImage frame, Bitmap bitmap)
+    {
+        var old = (_bitmap, _detailBitmap);
+        (_image, _bitmap, _detail, _detailBitmap) = (frame, bitmap, null, null);
+        old._bitmap?.Dispose();
+        old._detailBitmap?.Dispose();
+        IsAnimated = true;
+        Changed();
+    }
+
+    public void ShowFrame(DecodedImage frame)
+    {
+        _image = frame;
+        InvalidateVisual();
+    }
+
     public void Clear()
     {
         _bitmap?.Dispose();
         _detailBitmap?.Dispose();
         (_image, _bitmap, _detail, _detailBitmap) = (null, null, null, null);
+        IsAnimated = false;
         Changed();
     }
 
@@ -251,10 +292,24 @@ internal sealed class ImageView : Control
             return;
         }
 
-        var (bitmap, image) = _detailBitmap is not null && _detail is not null && _zoom > _image.Density * 1.02 ? (_detailBitmap, _detail) : (_bitmap, _image);
+        var (bitmap, image) = !IsAnimated && _detailBitmap is not null && _detail is not null && _zoom > _image.Density * 1.02 ? (_detailBitmap, _detail) : (_bitmap, _image);
         var (w, h) = Shown();
         var (uw, uh) = Turns % 2 == 0 ? (w, h) : (h, w);
         var center = bounds.Center - _pan;
+        if ((Checker is not null || Backdrop is not null) && image.HasTransparency)
+        {
+            var area = Snap(new Rect(center.X - (w / 2), center.Y - (h / 2), w, h));
+            var under = area.Intersect(bounds);
+            if (Checker is { } checker)
+            {
+                DrawChecker(context, checker, area, under);
+            }
+            else
+            {
+                context.FillRectangle(Backdrop!, under);
+            }
+        }
+
         var transform = Matrix.CreateTranslation(-uw / 2, -uh / 2) * Matrix.CreateRotation(Turns * Math.PI / 2) * Matrix.CreateScale(FlippedHorizontally ? -1 : 1, FlippedVertically ? -1 : 1) * Matrix.CreateTranslation(center.X, center.Y);
         var pixelsPerScreenPixel = image.Width / (uw * Scaling);
         var quality = pixelsPerScreenPixel > 1.01 ? BitmapInterpolationMode.HighQuality
@@ -265,6 +320,52 @@ internal sealed class ImageView : Control
         using (context.PushTransform(transform))
         {
             context.DrawImage(bitmap, new Rect(0, 0, image.Width, image.Height), new Rect(0, 0, uw, uh));
+        }
+    }
+
+    private Rect Snap(Rect rect)
+    {
+        var s = Scaling;
+        double On(double v) => Math.Round(v * s) / s;
+        return new Rect(new Point(On(rect.Left), On(rect.Top)), new Point(On(rect.Right), On(rect.Bottom)));
+    }
+
+    private void DrawChecker(DrawingContext context, Checkerboard checker, Rect image, Rect visible)
+    {
+        if (visible.Width <= 0 || visible.Height <= 0)
+        {
+            return;
+        }
+
+        context.FillRectangle(new ImmutableSolidColorBrush(checker.Light), visible);
+        var size = Math.Max(1, Math.Round(8 * Scaling)) / Scaling;
+        var key = ((int)Math.Floor((visible.Left - image.Left) / size), (int)Math.Floor((visible.Top - image.Top) / size),
+            (int)Math.Ceiling((visible.Right - image.Left) / size), (int)Math.Ceiling((visible.Bottom - image.Top) / size), size);
+        if (_squares is null || key != _squaresKey)
+        {
+            _squares = new StreamGeometry();
+            using (var g = _squares.Open())
+            {
+                for (var row = key.Item2; row < key.Item4; row++)
+                {
+                    for (var col = key.Item1 + (((key.Item1 + row) & 1) ^ 1); col < key.Item3; col += 2)
+                    {
+                        g.BeginFigure(new Point(col * size, row * size), true);
+                        g.LineTo(new Point((col + 1) * size, row * size));
+                        g.LineTo(new Point((col + 1) * size, (row + 1) * size));
+                        g.LineTo(new Point(col * size, (row + 1) * size));
+                        g.EndFigure(true);
+                    }
+                }
+            }
+
+            _squaresKey = key;
+        }
+
+        using (context.PushClip(visible))
+        using (context.PushTransform(Matrix.CreateTranslation(image.Left, image.Top)))
+        {
+            context.DrawGeometry(new ImmutableSolidColorBrush(checker.Dark), null, _squares);
         }
     }
 

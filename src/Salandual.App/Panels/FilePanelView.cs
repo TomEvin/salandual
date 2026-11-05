@@ -25,11 +25,22 @@ using KeyModifiers = Avalonia.Input.KeyModifiers;
 
 namespace Salandual.App.Panels;
 
-public sealed class FilePanelView : Control
+internal interface ITypingTarget
+{
+    bool Wants { get; }
+
+    bool HasText { get; }
+
+    void Type(string text);
+
+    void Key(Avalonia.Input.Key key);
+}
+
+public sealed partial class FilePanelView : Control
 {
     private static readonly string _nameHead = AppStrings.Panel_Col_Name, _extHead = AppStrings.Panel_Col_Ext, _sizeHead = AppStrings.Panel_Col_Size,
-        _dateHead = AppStrings.Panel_Col_Date, _timeHead = AppStrings.Panel_Col_Time, _attrHead = AppStrings.Panel_Col_Attr,
-        _upText = AppStrings.Panel_Up, _folderText = AppStrings.InfoLine_Folder, _folderHead = AppStrings.Panel_Col_Folder;
+        _timeHead = AppStrings.Panel_Col_Time, _attrHead = AppStrings.Panel_Col_Attr,
+        _upText = AppStrings.Panel_Up, _folderText = Core.Resources.Strings.InfoLine_Folder, _folderHead = AppStrings.Panel_Col_Folder, _packedHead = AppStrings.Panel_Col_Packed;
 
     public static readonly StyledProperty<double> RowHeightProperty =
         AvaloniaProperty.Register<FilePanelView, double>(nameof(RowHeight), 24);
@@ -41,6 +52,8 @@ public sealed class FilePanelView : Control
         AvaloniaProperty.Register<FilePanelView, bool>(nameof(IsActivePanel), true);
 
     private const double ScrollBarWidth = 10;
+    private const double MinName = 140;
+    private static readonly Cursor _sizeCursor = new(StandardCursorType.SizeWestEast);
     private const double IconSize = 16;
     private const double BaseNameX = 34;
 
@@ -51,6 +64,9 @@ public sealed class FilePanelView : Control
     private Brushes _b = null!;
     private Typeface _face;
     private Typeface _bold;
+    private Typeface _italic;
+    private Typeface _mono;
+    private readonly Dictionary<HighlightRule, IBrush> _ruleBrushes = new(ReferenceEqualityComparer.Instance);
     private double _fontSize = 13;
     private DisplayFormat _format = DisplayFormat.Default;
     private ColumnWidths _widths;
@@ -103,7 +119,7 @@ public sealed class FilePanelView : Control
         set => SetValue(IsActivePanelProperty, value);
     }
 
-    private double HeaderHeight => ShowHeader ? RowHeight : 0;
+    private double HeaderHeight => ShowHeader && IsDetailed ? RowHeight : 0;
 
     public event EventHandler? Activated;
 
@@ -121,39 +137,57 @@ public sealed class FilePanelView : Control
 
     public event EventHandler<CommandRequest>? UnhandledCommand;
 
+    internal Func<KeyChord, bool>? OwnKey { get; set; }
+
+    internal ITypingTarget? TypingTarget { get; set; }
+
     public event EventHandler? RenameRequested;
+
+    public Func<string, bool>? BeforeCommand { get; set; }
 
     public event EventHandler? Scrolled;
 
     public bool ClickToRename { get; set; } = true;
 
-    public bool ExtensionColumn
+    public Func<FileEntry, long?>? PackedSize
     {
-        get => _extensionColumn;
+        get => _packedSize;
         set
         {
-            if (_extensionColumn != value)
-            {
-                _extensionColumn = value;
-                _cache.Clear();
-                InvalidateVisual();
-            }
+            _packedSize = value;
+            ClearTexts();
+            InvalidateVisual();
         }
     }
 
-    private bool _extensionColumn = true;
+    private Func<FileEntry, long?>? _packedSize;
+
+    public PlaceColumns? Place
+    {
+        get => _place;
+        set
+        {
+            _place = value;
+            ClearTexts();
+            InvalidateVisual();
+        }
+    }
+
+    private PlaceColumns? _place;
+
+    private Avalonia.Media.Imaging.Bitmap? IconOf(in FileEntry entry, int px)
+        => _place?.IconPath?.Invoke(entry) is { } path ? _icons?.GetAt(path, entry, px) : _icons?.Get(_panel!.Path, entry, px);
 
     private double _extFit = -1;
 
     internal (double NameRight, double ExtRight, double SizeLeft, double ExtWidth) RowLayout(int index)
     {
-        EnsureTheme();
-        var cols = ColumnsFor(Bounds.Width - ScrollBarWidth);
+        var cols = ColumnsNow();
         var t = GetRowText(index, cols);
-        return (NameX + t.Name.Width, cols.ExtX + t.Ext.Width, cols.SizeRight - cols.SizeWidth, cols.ShowExt ? cols.ExtWidth : 0);
+        var ext = Array.FindIndex(cols.Columns, c => c.Column == PanelColumn.Extension);
+        var size = cols.Columns.First(c => c.Column == PanelColumn.Size);
+        return (NameX + t.Name.Width, ext < 0 ? 0 : cols.Columns[ext].X + (t.Cells[ext]?.Width ?? 0), size.X, ext < 0 ? 0 : cols.Columns[ext].Width);
     }
-
-    private Columns ColumnsFor(double width) => Columns.For(width, _widths with { ExtFit = ExtFit() }, _extensionColumn);
 
     private double ExtFit()
     {
@@ -216,7 +250,7 @@ public sealed class FilePanelView : Control
 
     public void InvalidateRows()
     {
-        _cache.Clear();
+        ClearTexts();
         InvalidateVisual();
     }
 
@@ -230,27 +264,41 @@ public sealed class FilePanelView : Control
                 _panel.Changed -= OnPanelChanged;
             }
 
+            ClosePeek();
+            ClearColumns();
             _panel = value;
             if (_panel is not null)
             {
                 _panel.Changed += OnPanelChanged;
             }
 
+            WatchLoading();
+
+            SyncColumns();
+
+            _briefFit = -1;
             SetTop(value?.TopIndex ?? 0);
-            _cache.Clear();
+            ClearTexts();
             InvalidateVisual();
         }
     }
 
-    public int PageRows => Math.Max(1, (int)((Bounds.Height - HeaderHeight) / RowHeight));
+    public int PageRows
+    {
+        get
+        {
+            var l = Layout();
+            return l.PerLine * l.Lines;
+        }
+    }
 
     public int Top => _top;
 
     public void InvalidateTheme()
     {
         _themeValid = false;
-        _extFit = -1;
-        _cache.Clear();
+        _extFit = _briefFit = _typeFit = -1;
+        ClearTexts();
         InvalidateVisual();
     }
 
@@ -265,22 +313,50 @@ public sealed class FilePanelView : Control
 
     private void OnPanelChanged(object? sender, PanelChange change)
     {
+        if ((change & PanelChange.View) != 0 || ((change & PanelChange.Items) != 0 && _peek is { } peek && peek.Folder != _panel!.Path))
+        {
+            ClosePeek();
+        }
+
+        if ((change & (PanelChange.Items | PanelChange.Focus | PanelChange.View)) != 0)
+        {
+            SyncColumns();
+        }
+
         if ((change & (PanelChange.Items | PanelChange.Selection | PanelChange.Sizes)) != 0)
         {
-            _cache.Clear();
+            ClearTexts();
         }
 
         if ((change & PanelChange.Items) != 0)
         {
-            _extFit = -1;
+            _extFit = _briefFit = _typeFit = -1;
+            if (_panel!.Path.Length > 0)
+            {
+                _facts?.Forget(_panel.Path);
+                GitRelisted();
+            }
+
             _hover = -1;
             CancelSlowClick();
             SetTop(_panel!.TakeFocusScreenRow() is { } row ? _panel.Focus - Math.Clamp(row, 0, PageRows - 1) : _top);
         }
 
-        if ((change & PanelChange.Focus) != 0)
+        if ((change & PanelChange.View) != 0)
+        {
+            _hover = -1;
+            CancelSlowClick();
+            Relayout();
+        }
+
+        if ((change & (PanelChange.Focus | PanelChange.QuickSearch)) != 0)
         {
             EnsureVisible();
+        }
+
+        if ((change & PanelChange.Loading) != 0)
+        {
+            WatchLoading();
         }
 
         InvalidateVisual();
@@ -288,7 +364,14 @@ public sealed class FilePanelView : Control
 
     private int Count => _panel?.Count ?? 0;
 
-    private int MaxTop => Math.Max(0, Count - PageRows);
+    private int MaxTop
+    {
+        get
+        {
+            var l = Layout();
+            return Math.Max(0, TotalLines(l) - l.Lines) * l.PerLine;
+        }
+    }
 
     public void ScrollTo(int top)
     {
@@ -303,7 +386,9 @@ public sealed class FilePanelView : Control
     private void SetTop(int top)
     {
         var before = _top;
-        _top = Math.Clamp(top, 0, MaxTop);
+        var per = Layout().PerLine;
+        top = Math.Clamp(top, 0, MaxTop);
+        _top = top - (top % per);
         if (_top != before)
         {
             Scrolled?.Invoke(this, EventArgs.Empty);
@@ -324,15 +409,31 @@ public sealed class FilePanelView : Control
             return;
         }
 
-        var focus = _panel.Focus;
-        if (focus < _top)
+        var l = Layout();
+        var lines = Math.Max(1, l.Lines - ChipLines(l));
+        var line = _panel.Focus / l.PerLine;
+        var topLine = _top / l.PerLine;
+        if (line < topLine)
         {
-            ScrollTo(focus);
+            ScrollTo(line * l.PerLine);
         }
-        else if (focus >= _top + PageRows)
+        else if (line >= topLine + lines)
         {
-            ScrollTo(focus - PageRows + 1);
+            ScrollTo((line - lines + 1) * l.PerLine);
         }
+    }
+
+    private double ChipBand => _lineH + 10 + 8;
+
+    private int ChipLines(ViewLayout l)
+    {
+        if (_panel?.QuickSearchText is null || l.Down || l.Lines < 3)
+        {
+            return 0;
+        }
+
+        var covered = (l.Y0 + (l.Lines * l.CellH)) - (Bounds.Height - ChipBand);
+        return covered <= 0 ? 0 : (int)Math.Ceiling(covered / l.CellH);
     }
 
     protected override void OnSizeChanged(SizeChangedEventArgs e)
@@ -367,6 +468,24 @@ public sealed class FilePanelView : Control
             _icons = icons;
             icons.Changed += OnImageChanged;
         }
+
+        if (Application.Current is App { Thumbnails: { } thumbs })
+        {
+            _thumbs = thumbs;
+            thumbs.Changed += OnImageChanged;
+        }
+
+        if (Application.Current is App { Git: { } git })
+        {
+            _git = git;
+            git.Changed += OnGitChanged;
+        }
+
+        if (Application.Current is App { ColumnFacts: { } facts })
+        {
+            _facts = facts;
+            facts.Changed += OnFactsChanged;
+        }
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -388,6 +507,24 @@ public sealed class FilePanelView : Control
             _icons.Changed -= OnImageChanged;
             _icons = null;
         }
+
+        if (_thumbs is not null)
+        {
+            _thumbs.Changed -= OnImageChanged;
+            _thumbs = null;
+        }
+
+        if (_git is not null)
+        {
+            _git.Changed -= OnGitChanged;
+            _git = null;
+        }
+
+        if (_facts is not null)
+        {
+            _facts.Changed -= OnFactsChanged;
+            _facts = null;
+        }
     }
 
     private void OnThemeApplied(object? sender, EventArgs e) => InvalidateTheme();
@@ -399,12 +536,46 @@ public sealed class FilePanelView : Control
         base.OnKeyDown(e);
         CancelSlowClick();
         _suppressText = false;
+        if (_peek is not null && _panel is not null && !e.Handled)
+        {
+            switch (PeekKey(e))
+            {
+                case null:
+                    return;
+                case true:
+                    e.Handled = _suppressText = true;
+                    return;
+            }
+        }
+
         if (_panel is null || e.Handled || !KeyMapping.TryGetChord(e.Key, e.KeyModifiers, out var chord))
         {
             return;
         }
 
-        if (QuickSearchWithCtrlAlt && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Alt) && e.Key is >= Key.A and <= Key.Z)
+        if (IsLocked)
+        {
+            LockedKey(e, chord);
+            return;
+        }
+
+        var typingElsewhere = _panel.QuickSearchText is null && TypingTarget is { Wants: true };
+        if (typingElsewhere)
+        {
+            if (IsTypingKey(e))
+            {
+                return;
+            }
+
+            if (e.KeyModifiers == KeyModifiers.None && e.Key is Key.Back or Key.Enter or Key.Escape or Key.Space && TypingTarget!.HasText)
+            {
+                TypingTarget.Key(e.Key);
+                e.Handled = _suppressText = true;
+                return;
+            }
+        }
+
+        if ((QuickSearchWithCtrlAlt || typingElsewhere) && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Alt) && e.Key is >= Key.A and <= Key.Z)
         {
             _panel.QuickSearchType((char)('a' + (e.Key - Key.A)));
             e.Handled = _suppressText = true;
@@ -425,8 +596,22 @@ public sealed class FilePanelView : Control
             }
         }
 
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _panel.LoadingSince is not null)
+        {
+            _panel.CancelLoading();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _panel.CancelSizing())
         {
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _panel.Results?.Flat is { Reading: true })
+        {
+            _panel.StopFlat();
             e.Handled = true;
             return;
         }
@@ -434,6 +619,11 @@ public sealed class FilePanelView : Control
         var id = Commands?.Resolve(chord);
         if (id is null)
         {
+            if (OwnKey?.Invoke(chord) == true)
+            {
+                e.Handled = _suppressText = true;
+            }
+
             return;
         }
 
@@ -456,15 +646,48 @@ public sealed class FilePanelView : Control
             return false;
         }
 
+        if (BeforeCommand?.Invoke(id) == true)
+        {
+            return true;
+        }
+
+        if (ViewKind == PanelView.Columns && ColumnsKey(id))
+        {
+            return true;
+        }
+
+        if (TryGridMove(id))
+        {
+            return true;
+        }
+
+        var line = Layout().PerLine;
         switch (id)
         {
-            case "Panel.ScrollUp":
-                ScrollTo(_top - 1);
+            case "Panel.ScrollUp" when ViewKind != PanelView.Brief:
+                ScrollTo(_top - line);
                 return true;
-            case "Panel.ScrollDown":
-                ScrollTo(_top + 1);
+            case "Panel.ScrollDown" when ViewKind != PanelView.Brief:
+                ScrollTo(_top + line);
                 return true;
-            case "Panel.ScrollLeft" or "Panel.ScrollRight":
+            case "Panel.ScrollLeft" when ViewKind == PanelView.Brief:
+                ScrollTo(_top - line);
+                return true;
+            case "Panel.ScrollRight" when ViewKind == PanelView.Brief:
+                ScrollTo(_top + line);
+                return true;
+            case "Panel.ScrollUp" or "Panel.ScrollDown" or "Panel.ScrollLeft" or "Panel.ScrollRight":
+                return true;
+            case "Panel.Peek":
+                if (_peek is null)
+                {
+                    OpenPeek(_panel.Focus, hover: false);
+                }
+                else
+                {
+                    ClosePeek();
+                }
+
                 return true;
             default:
                 return _panel!.Execute(id, PageRows);
@@ -479,7 +702,13 @@ public sealed class FilePanelView : Control
         var ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         if (ctrl)
         {
-            panel.EndQuickSearch();
+            if (e.Key == Key.S && e.KeyModifiers == KeyModifiers.Control)
+            {
+                panel.ToggleQuickFilter();
+                return true;
+            }
+
+            panel.EndQuickSearch(keepFilter: true);
             return false;
         }
 
@@ -487,6 +716,7 @@ public sealed class FilePanelView : Control
         switch (e.Key)
         {
             case Key.Escape: panel.EndQuickSearch(); return true;
+            case Key.Enter when panel.IsQuickFiltering: panel.EndQuickSearch(keepFilter: true); return true;
             case Key.Up: panel.QuickSearchMove(-1, shift, alt); return true;
             case Key.Down: panel.QuickSearchMove(1, shift, alt); return true;
             case Key.PageUp: panel.QuickSearchMove(-page, shift, alt); return true;
@@ -501,7 +731,7 @@ public sealed class FilePanelView : Control
                     return false;
                 }
 
-                panel.EndQuickSearch();
+                panel.EndQuickSearch(keepFilter: true);
                 return false;
         }
     }
@@ -513,6 +743,26 @@ public sealed class FilePanelView : Control
     protected override void OnTextInput(TextInputEventArgs e)
     {
         base.OnTextInput(e);
+        if (IsLocked)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (_peek is not null && !_suppressText && !string.IsNullOrEmpty(e.Text))
+        {
+            PeekType(new string([.. e.Text.Where(c => !char.IsControl(c))]));
+            e.Handled = true;
+            return;
+        }
+
+        if (_panel is not null && !_suppressText && !string.IsNullOrEmpty(e.Text) && _panel.QuickSearchText is null && TypingTarget is { Wants: true } target)
+        {
+            target.Type(new string([.. e.Text.Where(c => !char.IsControl(c))]));
+            e.Handled = true;
+            return;
+        }
+
         if (_panel is null || _suppressText || string.IsNullOrEmpty(e.Text) || QuickSearchWithCtrlAlt && _panel.QuickSearchText is null)
         {
             _suppressText = false;
@@ -530,7 +780,7 @@ public sealed class FilePanelView : Control
         e.Handled = true;
     }
 
-    private enum Zone { None, Header, Row, ScrollBar }
+    private enum Zone { None, Header, Row, ScrollBar, SideBar, Strip, Edge, Column }
 
     private (Zone Zone, int Row) HitTest(Point p)
     {
@@ -539,9 +789,25 @@ public sealed class FilePanelView : Control
             return (Zone.Header, -1);
         }
 
-        if (p.X >= Bounds.Width - ScrollBarWidth && Count > PageRows)
+        if (ViewKind == PanelView.Columns)
+        {
+            return ColumnsHit(p);
+        }
+
+        var l = Layout();
+        if (TotalLines(l) > l.Lines && (l.Down ? p.Y >= Bounds.Height - ScrollBarWidth : p.X >= Bounds.Width - ScrollBarWidth))
         {
             return (Zone.ScrollBar, -1);
+        }
+
+        if (IsDetailed && p.Y >= Bounds.Height - ScrollBarWidth && ColumnsNow().ScrollMax > 0)
+        {
+            return (Zone.SideBar, -1);
+        }
+
+        if (!IsDetailed)
+        {
+            return CellAt(p, l) is var cell and >= 0 ? (Zone.Row, cell) : (Zone.None, -1);
         }
 
         var row = _top + (int)((p.Y - HeaderHeight) / RowHeight);
@@ -559,9 +825,34 @@ public sealed class FilePanelView : Control
             return;
         }
 
+        if (IsLocked)
+        {
+            e.Handled = true;
+            return;
+        }
+
         var point = e.GetCurrentPoint(this);
+        if (_peek is { } peek)
+        {
+            if (peek.Box.Contains(point.Position))
+            {
+                PeekClick(point.Position, e.ClickCount);
+                e.Handled = true;
+                return;
+            }
+
+            ClosePeek();
+        }
+
+        if (_panel.QuickSearchText is not null && _quickBox.Contains(point.Position) && point.Properties.IsLeftButtonPressed)
+        {
+            _panel.ToggleQuickFilter();
+            e.Handled = true;
+            return;
+        }
+
         var (zone, row) = HitTest(point.Position);
-        _panel.EndQuickSearch();
+        _panel.EndQuickSearch(keepFilter: true);
         _leftPress = null;
         if (point.Properties.IsRightButtonPressed && zone is Zone.Row or Zone.None)
         {
@@ -574,15 +865,32 @@ public sealed class FilePanelView : Control
         switch (zone)
         {
             case Zone.Header when point.Properties.IsLeftButtonPressed:
-                if (ColumnAt(point.Position.X) is { } column)
-                {
-                    _panel.ToggleSort(column);
-                }
-
+                HeaderPressed(e, point.Position);
+                break;
+            case Zone.Header when point.Properties.IsRightButtonPressed:
+                HeaderMenuRequested?.Invoke(this, point.Position);
+                break;
+            case Zone.SideBar when point.Properties.IsLeftButtonPressed:
+                var (barX, barW) = HThumb(ColumnsNow());
+                _dragOffset = point.Position.X >= barX && point.Position.X <= barX + barW ? point.Position.X - barX : barW / 2;
+                _draggingHThumb = true;
+                e.Pointer.Capture(this);
+                DragHThumb(point.Position.X);
+                break;
+            case Zone.Strip when point.Properties.IsLeftButtonPressed:
+                e.Pointer.Capture(this);
+                StartStripDrag(point.Position.X);
+                break;
+            case Zone.Edge when point.Properties.IsLeftButtonPressed:
+                e.Pointer.Capture(this);
+                StartEdgeDrag(row);
+                break;
+            case Zone.Column when point.Properties.IsLeftButtonPressed:
+                ColumnClicked(row);
                 break;
             case Zone.ScrollBar when point.Properties.IsLeftButtonPressed:
                 var (thumbY, thumbH) = Thumb();
-                var y = point.Position.Y;
+                var y = Layout().Down ? point.Position.X : point.Position.Y;
                 _dragOffset = y >= thumbY && y <= thumbY + thumbH ? y - thumbY : thumbH / 2;
                 _draggingThumb = true;
                 e.Pointer.Capture(this);
@@ -629,12 +937,43 @@ public sealed class FilePanelView : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+        if (IsLocked)
+        {
+            return;
+        }
+
         var p = e.GetPosition(this);
         if (_draggingThumb)
         {
-            DragThumb(p.Y);
+            DragThumb(Layout().Down ? p.X : p.Y);
             return;
         }
+
+        if (_draggingHThumb)
+        {
+            DragHThumb(p.X);
+            return;
+        }
+
+        if (_draggingStrip)
+        {
+            DragStrip(p.X);
+            return;
+        }
+
+        if (_edgeDrag is not null)
+        {
+            DragColumnEdge(p.X);
+            return;
+        }
+
+        if (_resize is not null)
+        {
+            DragEdge(p.X);
+            return;
+        }
+
+        Cursor = (p.Y < HeaderHeight && IsDetailed && EdgeAt(p.X) is not null) || (ViewKind == PanelView.Columns && HitTest(p).Zone == Zone.Edge) ? _sizeCursor : null;
 
         if (_slowClick is not null && (Math.Abs(p.X - _slowClickAt.X) > 4 || Math.Abs(p.Y - _slowClickAt.Y) > 4))
         {
@@ -683,6 +1022,8 @@ public sealed class FilePanelView : Control
 
         var (zone, row) = HitTest(p);
         var hover = zone == Zone.Row ? row : -1;
+        PeekPointer(p, hover);
+        UpdateDateTip(p, hover);
         if (hover != _hover)
         {
             _hover = hover;
@@ -693,11 +1034,31 @@ public sealed class FilePanelView : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-        _leftPress = null;
-        if (_draggingThumb)
+        if (IsLocked)
         {
-            _draggingThumb = false;
+            _leftPress = null;
+            e.Handled = true;
+            return;
+        }
+
+        _leftPress = null;
+        if (_edgeDrag is not null)
+        {
             e.Pointer.Capture(null);
+            EndEdgeDrag(changed: true);
+        }
+
+        if (_draggingThumb || _draggingHThumb || _draggingStrip)
+        {
+            _draggingThumb = _draggingHThumb = _draggingStrip = false;
+            e.Pointer.Capture(null);
+            InvalidateVisual();
+        }
+
+        if (_resize is not null)
+        {
+            e.Pointer.Capture(null);
+            EndEdgeDrag();
         }
 
         if (e.InitialPressMouseButton == MouseButton.Right && _rightPress is { } press)
@@ -765,6 +1126,7 @@ public sealed class FilePanelView : Control
     protected override void OnPointerExited(PointerEventArgs e)
     {
         base.OnPointerExited(e);
+        PeekPointerLeft();
         if (_hover >= 0)
         {
             _hover = -1;
@@ -775,27 +1137,87 @@ public sealed class FilePanelView : Control
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        ScrollTo(_top - (int)Math.Round(e.Delta.Y * 3));
         e.Handled = true;
+        if (IsLocked)
+        {
+            return;
+        }
+
+        var notches = Math.Abs(e.Delta.Y) >= Math.Abs(e.Delta.X) ? e.Delta.Y : -e.Delta.X;
+        var at = e.GetPosition(this);
+        if (_peek is { } peek)
+        {
+            if (peek.Box.Contains(at))
+            {
+                peek.Top = Math.Max(0, peek.Top - (int)Math.Round(notches * 3, MidpointRounding.AwayFromZero));
+                InvalidateVisual();
+                return;
+            }
+
+            ClosePeek();
+        }
+        if (e.KeyModifiers == KeyModifiers.Alt && AltWheelViews && _panel is not null)
+        {
+            if (notches != 0)
+            {
+                _panel.SetView(PanelViews.Next(_panel.View, notches < 0 ? 1 : -1));
+            }
+
+            return;
+        }
+
+        if (e.KeyModifiers == KeyModifiers.Control && ViewKind == PanelView.Thumbnails)
+        {
+            if (notches != 0)
+            {
+                ThumbnailSizeStep?.Invoke(this, notches > 0 ? 1 : -1);
+            }
+
+            return;
+        }
+
+        if (IsDetailed && (e.KeyModifiers == KeyModifiers.Shift || Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y)) && ColumnsNow().ScrollMax > 0)
+        {
+            ScrollSideways(-(Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y) ? -e.Delta.X : e.Delta.Y) * 48);
+            return;
+        }
+
+        if (ViewKind == PanelView.Columns && ColumnsWheel(at, notches, e.KeyModifiers == KeyModifiers.Shift || Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y)))
+        {
+            return;
+        }
+
+        var l = Layout();
+        var lines = IsDetailed || ViewKind == PanelView.Columns ? notches * 3 : notches;
+        ScrollTo(_top - ((int)Math.Round(lines, MidpointRounding.AwayFromZero) * l.PerLine));
     }
 
     public Rect? NameBounds(int index)
     {
+        if (!IsDetailed)
+        {
+            var l = Layout();
+            return IsInView(index, l) ? CellNameBounds(index, l) : null;
+        }
+
         if (index < _top || index >= _top + PageRows || index >= Count)
         {
             return null;
         }
 
-        EnsureTheme();
-        var cols = ColumnsFor(Bounds.Width - ScrollBarWidth);
-        var right = _panel?.Results is not null ? FolderX(cols) - 8 : cols.SizeRight - cols.SizeWidth - 6;
+        var cols = ColumnsNow();
+        var right = cols.NameRight + 2;
         return new Rect(NameX - 5, HeaderHeight + (RowHeight * (index - _top)), Math.Max(120, right - NameX + 5), RowHeight);
     }
 
     private bool IsOnName(int row, Point p)
     {
-        var cols = ColumnsFor(Bounds.Width - ScrollBarWidth);
-        var text = GetRowText(row, cols).Name;
+        if (!IsDetailed)
+        {
+            return IsOnCellName(row, p, Layout());
+        }
+
+        var text = GetRowText(row, ColumnsNow()).Name;
         return p.X >= NameX - 2 && p.X <= NameX + text.Width + 4;
     }
 
@@ -822,18 +1244,22 @@ public sealed class FilePanelView : Control
 
     private (double Y, double Height) Thumb()
     {
-        var track = Bounds.Height - HeaderHeight;
-        var height = Math.Max(24, track * PageRows / Math.Max(1, Count));
-        var y = HeaderHeight + ((track - height) * _top / Math.Max(1, MaxTop));
+        var l = Layout();
+        var track = l.Down ? Bounds.Width : VBar().Bottom - HeaderHeight;
+        var total = TotalLines(l);
+        var height = Math.Max(24, track * l.Lines / Math.Max(1, total));
+        var y = (l.Down ? 0 : HeaderHeight) + ((track - height) * (_top / l.PerLine) / Math.Max(1, total - l.Lines));
         return (y, height);
     }
 
     private void DragThumb(double y)
     {
-        var track = Bounds.Height - HeaderHeight;
+        var l = Layout();
+        var start = l.Down ? 0 : HeaderHeight;
+        var track = l.Down ? Bounds.Width : VBar().Bottom - HeaderHeight;
         var (_, height) = Thumb();
-        var fraction = (y - _dragOffset - HeaderHeight) / Math.Max(1, track - height);
-        ScrollTo((int)Math.Round(fraction * MaxTop));
+        var fraction = (y - _dragOffset - start) / Math.Max(1, track - height);
+        ScrollTo((int)Math.Round(fraction * Math.Max(0, TotalLines(l) - l.Lines)) * l.PerLine);
     }
 
     public override void Render(DrawingContext context)
@@ -842,12 +1268,12 @@ public sealed class FilePanelView : Control
         var size = Bounds.Size;
         if (size.Width != _cachedWidth || MarkShift != _cachedShift)
         {
-            _cache.Clear();
+            ClearTexts();
             _cachedWidth = size.Width;
             _cachedShift = MarkShift;
         }
 
-        var cols = ColumnsFor(size.Width - ScrollBarWidth);
+        var cols = IsDetailed ? ColumnsNow() : null;
         var rowH = RowHeight;
         context.FillRectangle(_b.Background, new Rect(size));
         if (_image?.Image is not null)
@@ -857,7 +1283,7 @@ public sealed class FilePanelView : Control
             _image.Draw(context, area, rows);
         }
 
-        if (ShowHeader)
+        if (HeaderHeight > 0 && cols is not null)
         {
             DrawHeader(context, size, cols);
         }
@@ -867,28 +1293,44 @@ public sealed class FilePanelView : Control
             return;
         }
 
+        if (cols is null)
+        {
+            RenderCells(context, size);
+            DrawWaiting(context, size);
+            return;
+        }
+
         var last = Math.Min(Count, _top + PageRows + 1);
         var iconPx = (int)Math.Round(IconSize * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
         var active = IsActivePanel;
-        using (context.PushClip(new Rect(0, HeaderHeight, size.Width, Math.Max(0, size.Height - HeaderHeight))))
+        var bar = cols.ScrollMax > 0 ? ScrollBarWidth : 0;
+        using (context.PushClip(new Rect(0, HeaderHeight, size.Width, Math.Max(0, size.Height - HeaderHeight - bar))))
         {
             for (var i = _top; i < last; i++)
             {
                 var y = HeaderHeight + (rowH * (i - _top));
-                var rowRect = new Rect(4, y, Math.Max(0, cols.Right - 4), rowH);
+                var rowRect = new Rect(4, y, Math.Max(0, size.Width - ScrollBarWidth - 4), rowH);
                 var selected = _panel.IsSelected(i);
+                var focused = i == _panel.Focus;
+                var nameRect = (selected && _selectionLook == MarkLook.NameOnly) || (focused && _focusLook == MarkLook.NameOnly) ? NameMark(i, y, cols, rowRect.Right) : rowRect;
                 if (i == _dropRow)
                 {
                     context.FillRectangle(_b.SelectionBackground, rowRect, 4);
                     context.DrawRectangle(null, _b.DropPen, rowRect.Deflate(1), 4, 4);
                 }
-                else if (selected)
+                else
                 {
-                    context.FillRectangle(_b.SelectionBackground, rowRect, 4);
-                }
-                else if (i == _hover)
-                {
-                    context.FillRectangle(_b.Hover, rowRect, 4);
+                    var wholeSelected = selected && _selectionLook == MarkLook.WholeRow;
+                    if (!wholeSelected && i == _hover)
+                    {
+                        context.FillRectangle(_b.Hover, rowRect, 4);
+                    }
+                    else if (!wholeSelected && _rowStripes && (i % 2) == 1)
+                    {
+                        context.FillRectangle(_b.Stripe, rowRect, 4);
+                    }
+
+                    FillMarks(context, selected, focused, active, rowRect, nameRect);
                 }
 
                 using (IsCut is { } isCut && !_panel.IsUp(i) && isCut(_panel.Items[i].Name) ? context.PushOpacity(0.45) : default(DrawingContext.PushedState?))
@@ -902,38 +1344,10 @@ public sealed class FilePanelView : Control
                     context.DrawText(glyph, new Point(8 + ((MarkWidth - glyph.Width) / 2), y + ((rowH - glyph.Height) / 2)));
                 }
 
-                var t = GetRowText(i, cols);
-                var ty = y + ((rowH - t.Name.Height) / 2);
-                context.DrawText(t.Name, new Point(NameX, ty));
-                if (t.Folder is { } folder)
+                DrawRowCells(context, i, y, cols, size);
+                if (focused)
                 {
-                    context.DrawText(folder, new Point(FolderX(cols), ty));
-                }
-
-                if (cols.ShowExt)
-                {
-                    context.DrawText(t.Ext, new Point(cols.ExtX, ty));
-                }
-
-                context.DrawText(t.Size, new Point(cols.SizeRight - t.Size.Width, ty));
-                if (cols.ShowDate)
-                {
-                    context.DrawText(t.Date, new Point(cols.DateRight - t.Date.Width, ty));
-                }
-
-                if (cols.ShowTime)
-                {
-                    context.DrawText(t.Time, new Point(cols.TimeRight - t.Time.Width, ty));
-                }
-
-                if (cols.ShowAttr)
-                {
-                    context.DrawText(t.Attr, new Point(cols.AttrX, ty));
-                }
-
-                if (i == _panel.Focus)
-                {
-                    context.DrawRectangle(null, active ? _b.FocusPen : _b.FocusPenInactive, rowRect.Deflate(0.75), 4, 4);
+                    DrawFocus(context, active, rowRect, nameRect);
                 }
             }
 
@@ -950,65 +1364,34 @@ public sealed class FilePanelView : Control
         }
 
         DrawScrollBar(context, size);
+        DrawHScrollBar(context, size, cols);
+        DrawPeek(context, size);
+        DrawWaiting(context, size);
         DrawQuickSearch(context, size);
         EvictCache();
     }
 
-    private void DrawHeader(DrawingContext context, Size size, Columns cols)
-    {
-        var rowH = RowHeight;
-        context.FillRectangle(_b.Header, new Rect(0, 0, size.Width, rowH));
-        Controls.BackgroundLayer.DrawOnBar(this, context, new Rect(0, 0, size.Width, rowH));
-        context.FillRectangle(_b.Border, new Rect(0, rowH - 1, size.Width, 1));
-        var sort = _panel?.Sort ?? SortSpec.Default;
-        var arrow = sort.Descending ? " ↓" : " ↑";
-        var captionSize = Math.Max(9, _fontSize - 1);
-
-        FormattedText Head(string label, SortColumn? column)
-        {
-            var sorted = column == sort.Column;
-            return Text(sorted ? label + arrow : label, sorted ? _bold : _face, sorted ? _b.Text : _b.SecondaryText, captionSize);
-        }
-
-        var name = Head(_nameHead, SortColumn.Name);
-        var y = (rowH - name.Height) / 2;
-        context.DrawText(name, new Point(NameX, y));
-        if (_panel?.Results is not null)
-        {
-            context.DrawText(Head(_folderHead, null), new Point(FolderX(cols), y));
-        }
-
-        if (cols.ShowExt)
-        {
-            context.DrawText(Head(_extHead, SortColumn.Extension), new Point(cols.ExtX, y));
-        }
-
-        var s = Head(_sizeHead, SortColumn.Size);
-        context.DrawText(s, new Point(cols.SizeRight - s.Width, y));
-        if (cols.ShowDate)
-        {
-            var d = Head(_dateHead, SortColumn.Time);
-            context.DrawText(d, new Point(cols.DateRight - d.Width, y));
-        }
-
-        if (cols.ShowTime)
-        {
-            var t = Head(_timeHead, null);
-            context.DrawText(t, new Point(cols.TimeRight - t.Width, y));
-        }
-
-        if (cols.ShowAttr)
-        {
-            context.DrawText(Head(_attrHead, null), new Point(cols.AttrX, y));
-        }
-    }
-
     private void DrawIcon(DrawingContext context, in FileEntry entry, bool up, double y, int iconPx)
     {
-        var x = 10.0 + MarkShift;
-        if (!up && _icons?.Get(_panel!.Path, entry, iconPx) is { } icon)
+        if (!up && entry.IsDirectory && _panel is { IsGitList: true, IsTree: false })
         {
-            context.DrawImage(icon, new Rect(x, y, IconSize, IconSize));
+            return;
+        }
+
+        var x = 10.0 + MarkShift;
+        var at = new Rect(x, y, IconSize, IconSize);
+        if (HasFolderColour(entry, up))
+        {
+            DrawFolderLook(context, entry, up, at, badgeOnly: false);
+        }
+        else if (!up && _place?.Glyph?.Invoke(entry) is { } glyph)
+        {
+            AppIcons.Draw(context, glyph, new Point(x, y), _b.IconPen);
+        }
+        else if (!up && IconOf(entry, iconPx) is { } icon)
+        {
+            context.DrawImage(icon, at);
+            DrawFolderLook(context, entry, up, at, badgeOnly: true);
         }
         else if (up)
         {
@@ -1022,108 +1405,89 @@ public sealed class FilePanelView : Control
 
     private void DrawScrollBar(DrawingContext context, Size size)
     {
-        if (Count <= PageRows)
+        var l = Layout();
+        if (TotalLines(l) <= l.Lines)
         {
             return;
         }
 
         var (y, height) = Thumb();
-        context.FillRectangle(_draggingThumb ? _b.TertiaryText : _b.Thumb, new Rect(size.Width - ScrollBarWidth + 3, y + 2, ScrollBarWidth - 6, height - 4), 2);
+        if (l.Down)
+        {
+            context.FillRectangle(_draggingThumb ? _b.TertiaryText : _b.Thumb, new Rect(y + 2, size.Height - ScrollBarWidth + 3, height - 4, ScrollBarWidth - 6), 2);
+            return;
+        }
+
+        context.FillRectangle(_draggingThumb ? _b.TertiaryText : _b.Thumb, new Rect(VBar().X + 3, y + 2, ScrollBarWidth - 6, height - 4), 2);
     }
+
+    private Rect _quickBox;
+
+    internal Rect QuickSearchBox => _quickBox;
+
+    internal Rect FocusedCellRect => _panel is null ? default : CellRect(_panel.Focus, Layout());
 
     private void DrawQuickSearch(DrawingContext context, Size size)
     {
+        _quickBox = default;
         if (_panel?.QuickSearchText is not { } text)
         {
             return;
         }
 
-        var label = Text(AppStrings.Panel_QuickSearch + " ", _face, _b.SecondaryText, _fontSize);
+        var filter = _panel.QuickFilterMode;
+        var small = Math.Max(9, _fontSize - 1);
+        var label = Text((filter ? AppStrings.Panel_QuickFilter : AppStrings.Panel_QuickSearch) + " ", _face, _b.SecondaryText, _fontSize);
         var value = Text(text, _bold, _b.Text, _fontSize);
+        var search = Text(AppStrings.Panel_QuickMode_Search, _face, filter ? _b.SecondaryText : _b.SelectedText, small);
+        var filtering = Text(AppStrings.Panel_QuickMode_Filter, _face, filter ? _b.SelectedText : _b.SecondaryText, small);
+        var key = Text(AppStrings.Panel_QuickMode_Key, _face, _b.TertiaryText, small);
+        var segWidth = search.Width + filtering.Width + 24;
         var h = Math.Max(label.Height, value.Height) + 10;
-        var w = Math.Min(size.Width - 16, label.Width + value.Width + 20);
+        var labelWidth = label.WidthIncludingTrailingWhitespace;
+        var w = Math.Min(size.Width - 16, labelWidth + value.Width + 14 + segWidth + 8 + key.Width + 20);
         var box = new Rect(8, size.Height - h - 8, w, h);
-        context.DrawRectangle(_b.Background, _b.AccentPen, box, 6, 6);
-        context.DrawText(label, new Point(box.X + 10, box.Y + 5));
-        context.DrawText(value, new Point(box.X + 10 + label.Width, box.Y + 5));
-    }
-
-    private RowText GetRowText(int index, Columns cols)
-    {
-        if (_cache.TryGetValue(index, out var t))
+        var l = Layout();
+        if (_panel.Focus >= _top && CellRect(_panel.Focus, l).Intersects(box))
         {
-            return t;
+            box = box.WithY(l.Y0 + 8);
         }
 
-        var panel = _panel!;
-        var e = panel.Items[index];
-        var up = panel.IsUp(index);
-        var selected = panel.IsSelected(index);
-        var cut = !up && IsCut?.Invoke(e.Name) == true;
-        var nameBrush = selected ? _b.SelectedText
-            : cut ? _b.TertiaryText
-            : (e.Attributes & FileAttributes.Encrypted) != 0 ? _b.Encrypted
-            : (e.Attributes & FileAttributes.Compressed) != 0 ? _b.Compressed
-            : e.IsHidden && !up ? _b.SecondaryText
-            : _b.Text;
-        var dim = selected ? _b.SelectedText : _b.SecondaryText;
-
-        var nameText = up || e.IsDirectory || !cols.ShowExt ? e.Name : e.BaseName.ToString();
-        var nameRight = (cols.ShowExt ? cols.ExtX : cols.SizeRight - cols.SizeWidth) - 8;
-        var ext = Text(up || e.IsDirectory ? "" : e.Extension.ToString(), _face, dim, _fontSize);
-        ext.MaxTextWidth = Math.Max(10, cols.ExtWidth);
-        ext.Trimming = TextTrimming.CharacterEllipsis;
-        ext.MaxLineCount = 1;
-        FormattedText? folder = null;
-        if (panel.Results is not null)
+        _quickBox = box;
+        context.DrawRectangle(_b.Background, _b.AccentPen, box, 4, 4);
+        using (context.PushClip(box))
         {
-            var (inFolder, _) = FilePanel.SplitResult(e.Name);
-            nameText = FilePanel.SplitResult(nameText).Name;
-            folder = Text(inFolder, _face, dim, _fontSize);
-            folder.MaxTextWidth = Math.Max(10, nameRight - FolderX(cols));
-            folder.Trimming = TextTrimming.PrefixCharacterEllipsis;
-            folder.MaxLineCount = 1;
-            nameRight = FolderX(cols) - 8;
+            context.DrawText(label, new Point(box.X + 10, box.Y + 5));
+            context.DrawText(value, new Point(box.X + 10 + labelWidth, box.Y + 5));
+            var seg = new Rect(box.X + 10 + labelWidth + value.Width + 14, box.Y + 4, segWidth, h - 8);
+            context.DrawRectangle(null, new ImmutablePen(_b.Border.ToImmutable(), 1), seg.Deflate(0.5), 4, 4);
+            var on = filter ? new Rect(seg.X + search.Width + 12, seg.Y, filtering.Width + 12, seg.Height) : new Rect(seg.X, seg.Y, search.Width + 12, seg.Height);
+            context.FillRectangle(_b.SelectionBackground, on.Deflate(1), 3);
+            context.DrawText(search, new Point(seg.X + 6, seg.Center.Y - (search.Height / 2)));
+            context.DrawText(filtering, new Point(seg.X + search.Width + 18, seg.Center.Y - (filtering.Height / 2)));
+            context.DrawText(key, new Point(seg.Right + 8, seg.Center.Y - (key.Height / 2)));
         }
-
-        var name = Text(nameText, _face, nameBrush, _fontSize);
-        name.MaxTextWidth = Math.Max(10, nameRight - NameX);
-        name.Trimming = TextTrimming.CharacterEllipsis;
-        name.MaxLineCount = 1;
-
-        var local = up ? default : e.LastWriteUtc.ToLocalTime();
-        t = new RowText(
-            name,
-            ext,
-            Text(SizeText(panel, e, up), _face, dim, _fontSize),
-            Text(up ? "" : _format.Date(local), _face, dim, _fontSize),
-            Text(up ? "" : _format.Time(local), _face, dim, _fontSize),
-            Text(up ? "" : DisplayFormat.Attributes(e.Attributes), _face, dim, _fontSize),
-            folder);
-        _cache[index] = t;
-        return t;
     }
-
-    private string SizeText(FilePanel panel, in FileEntry e, bool up)
-        => up ? _upText
-            : !e.IsDirectory ? _format.Size(e.Size)
-            : panel.TryGetDirectorySize(e, out var size) ? _format.Size(size)
-            : panel.IsSizing(e) ? "…"
-            : _folderText;
 
     private void EvictCache()
     {
         var page = PageRows;
-        if (_cache.Count <= page * 4)
-        {
-            return;
-        }
-
         var lo = _top - page;
         var hi = _top + (page * 2);
-        foreach (var key in _cache.Keys.Where(k => k < lo || k > hi).ToList())
+        if (_cache.Count > page * 4)
         {
-            _cache.Remove(key);
+            foreach (var key in _cache.Keys.Where(k => k < lo || k > hi).ToList())
+            {
+                _cache.Remove(key);
+            }
+        }
+
+        if (_cells.Count > page * 4)
+        {
+            foreach (var key in _cells.Keys.Where(k => k < lo || k > hi).ToList())
+            {
+                _cells.Remove(key);
+            }
         }
     }
 
@@ -1135,22 +1499,30 @@ public sealed class FilePanelView : Control
         }
 
         var family = Resource("Font.Panel") as FontFamily ?? new FontFamily("Segoe UI");
-        _fontSize = Resource("Font.PanelSize") is { } s ? Convert.ToDouble(s, CultureInfo.InvariantCulture) : FontSetting.DefaultPanelSize;
+        _fontSize = Resource("Font.PanelSizeShown") is { } s ? Convert.ToDouble(s, CultureInfo.InvariantCulture) : FontSetting.DefaultPanelSize;
         _face = new Typeface(family);
         _bold = new Typeface(family, FontStyle.Normal, FontWeight.SemiBold);
+        _italic = new Typeface(family, FontStyle.Italic);
+        _mono = new Typeface(Resource("Font.Mono") as FontFamily ?? FontFamily.Default);
         _b = new Brushes(Brush);
+        _ruleBrushes.Clear();
         _markTexts.Clear();
+        _lineH = Math.Ceiling(Text(" ", _face, _b.Text, _fontSize).Height);
+        _briefFit = -1;
 
         double Measure(string s) => Math.Ceiling(Text(s, _face, _b.Text, _fontSize).WidthIncludingTrailingWhitespace);
-        var (size, date, time) = _format.Samples;
+        var (size, date, time, relative) = _format.Samples;
         var k = _fontSize / 13;
         _widths = new ColumnWidths(
             Ext: Math.Max(Measure("tar.gz"), 44 * k),
-            ExtFit: 0,
-            Size: Math.Max(Measure(size), Measure(_folderText)),
-            Date: Measure(date),
-            Time: Math.Max(Measure(time), Measure(_timeHead)),
+            Size: Math.Max(Measure(size), Math.Max(Measure(_folderText), Measure(_dirText))),
+            Date: Math.Max(Measure(date), Measure(_modifiedHead) - Measure(time) - 8),
+            Time: Measure(time),
             Attr: Math.Max(Measure("RHSA"), Measure(_attrHead)),
+            Items: Math.Max(Measure(_format.Number(99999)), Measure(_itemsHead)),
+            Dos: Math.Max(Measure("WWWWWW~1.WWW"), Measure(_dosHead)),
+            Git: Math.Max(Measure("M") + GitTagPadding, Measure(_gitHead)),
+            Relative: Math.Max(Measure(relative), Measure(_modifiedHead)),
             Gap: 14 * k);
         _themeValid = true;
     }
@@ -1161,24 +1533,6 @@ public sealed class FilePanelView : Control
 
     private static FormattedText Text(string s, Typeface face, IBrush brush, double size)
         => new(s, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, face, size, brush);
-
-    private SortColumn? ColumnAt(double x)
-    {
-        var cols = ColumnsFor(Bounds.Width - ScrollBarWidth);
-        if (x < (cols.ShowExt ? cols.ExtX : cols.SizeRight - cols.SizeWidth) - 4)
-        {
-            return SortColumn.Name;
-        }
-
-        if (cols.ShowExt && x < cols.SizeRight - cols.SizeWidth)
-        {
-            return SortColumn.Extension;
-        }
-
-        return x <= cols.SizeRight + 4 ? SortColumn.Size : x <= cols.TimeRight + 4 ? SortColumn.Time : null;
-    }
-
-    private sealed record RowText(FormattedText Name, FormattedText Ext, FormattedText Size, FormattedText Date, FormattedText Time, FormattedText Attr, FormattedText? Folder);
 
     private double MarkShift => _panel?.CompareMarks is not null ? MarkWidth : 0;
 
@@ -1201,11 +1555,19 @@ public sealed class FilePanelView : Control
         return text;
     }
 
-    private double FolderX(Columns cols) => NameX + (((cols.ShowExt ? cols.ExtX : cols.SizeRight - cols.SizeWidth) - 8 - NameX) * 0.45);
+    private bool HasFolderLook(in FileEntry entry)
+        => _folderLooks is { IsEmpty: false } looks && _panel is not null && looks.Of(Salandual.Platform.Windows.FileSystem.WindowsPath.Join(_panel.Path, entry.Name)) is not null;
+
+    private bool HasFolderColour(in FileEntry entry, bool up)
+        => !up && entry.IsDirectory && _folderLooks is { IsEmpty: false } looks && _panel is not null
+            && looks.Of(Salandual.Platform.Windows.FileSystem.WindowsPath.Join(_panel.Path, entry.Name)) is { Colour: not NameColour.Normal };
 
     private sealed class Brushes(Func<string, IBrush> get)
     {
         public IBrush Background { get; } = get("PanelBackground");
+        public Rgb BackgroundRgb { get; } = get("PanelBackground") is ISolidColorBrush { Color: var c } ? new Rgb(c.R, c.G, c.B) : new Rgb(255, 255, 255);
+        public bool Dark => ColorMath.Luminance(BackgroundRgb) < 0.2;
+        public IPen BadgePen { get; } = new ImmutablePen(get("BorderStrong").ToImmutable(), 1);
         public IBrush Header { get; } = get("ColumnHeader");
         public IBrush Border { get; } = get("Border");
         public IBrush Text { get; } = get("Text");
@@ -1218,58 +1580,52 @@ public sealed class FilePanelView : Control
         public IBrush Encrypted { get; } = get("EncryptedFiles");
         public IBrush Thumb { get; } = get("BorderStrong");
         public IBrush Folder { get; } = get("Warning");
+        public IBrush Warning { get; } = get("Warning");
+        public IBrush Danger { get; } = get("Danger");
+        public IBrush Success { get; } = get("Success");
         public IBrush Accent { get; } = get("Accent");
+        public IBrush GitChanged { get; } = get("GitChanged");
+        public IBrush GitStaged { get; } = get("GitStaged");
+        public IBrush GitNew { get; } = get("GitNew");
+        public IBrush GitDeleted { get; } = get("GitDeleted");
+        public IBrush GitConflicted { get; } = get("GitConflicted");
+        public IBrush GitIgnored { get; } = get("GitIgnored");
         public IBrush FileIcon { get; } = get("BorderStrong");
         public IPen FocusPen { get; } = new ImmutablePen(get("FocusOutline").ToImmutable(), 1.5);
         public IPen FocusPenInactive { get; } = new ImmutablePen(get("FocusOutlineInactive").ToImmutable(), 1);
+        public IBrush FocusBackground { get; } = get("FocusBackground");
+        public IBrush FocusBackgroundInactive { get; } = get("FocusBackgroundInactive");
         public IPen AccentPen { get; } = new ImmutablePen(get("Accent").ToImmutable(), 1.5);
         public IPen DropPen { get; } = new ImmutablePen(get("Accent").ToImmutable(), 2);
+        public IPen LockPen { get; } = new ImmutablePen(get("EncryptedFiles").ToImmutable(), 1.3, lineCap: PenLineCap.Round);
         public IPen IconPen { get; } = new ImmutablePen(get("SecondaryText").ToImmutable(), 1.5, lineCap: PenLineCap.Round);
+        public IPen PicturePen { get; } = new ImmutablePen(get("Border").ToImmutable(), 1);
+        public IPen StripePen { get; } = new ImmutablePen(get("Border").ToImmutable(), 3);
+        public IBrush Badge { get; } = new ImmutableSolidColorBrush(Color.FromArgb(0xB0, 0x10, 0x10, 0x10));
+        public IBrush Stripe { get; } = get("RowStripe");
     }
 
-    private readonly record struct ColumnWidths(double Ext, double ExtFit, double Size, double Date, double Time, double Attr, double Gap);
+    private readonly record struct ColumnWidths(double Ext, double Size, double Date, double Time, double Attr, double Items, double Dos, double Git, double Relative, double Gap);
+}
 
-    private readonly record struct Columns(double ExtX, double ExtWidth, double SizeRight, double SizeWidth, double DateRight, double TimeRight, double AttrX, double Right,
-        bool ShowExt, bool ShowDate, bool ShowTime, bool ShowAttr)
-    {
-        private const double MinName = 140;
 
-        public static Columns For(double width, ColumnWidths w, bool extColumn = true)
-        {
-            bool attr = true, time = true, date = true, ext = extColumn;
-            double Needed() => BaseNameX + MarkWidth + MinName + w.Size + w.Gap + (ext ? w.Ext + w.Gap : 0) + (date ? w.Date + w.Gap : 0) + (time ? w.Time + w.Gap : 0) + (attr ? w.Attr + w.Gap : 0);
-            attr = Needed() <= width;
-            time = Needed() <= width;
-            date = Needed() <= width;
-            ext = ext && Needed() <= width;
+public sealed record PlaceColumns(string Head, Func<FileEntry, string?> Text)
+{
+    public Func<FileEntry, double?>? Fill { get; init; }
 
-            var x = width - 6;
-            var attrX = x;
-            if (attr)
-            {
-                attrX = x - w.Attr;
-                x = attrX - w.Gap;
-            }
+    public Func<FileEntry, string?>? Size { get; init; }
 
-            var timeRight = x;
-            if (time)
-            {
-                x -= w.Time + w.Gap;
-            }
+    public string? DateHead { get; init; }
 
-            var dateRight = x;
-            if (date)
-            {
-                x -= w.Date + w.Gap;
-            }
+    public string? SizeHead { get; init; }
 
-            var sizeRight = x;
-            x -= w.Size + w.Gap;
-            var extWidth = ext ? Math.Min(Math.Max(w.Ext, w.ExtFit), Math.Max(w.Ext, (x - BaseNameX - MarkWidth) / 3)) : 0;
-            var extX = x - extWidth;
-            return new Columns(extX, extWidth, sizeRight, w.Size, dateRight, timeRight, attrX, width, ext, date, time, attr);
-        }
-    }
+    public Func<FileEntry, string?>? IconPath { get; init; }
+
+    public double? Share { get; init; }
+
+    public IReadOnlyCollection<PanelColumn> Hide { get; init; } = [];
+
+    public Func<FileEntry, string?>? Glyph { get; init; }
 }
 
 public sealed class CommandRequest(string id)

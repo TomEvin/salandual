@@ -54,10 +54,11 @@ public partial class MainWindow
             return null;
         }
 
+        RememberFile(path);
         return await OpenEditorAsync(host, path);
     }
 
-    internal async Task<EditorWindow?> OpenEditorAsync(PanelHost host, string path, bool anyway = false, bool internalEditor = false, bool newFile = false)
+    internal async Task<EditorWindow?> OpenEditorAsync(PanelHost host, string path, bool anyway = false, bool internalEditor = false, bool newFile = false, string? copyNote = null, Func<string, Task>? saved = null)
     {
         if (_editors.FirstOrDefault(e => string.Equals(e.FilePath, path, StringComparison.OrdinalIgnoreCase)) is { } open)
         {
@@ -72,7 +73,7 @@ public partial class MainWindow
 
         var editors = _services.Settings.Current.Editors;
         var name = WindowsPath.GetName(path);
-        if (!internalEditor && editors.ProgramFor(name) is { } program)
+        if (!internalEditor && copyNote is null && editors.ProgramFor(name) is { } program)
         {
             StartEditor(program, path);
             return null;
@@ -109,7 +110,8 @@ public partial class MainWindow
                 [Loc.Format(AppStrings.Editor_TooBig_Text, format.Size(size), format.Size(largest)), AppStrings.Editor_TooBig_Anyway],
                 choices,
                 cancel: "cancel",
-                width: 620);
+                width: 620,
+                group: Core.Settings.ConfirmGroup.Save);
             var answer = await question.ShowDialog<string?>(this);
             TooBigQuestion = null;
             switch (answer)
@@ -142,6 +144,8 @@ public partial class MainWindow
             PageView = PageViewFactory,
             Clipboard = FileClipboardAccess,
             EditWith = file => EditWithItems(file, internalEditor: null),
+            CopyNote = copyNote,
+            Saved = saved,
         };
         var window = new EditorWindow(_services.Settings, request)
         {
@@ -375,6 +379,7 @@ public partial class MainWindow
         {
             if (!await editor.CloseAskingAsync())
             {
+                Program.RestartAfterClose = false;
                 return;
             }
         }
@@ -383,12 +388,14 @@ public partial class MainWindow
         {
             if (!await compare.CloseAskingAsync())
             {
+                Program.RestartAfterClose = false;
                 return;
             }
         }
 
         if (lists && !await CloseListsAskingAsync())
         {
+            Program.RestartAfterClose = false;
             return;
         }
 

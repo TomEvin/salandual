@@ -12,6 +12,8 @@ namespace Salandual.Core.Resources;
 
 public static class Loc
 {
+    public static CultureInfo TextCulture => CultureInfo.GetCultureInfo(Strings.Text_Culture);
+
     public static string Format(string format, params object?[] args) => string.Format(CultureInfo.CurrentCulture, format, args);
 
     public static string Plural(long count, string one, string other, params object?[] more)

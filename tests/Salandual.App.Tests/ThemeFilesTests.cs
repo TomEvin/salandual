@@ -105,7 +105,7 @@ public sealed class ThemeFilesTests : IDisposable
         Assert.Equal("#001122", Settings.Current.Appearance.Themes[0].Colors[ColorTokens.PanelBackground]);
         Click(ButtonNamed(w.Page, "Update from VS Code"));
         Assert.Equal("#003344", Settings.Current.Appearance.Themes[0].Colors[ColorTokens.PanelBackground]);
-        Assert.Equal("Ocean has the colours it has in VS Code now.", w.ThemeNoticeText!.Text);
+        Assert.Equal("Ocean has the colors it has in VS Code now.", w.ThemeNoticeText!.Text);
         w.Close();
     }
 
@@ -151,7 +151,7 @@ public sealed class ThemeFilesTests : IDisposable
 
         var menu = w.ThemeImportMenu!;
         var headers = menu.Items.OfType<MenuItem>().Select(i => i.Header as string).ToList();
-        Assert.Equal(["A Salandual theme file…", "A VS Code theme file…", "A colour file from before themes…", "From your VS Code", "Ocean"], headers);
+        Assert.Equal(["A Salandual theme file…", "A VS Code theme file…", "A color file from before themes…", "From your VS Code", "Ocean"], headers);
 
         w.ImportFromVsCode(vs);
         Dispatcher.UIThread.RunJobs();

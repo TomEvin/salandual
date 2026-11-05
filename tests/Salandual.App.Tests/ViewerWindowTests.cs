@@ -487,6 +487,58 @@ public sealed class ViewerWindowTests : IDisposable
         await Task.CompletedTask;
     }
 
+    [AvaloniaFact]
+    public async Task ScrollBar_ThumbAsLongAsTheScreen_ReachesTheBottomAtTheEnd_HomeAndEndJump()
+    {
+        var w = await Open("b-build.log");
+        var v = await Viewer(w);
+        await v.Document!.Index.Completion;
+        var bar = v.VerticalBar;
+        var text = v.TextView;
+
+        Assert.True(bar.IsVisible);
+        var rows = (int)(text.Bounds.Height / text.RowHeight);
+        var share = bar.ViewportSize / (bar.Maximum - bar.Minimum + bar.ViewportSize);
+        var expected = Math.Max(rows / 20000.0, 0.002);
+        Assert.InRange(share, expected * 0.85, expected * 1.15);
+        Assert.Equal(0, bar.Value);
+
+        Press(v, Key.End);
+        Assert.Equal(bar.Maximum, bar.Value, 9);
+        var end = text.TopOffset;
+        Assert.True(end > 0);
+        Press(v, Key.Home);
+        Assert.Equal(0, text.TopOffset);
+        Assert.Equal(0, bar.Value);
+
+        bar.Value = bar.Maximum;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(end, text.TopOffset);
+
+        Press(v, Key.F4);
+        Press(v, Key.End, RawInputModifiers.Control);
+        Assert.Equal(bar.Maximum, bar.Value, 9);
+        v.Close();
+        w.CloseNow();
+    }
+
+    [AvaloniaFact]
+    public async Task ScrollBar_Hidden_WhenTheWholeFileIsOnScreen()
+    {
+        var w = await Open("a-notes.txt");
+        var v = await Viewer(w);
+        Assert.False(v.VerticalBar.IsVisible);
+        Press(v, Key.F4);
+        v.CaptureRenderedFrame();
+        Assert.False(v.VerticalBar.IsVisible);
+        Press(v, Key.F2);
+        Press(v, Key.F2);
+        v.CaptureRenderedFrame();
+        Assert.False(v.VerticalBar.IsVisible);
+        v.Close();
+        w.CloseNow();
+    }
+
     private sealed class FakeClipboard : IClipboardAccess
     {
         public string? Text { get; private set; }

@@ -111,7 +111,7 @@ internal abstract class ContentView : Control
 
     protected Typeface MonoTypeface => new(this.TryFindResource("Font.Mono", ActualThemeVariant, out var f) && f is FontFamily family ? family : FontFamily.Default);
 
-    protected double MonoSize => this.TryFindResource("Font.MonoSize", ActualThemeVariant, out var s) && s is double size ? size : 13;
+    protected double MonoSize => this.TryFindResource("Font.MonoSizeShown", ActualThemeVariant, out var s) && s is double size ? size : 13;
 
     protected IBrush Brush(string key)
         => this.TryFindResource(key, ActualThemeVariant, out var b) && b is IBrush brush ? brush : Brushes.Gray;
@@ -125,6 +125,12 @@ internal abstract class ContentView : Control
     protected IBrush CurrentMatchBrush => Brush("Brush.ViewerCurrentMatch");
 
     public bool SelectionIsMatch { get; set; }
+
+    protected override void OnSizeChanged(SizeChangedEventArgs e)
+    {
+        base.OnSizeChanged(e);
+        Changed();
+    }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {

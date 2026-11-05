@@ -456,6 +456,57 @@ public static unsafe partial class ShellLinks
 
     public static Task<string> CreateAsync(string target, string folder) => ShellThread.Run(() => Create(target, folder));
 
+    public static Task<string?> FolderTargetAsync(string shortcut) => ShellThread.Run(() =>
+    {
+        var target = Target(shortcut);
+        return target is { Length: > 0 } && Directory.Exists(target) ? target : null;
+    });
+
+    public static Task<string?> TargetAsync(string shortcut) => ShellThread.Run(() =>
+    {
+        var target = Target(shortcut);
+        return target is { Length: > 0 } && (File.Exists(target) || Directory.Exists(target)) ? target : null;
+    });
+
+    private static string? Target(string shortcut)
+    {
+        var clsid = ClsidShellLink;
+        var iid = IidShellLinkW;
+        void* link = null;
+        void* file = null;
+        try
+        {
+            if (ShellDrag.CoCreateInstance(&clsid, null, 1, &iid, &link) < 0)
+            {
+                return null;
+            }
+
+            var iidFile = IidPersistFile;
+            if (((delegate* unmanaged[Stdcall]<void*, Guid*, void**, int>)(*(void***)link)[0])(link, &iidFile, &file) < 0)
+            {
+                return null;
+            }
+
+            fixed (char* p = shortcut)
+            {
+                if (((delegate* unmanaged[Stdcall]<void*, char*, int, int>)(*(void***)file)[5])(file, p, 0) < 0)
+                {
+                    return null;
+                }
+            }
+
+            var path = stackalloc char[1024];
+            var found = stackalloc byte[592];
+            var hr = ((delegate* unmanaged[Stdcall]<void*, char*, int, byte*, uint, int>)(*(void***)link)[3])(link, path, 1024, found, 0);
+            return hr == 0 ? new string(path) : null;
+        }
+        finally
+        {
+            ShellItems.Release(file);
+            ShellItems.Release(link);
+        }
+    }
+
     private static string Create(string target, string folder)
     {
         var name = stackalloc char[260];

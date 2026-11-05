@@ -8,11 +8,13 @@
 
 using System.Globalization;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using Avalonia.Threading;
 using Avalonia.Utilities;
+using Salandual.Core.Git;
 using Salandual.Core.Viewer;
 
 namespace Salandual.App.Viewer;
@@ -32,7 +34,6 @@ internal sealed class TextContentView : ContentView
     private int _topRow;
     private double _scrollX;
     private long _caretLine;
-    private long _shownEnd;
     private double _widest;
     private int _gutterDigits = 4;
     private double _layoutWidth = -1;
@@ -145,9 +146,110 @@ internal sealed class TextContentView : ContentView
         }
     }
 
-    public override double ViewportFraction => Document is { } d && d.Length > d.Lines.Start ? Math.Clamp((double)(_shownEnd - _top) / (d.Length - d.Lines.Start), 0.002, 1) : 1;
+    public override double ViewportFraction
+    {
+        get
+        {
+            if (Document is not { } d || d.Length <= d.Lines.Start)
+            {
+                return 1;
+            }
 
-    private double TextLeft => (_lineNumbers ? (_gutterDigits * CharWidth) + 20 : 0) + Pad;
+            var end = ShownEnd(d);
+            return end >= d.Length && _top == d.Lines.Start && _topRow == 0 ? 1 : Math.Clamp((double)(end - _top) / (d.Length - d.Lines.Start), 0.002, 1);
+        }
+    }
+
+
+    private const int BlameChars = 34;
+
+    private ViewerBlameColumn? _blame;
+
+    public ViewerBlameColumn? Blame
+    {
+        get => _blame;
+        set
+        {
+            _blame = value;
+            _cache.Clear();
+            Changed();
+        }
+    }
+
+    private double BlameWidth => _blame is null ? 0 : (BlameChars * CharWidth) + 16;
+
+    public void MoveCaretLines(int lines)
+    {
+        if (Document is not { } d)
+        {
+            return;
+        }
+
+        var at = _caretLine;
+        for (var i = 0; i < Math.Abs(lines); i++)
+        {
+            if (lines > 0)
+            {
+                var next = Line(at).Next;
+                if (next <= at || next >= d.Length)
+                {
+                    break;
+                }
+
+                at = next;
+            }
+            else if (d.Lines.Previous(at) is { } previous)
+            {
+                at = previous;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        Caret = at;
+        Anchor = at;
+        _caretLine = at;
+        Reveal(at);
+    }
+
+    public long? CaretLineNumber => Document?.Index.NumberOf(_caretLine);
+
+    private void DrawBlame(DrawingContext context, GitBlameRun? run, long n, double y, double height, bool firstShown)
+    {
+        if (_blame is not { } blame || run is null)
+        {
+            return;
+        }
+
+        var age = blame.Blame.Age(run.Commit);
+        var newest = run.Commit is { } c && c.When == blame.Blame.Newest;
+        var bar = run.Commit is null ? Brush("Brush.GitChanged") : newest ? Brush("Brush.Accent") : Brush("Brush.CodeLineNumbers");
+        context.FillRectangle(bar, new Rect(Pad / 2, y, 3, height));
+        if (run.Start == n && n > 0)
+        {
+            context.FillRectangle(Brush("Brush.Border"), new Rect(0, y, BlameWidth, 1));
+        }
+
+        if (run.Start != n && !firstShown)
+        {
+            return;
+        }
+
+        var ink = run.Commit is null ? Brush("Brush.GitChanged") : Brush("Brush.CodeLineNumbers");
+        var text = new FormattedText(blame.Label(run), CultureInfo.CurrentCulture, FlowDirection.LeftToRight, MonoTypeface, Math.Max(9, MonoSize - 1), ink)
+        {
+            MaxTextWidth = Math.Max(10, BlameWidth - Pad - 8),
+            MaxLineCount = 1,
+            Trimming = TextTrimming.CharacterEllipsis,
+        };
+        using (context.PushOpacity(run.Commit is null ? 1 : 1 - (0.5 * age)))
+        {
+            context.DrawText(text, new Point(Pad + 4, y + ((RowHeight - text.Height) / 2)));
+        }
+    }
+    private double TextLeft => BlameWidth + (_lineNumbers ? (_gutterDigits * CharWidth) + 20 : 0) + Pad;
 
     private double TextWidth => Math.Max(40, Bounds.Width - TextLeft - Pad);
 
@@ -316,14 +418,15 @@ internal sealed class TextContentView : ContentView
         _widest = 0;
     }
 
-    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    protected override void OnSizeChanged(SizeChangedEventArgs e)
     {
-        base.OnPropertyChanged(change);
-        if (change.Property == BoundsProperty && _wrap && Math.Abs(TextWidth - _layoutWidth) > 0.5)
+        if (_wrap && Math.Abs(TextWidth - _layoutWidth) > 0.5)
         {
             _cache.Clear();
             _topRow = 0;
         }
+
+        base.OnSizeChanged(e);
     }
 
     public override void Render(DrawingContext context)
@@ -355,6 +458,11 @@ internal sealed class TextContentView : ContentView
             if (at == _caretLine)
             {
                 context.FillRectangle(currentBrush, new Rect(0, y, bounds.Width, height));
+            }
+
+            if (_blame is not null && number is { } blamed)
+            {
+                DrawBlame(context, _blame.Blame.RunAt((int)Math.Min(blamed, int.MaxValue)), blamed, y, height, at == _top);
             }
 
             if (_lineNumbers && number is { } n)
@@ -398,7 +506,6 @@ internal sealed class TextContentView : ContentView
             at = line.Next;
         }
 
-        _shownEnd = at;
         if (_cache.Count > CacheLimit)
         {
             _cache.Clear();
@@ -620,6 +727,25 @@ internal sealed class TextContentView : ContentView
         }
 
         return true;
+    }
+
+    private long ShownEnd(ViewerDocument d)
+    {
+        var rows = -_topRow;
+        var at = _top;
+        while (at < d.Length)
+        {
+            var line = Line(at);
+            if (rows + line.Rows > ViewportRows || line.Next == at)
+            {
+                break;
+            }
+
+            rows += line.Rows;
+            at = line.Next;
+        }
+
+        return at;
     }
 
     private void UpdateGutter(ViewerDocument d)

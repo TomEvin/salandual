@@ -17,6 +17,9 @@
     <PackageReference Include="YamlDotNet" />
   </ItemGroup>
   <ItemGroup>
+    <AssemblyMetadata Include="BuildDate" Value="$([System.DateTime]::Now.ToString('yyyy-MM-dd'))" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Salandual.Core.Tests" />
   </ItemGroup>
   <ItemGroup>

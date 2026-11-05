@@ -127,7 +127,7 @@ internal sealed partial class ViewerWindow
         right.Click += (_, _) => _imageView.Rotate(1);
         var full = _fullScreen = Tool(Glyph("Icon.FullScreen"), AppStrings.Viewer_FullScreenTip);
         full.Click += (_, _) => ToggleFullScreen();
-        _imageTools = Row(_fit, _width, _actual, ZoomTools = Group(zoomOut, _zoomBox, zoomIn), Separator(), left, right, full);
+        _imageTools = Row([_fit, _width, _actual, ZoomTools = Group(zoomOut, _zoomBox, zoomIn), Separator(), left, right, full, .. BuildAnimationTools()]);
         _copyImage = Tool(Glyph("Icon.Copy"), AppStrings.Viewer_CopyImageTip);
         _copyImage.Click += (_, _) => _ = CopyImageAsync();
         return _imageTools;
@@ -178,6 +178,7 @@ internal sealed partial class ViewerWindow
     private async Task LoadImage(string path, bool keepTurn)
     {
         CancelImage();
+        StopAnimation();
         var cancel = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         _imageCancel = cancel;
         var token = cancel.Token;
@@ -193,7 +194,11 @@ internal sealed partial class ViewerWindow
         {
             _imageLength = new FileInfo(WindowsPath.ToExtended(path)).Length;
             image = await (TakePreload(path, target) ?? Task.Run(() => ImageDecoder.Decode(WindowsPath.ToExtended(path), target.Width, target.Height, token), token));
-            bitmap = await Task.Run(() => ImageView.ToBitmap(image), token);
+            bitmap = await Task.Run(() =>
+            {
+                _ = image.HasTransparency;
+                return ImageView.ToBitmap(image);
+            }, token);
         }
         catch (OperationCanceledException)
         {
@@ -224,6 +229,7 @@ internal sealed partial class ViewerWindow
         UpdateToolbar();
         UpdateStatus();
         Preload();
+        AnimationLoading = LoadAnimation(path, image, token);
     }
 
     private void DropDocument()
@@ -246,6 +252,7 @@ internal sealed partial class ViewerWindow
 
         _imageMode = true;
         _mediaMode = false;
+        _torrentPage = TorrentPage.None;
         _treeMode = false;
         _hexMode = false;
         _content.Content = _imageHost;
@@ -333,7 +340,11 @@ internal sealed partial class ViewerWindow
         try
         {
             var detail = await Task.Run(() => image.IsPreview ? ImageDecoder.DecodeFull(path, token: token) : ImageDecoder.Decode(path, token: token), token);
-            var bitmap = await Task.Run(() => ImageView.ToBitmap(detail), token);
+            var bitmap = await Task.Run(() =>
+            {
+                _ = detail.HasTransparency;
+                return ImageView.ToBitmap(detail);
+            }, token);
             if (!token.IsCancellationRequested && ReferenceEquals(_imageView.Image, image))
             {
                 _imageView.SetDetail(detail, bitmap);
@@ -432,6 +443,7 @@ internal sealed partial class ViewerWindow
             var size = _imageView.Size;
             Status(left, Loc.Format(AppStrings.Viewer_ImageSize, size.Width, size.Height));
             Status(left, Percent(_imageView.Zoom));
+            AnimationStatus(left);
             if (_detailBusy)
             {
                 Status(left, AppStrings.Viewer_DecodingFullStatus, busy: true);
@@ -441,7 +453,8 @@ internal sealed partial class ViewerWindow
                 Status(left, Loc.Format(AppStrings.Viewer_EmbeddedPreviewStatus, image.Width, image.Height));
             }
 
-            Status(right, ImageFormats.Name(_path) ?? Loc.Format(AppStrings.Viewer_CameraRaw, Path.GetExtension(_path).TrimStart('.').ToUpperInvariant()), strong: true);
+            var format = ImageFormats.Name(_path) ?? Loc.Format(AppStrings.Viewer_CameraRaw, Path.GetExtension(_path).TrimStart('.').ToUpperInvariant());
+            Status(right, _animation is null ? format : Loc.Format(AppStrings.Viewer_Animated, format), strong: true);
             Status(right, DisplayFormat.From(_settings.Current.Panels, CultureInfo.CurrentCulture).Size(_imageLength));
         }
 
@@ -460,6 +473,8 @@ internal sealed partial class ViewerWindow
             CanvasColor.Custom when ColorMath.TryParseHex(o.CanvasCustom, out var c) => new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B)),
             _ => new SolidColorBrush(Color.FromRgb(0x1C, 0x1C, 0x1C)),
         };
+        _imageView.Backdrop = TransparentBrush();
+        _imageView.Checker = TransparentChecker();
     }
 
     internal static string CanvasLabel(CanvasColor canvas) => canvas switch
@@ -491,6 +506,9 @@ internal sealed partial class ViewerWindow
             case Key.E when plain: ToggleInfo(); return true;
             case Key.Escape when plain && WindowState == WindowState.FullScreen: ExitFullScreen(); return true;
             case Key.C when mods == KeyModifiers.Control: _ = CopyImageAsync(); return true;
+            case Key.P when plain && _animation is not null: TogglePlay(); return true;
+            case Key.OemComma when plain && _animation is not null: StepFrame(-1); return true;
+            case Key.OemPeriod when plain && _animation is not null: StepFrame(1); return true;
             case Key.Left when plain: _imageView.PanBy(new Vector(-page, 0)); return true;
             case Key.Right when plain: _imageView.PanBy(new Vector(page, 0)); return true;
             case Key.Up when plain: _imageView.PanBy(new Vector(0, -page)); return true;
@@ -552,11 +570,12 @@ internal sealed partial class ViewerWindow
 
         var path = WindowsPath.ToExtended(_path);
         var (turns, flipH, flipV) = (_imageView.Turns, _imageView.FlippedHorizontally, _imageView.FlippedVertically);
+        var frame = _animation?.Frames[_frame];
         try
         {
             var (dib, png) = await Task.Run(() =>
             {
-                var image = ImageFormats.Turn(ImageDecoder.Decode(path), turns);
+                var image = ImageFormats.Turn(frame ?? ImageDecoder.Decode(path), turns);
                 image = flipH ? ImageFormats.Flip(image, horizontally: true) : image;
                 image = flipV ? ImageFormats.Flip(image, horizontally: false) : image;
                 return ClipboardImage(image);

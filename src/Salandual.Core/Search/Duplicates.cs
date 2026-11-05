@@ -144,7 +144,7 @@ public static class Duplicates
             using var stream = search.OpenContent(file);
             if (stream is null)
             {
-                callbacks.Log?.Invoke(new SearchLogEntry(SearchLogKind.NotRead, file.FullPath, file.Archive is null ? Resources.Strings.Find_LogOnlineOnly : Resources.Strings.Find_LogTooBigInZip));
+                callbacks.Log?.Invoke(new SearchLogEntry(SearchLogKind.NotRead, file.FullPath, file.Archive is null ? Resources.Strings.Find_LogOnlineOnly : Resources.Strings.Find_LogTooBigInArchive));
                 return null;
             }
 

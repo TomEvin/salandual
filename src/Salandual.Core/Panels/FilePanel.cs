@@ -24,7 +24,13 @@ public enum PanelChange
     QuickSearch = 8,
 
     Sizes = 16,
+
+    View = 32,
+
+    Loading = 64,
 }
+
+public readonly record struct HistoryStep(string Path, string? Focus, long Order);
 
 public readonly record struct SelectionSummary(int Files, int Folders, long Bytes)
 {
@@ -44,6 +50,7 @@ public sealed partial class FilePanel : IDisposable
     private CancellationTokenSource? _loadCts;
     private int _loadVersion;
     private bool _refreshRunning;
+    private int _loadingVersion;
     private bool _refreshPending;
     private bool? _extendState;
     private HashSet<string>? _rememberedSelection;
@@ -52,8 +59,9 @@ public sealed partial class FilePanel : IDisposable
     private CancellationTokenSource? _sizeCts;
     private readonly Dictionary<string, (string Name, int Row)> _screenRows = new(StringComparer.OrdinalIgnoreCase);
     private int? _focusScreenRow;
-    private readonly List<(string Path, string? Focus)> _back = [];
-    private readonly List<(string Path, string? Focus)> _forward = [];
+    private readonly List<HistoryStep> _back = [];
+    private readonly List<HistoryStep> _forward = [];
+    private int _historyLimit = MaxHistory;
     private bool _movingInHistory;
     private string? _pendingFocus;
     private HashSet<string>? _pendingSelect;
@@ -84,6 +92,8 @@ public sealed partial class FilePanel : IDisposable
     public SortSpec Sort { get; private set; } = SortSpec.Default;
 
     public bool ShowHidden { get; private set; }
+
+    public PanelView View { get; private set; } = PanelView.Detailed;
 
     public bool SelectFoldersWithNumPlus { get; set; }
 
@@ -146,27 +156,116 @@ public sealed partial class FilePanel : IDisposable
         return names;
     }
 
-    public Task<bool> NavigateAsync(string path, string? focusName = null) => LoadAsync(path, focusName, keepSelection: false, reportErrors: true);
+    public Task<bool> NavigateAsync(string path, string? focusName = null)
+        => Diverted(path, focusName) ? Task.FromResult(true) : LoadAsync(path, focusName, keepSelection: false, reportErrors: true);
+
+    public Func<string, string?, bool>? LeavingFolder { get; set; }
+
+    private bool Diverted(string path, string? focusName)
+        => LeavingFolder is { } leaving && Path.Length > 0 && Results is null
+           && !string.Equals(path.TrimEnd('\\', '/'), Path.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase) && leaving(path, focusName);
+
+    public void CancelLoading() => _loadCts?.Cancel();
+
+    public long? LoadingSince { get; private set; }
+
+    public string? LoadingPath { get; private set; }
+
+    private void EndLoading(int version)
+    {
+        if (version == _loadingVersion && LoadingSince is not null)
+        {
+            LoadingSince = null;
+            LoadingPath = null;
+            Changed?.Invoke(this, PanelChange.Loading);
+        }
+    }
 
     public const int MaxHistory = 50;
+
+    private static long _stepCount;
+
+    public int HistoryLimit
+    {
+        get => _historyLimit;
+        set
+        {
+            _historyLimit = Math.Max(1, value);
+            Trim(_back);
+            Trim(_forward);
+        }
+    }
 
     public bool CanGoBack => _back.Count > 0;
 
     public bool CanGoForward => _forward.Count > 0;
 
-    public IReadOnlyList<(string Path, string? Focus)> BackHistory => _back;
+    public IReadOnlyList<HistoryStep> BackHistory => _back;
+
+    public IReadOnlyList<HistoryStep> ForwardHistory => _forward;
+
+    public event EventHandler? HistoryChanged;
 
     public Task<bool> GoBackAsync() => MoveInHistory(_back, _forward);
 
     public Task<bool> GoForwardAsync() => MoveInHistory(_forward, _back);
 
-    private async Task<bool> MoveInHistory(List<(string Path, string? Focus)> from, List<(string Path, string? Focus)> to)
+    public Task<bool> GoBackAsync(int steps) => Jump(_back, _forward, steps);
+
+    public Task<bool> GoForwardAsync(int steps) => Jump(_forward, _back, steps);
+
+    public void ClearHistory()
     {
+        _back.Clear();
+        _forward.Clear();
+        HistoryChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task<bool> Jump(List<HistoryStep> from, List<HistoryStep> to, int steps)
+    {
+        steps = Math.Clamp(steps, 1, Math.Max(1, from.Count));
+        if (steps == 1)
+        {
+            return await MoveInHistory(from, to);
+        }
+
+        var passed = from.GetRange(from.Count - steps + 1, steps - 1);
+        from.RemoveRange(from.Count - steps + 1, steps - 1);
+        if (await MoveInHistory(from, to))
+        {
+            passed.Reverse();
+            to.AddRange(passed);
+            Trim(to);
+            HistoryChanged?.Invoke(this, EventArgs.Empty);
+            return true;
+        }
+
+        from.AddRange(passed);
+        return false;
+    }
+
+    private void Trim(List<HistoryStep> steps)
+    {
+        if (steps.Count > _historyLimit)
+        {
+            steps.RemoveRange(0, steps.Count - _historyLimit);
+        }
+    }
+
+    private static HistoryStep Step(string path, string? focus) => new(path, focus, Interlocked.Increment(ref _stepCount));
+
+    private async Task<bool> MoveInHistory(List<HistoryStep> from, List<HistoryStep> to)
+    {
+        if (from.Count > 0 && Diverted(from[^1].Path, from[^1].Focus))
+        {
+            return true;
+        }
+
         while (from.Count > 0)
         {
-            var (path, focus) = from[^1];
+            var (path, focus, _) = from[^1];
             from.RemoveAt(from.Count - 1);
-            var here = (Path, FocusedEntry?.Name);
+            var here = Step(Path, FocusedEntry?.Name);
             _movingInHistory = true;
             bool ok;
             try
@@ -181,10 +280,13 @@ public sealed partial class FilePanel : IDisposable
             if (ok)
             {
                 to.Add(here);
+                Trim(to);
+                HistoryChanged?.Invoke(this, EventArgs.Empty);
                 return true;
             }
         }
 
+        HistoryChanged?.Invoke(this, EventArgs.Empty);
         return false;
     }
 
@@ -195,13 +297,10 @@ public sealed partial class FilePanel : IDisposable
             return;
         }
 
-        _back.Add((Path, FocusedEntry?.Name));
-        if (_back.Count > MaxHistory)
-        {
-            _back.RemoveAt(0);
-        }
-
+        _back.Add(Step(Path, FocusedEntry?.Name));
+        Trim(_back);
         _forward.Clear();
+        HistoryChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void ShowListing(DirectoryListing listing, bool watch = true)
@@ -209,7 +308,11 @@ public sealed partial class FilePanel : IDisposable
         _loadCts?.Cancel();
         ++_loadVersion;
         var visible = EntryFilter.Apply(listing.Entries, ShowHidden);
-        _sorter.Sort(visible, Sort);
+        if (!listing.KeepOrder)
+        {
+            _sorter.Sort(visible, Sort);
+        }
+
         Apply(listing.Path, visible, focusName: null, keepSelection: false);
         LastListTime = listing.Elapsed;
         if (watch)
@@ -229,6 +332,16 @@ public sealed partial class FilePanel : IDisposable
 
     public Task<bool> RefreshAsync()
     {
+        if (IsGitList)
+        {
+            return RereadGitListAsync();
+        }
+
+        if (IsFlat)
+        {
+            return ShowFlatAsync();
+        }
+
         if (Results is not null)
         {
             return RefreshResultsAsync(null);
@@ -239,11 +352,21 @@ public sealed partial class FilePanel : IDisposable
             return Task.FromResult(false);
         }
 
-        return LoadAsync(Path, FocusedEntry?.Name, keepSelection: true, reportErrors: true);
+        return LoadAsync(Path, null, keepSelection: true, reportErrors: true, focusAsItEnds: true);
     }
 
     public Task<bool> RefreshAsync(string focusName, IEnumerable<string>? select = null)
     {
+        if (IsGitList)
+        {
+            return RereadGitListAsync(focusName);
+        }
+
+        if (IsFlat)
+        {
+            return ShowFlatAsync();
+        }
+
         if (Results is not null)
         {
             return RefreshResultsAsync(focusName);
@@ -283,6 +406,16 @@ public sealed partial class FilePanel : IDisposable
             return;
         }
 
+        if (IsGitList && IsHeading(Focus))
+        {
+            return;
+        }
+
+        if ((IsHistory || IsCommit || IsTree || IsTags) && GitItemOpened is { } open && await open(entry))
+        {
+            return;
+        }
+
         if (IsUp(Focus))
         {
             await GoParentAsync();
@@ -295,9 +428,13 @@ public sealed partial class FilePanel : IDisposable
         {
             ExecuteRequested?.Invoke(this, _provider.Combine(Path, entry.Name));
         }
+        else if (Results is null)
+        {
+            await NavigateAsync(_provider.Combine(Path, entry.Name));
+        }
     }
 
-    private async Task<bool> LoadAsync(string path, string? focusName, bool keepSelection, bool reportErrors)
+    private async Task<bool> LoadAsync(string path, string? focusName, bool keepSelection, bool reportErrors, bool focusAsItEnds = false)
     {
         var isRefresh = keepSelection && path == Path;
         if (isRefresh && _refreshRunning)
@@ -311,6 +448,10 @@ public sealed partial class FilePanel : IDisposable
         var version = ++_loadVersion;
         var sort = Sort;
         var showHidden = ShowHidden;
+        _loadingVersion = version;
+        LoadingSince = Environment.TickCount64;
+        LoadingPath = path;
+        Changed?.Invoke(this, PanelChange.Loading);
         _refreshRunning = isRefresh;
         try
         {
@@ -318,13 +459,22 @@ public sealed partial class FilePanel : IDisposable
             {
                 var l = await _provider.ListAsync(path, cts.Token).ConfigureAwait(false);
                 var visible = EntryFilter.Apply(l.Entries, showHidden);
-                _sorter.Sort(visible, sort);
+                if (!l.KeepOrder)
+                {
+                    _sorter.Sort(visible, sort);
+                }
+
                 return (l, visible);
-            }, cts.Token);
+            }, cts.Token).WaitAsync(cts.Token);
 
             if (version != _loadVersion)
             {
                 return false;
+            }
+
+            if (focusAsItEnds)
+            {
+                focusName = FocusedEntry?.Name;
             }
 
             var newFolder = listing.Path != Path || Results is not null;
@@ -352,6 +502,7 @@ public sealed partial class FilePanel : IDisposable
         }
         finally
         {
+            EndLoading(version);
             if (version == _loadVersion)
             {
                 _refreshRunning = false;
@@ -366,6 +517,19 @@ public sealed partial class FilePanel : IDisposable
 
     private void Apply(string path, FileEntry[] sorted, string? focusName, bool keepSelection)
     {
+        var quick = path == Path && IsQuickFiltering ? QuickSearchText : null;
+        if (path != Path)
+        {
+            LeaveFolderFilters();
+        }
+
+        _listed = sorted;
+        if (quick is null)
+        {
+            QuickSearchText = null;
+        }
+
+        sorted = Visible(sorted);
         HashSet<string>? keep = null;
         if (keepSelection)
         {
@@ -391,6 +555,7 @@ public sealed partial class FilePanel : IDisposable
         }
 
         var leaving = Results is not null;
+        _flatCts?.Cancel();
         Results = null;
         _stat = null;
         _keepOrder = false;
@@ -414,7 +579,7 @@ public sealed partial class FilePanel : IDisposable
 
         var oldFocus = Focus;
         Path = path;
-        HasUpEntry = _provider.GetParent(path) is not null;
+        HasUpEntry = View != PanelView.Columns && _provider.GetParent(path) is not null;
         _items = HasUpEntry ? [UpEntry, .. sorted] : sorted;
         _selected = new bool[_items.Length];
         if (keep is not null)
@@ -430,7 +595,7 @@ public sealed partial class FilePanel : IDisposable
         _focusScreenRow = found >= 0 && !keepSelection && _screenRows.TryGetValue(path, out var row) && string.Equals(row.Name, _items[found].Name, StringComparison.OrdinalIgnoreCase)
             ? row.Row
             : null;
-        QuickSearchText = null;
+        QuickSearchText = quick;
         _extendState = null;
         Changed?.Invoke(this, PanelChange.Items | PanelChange.Selection | PanelChange.Focus | PanelChange.QuickSearch);
     }
@@ -531,6 +696,17 @@ public sealed partial class FilePanel : IDisposable
         Resort();
     }
 
+    public void SetView(PanelView view)
+    {
+        view = PanelViews.Valid(view);
+        if (view != View)
+        {
+            View = view;
+            SetUpEntry(view != PanelView.Columns);
+            Changed?.Invoke(this, PanelChange.View);
+        }
+    }
+
     public void SetShowHidden(bool show)
     {
         if (show == ShowHidden)
@@ -547,6 +723,18 @@ public sealed partial class FilePanel : IDisposable
 
     private void Resort()
     {
+        if (IsGitList)
+        {
+            return;
+        }
+
+        if (IsFlat)
+        {
+            SortFlat(_listed);
+            Refilter();
+            return;
+        }
+
         if (_items.Length == 0)
         {
             return;
@@ -572,6 +760,10 @@ public sealed partial class FilePanel : IDisposable
         else
         {
             _sorter.Sort(body, Sort);
+            if (!ReferenceEquals(_items, _listed))
+            {
+                _sorter.Sort(_listed, Sort);
+            }
         }
 
         body.CopyTo(_items, start);
@@ -597,7 +789,7 @@ public sealed partial class FilePanel : IDisposable
 
     public void Toggle(int index)
     {
-        if ((uint)index >= (uint)_items.Length || IsUp(index))
+        if ((uint)index >= (uint)_items.Length || IsUp(index) || IsHeading(index))
         {
             return;
         }
@@ -634,7 +826,7 @@ public sealed partial class FilePanel : IDisposable
 
         for (var i = from; i <= to; i++)
         {
-            if (!IsUp(i))
+            if (!IsUp(i) && !IsHeading(i))
             {
                 _selected[i] = state;
             }
@@ -648,7 +840,7 @@ public sealed partial class FilePanel : IDisposable
     {
         for (var i = HasUpEntry ? 1 : 0; i < _items.Length; i++)
         {
-            if (predicate(_items[i]))
+            if (!IsHeading(i) && predicate(_items[i]))
             {
                 _selected[i] = select;
             }
@@ -662,7 +854,7 @@ public sealed partial class FilePanel : IDisposable
     {
         for (var i = HasUpEntry ? 1 : 0; i < _items.Length; i++)
         {
-            if (includeFolders || !_items[i].IsDirectory)
+            if ((includeFolders && !IsHeading(i)) || !_items[i].IsDirectory)
             {
                 _selected[i] = !_selected[i];
             }
@@ -709,7 +901,7 @@ public sealed partial class FilePanel : IDisposable
 
         for (var i = HasUpEntry ? 1 : 0; i < _items.Length; i++)
         {
-            _selected[i] = names.Contains(_items[i].Name);
+            _selected[i] = !IsHeading(i) && names.Contains(_items[i].Name);
         }
 
         _extendState = null;
@@ -838,6 +1030,8 @@ public sealed partial class FilePanel : IDisposable
         "Selection.SameName", "Selection.UnselectSameName", "Selection.Restore",
         "Navigation.Execute", "Navigation.OpenFocused", "Navigation.Parent", "Navigation.Root", "Navigation.GoToFile", "History.Back", "History.Forward",
         "Panel.SortByName", "Panel.SortByExtension", "Panel.SortByTime", "Panel.SortBySize", "Panel.Refresh", "Panel.ToggleHidden",
+        "Panel.FilterOff", "Panel.HideSelectedNames", "Panel.HideUnselectedNames", "Panel.ShowHiddenNames",
+        "View.Mode1", "View.Mode2", "View.Mode3", "View.Mode4", "View.Mode5", "View.Mode6", "View.Mode7",
     };
 
     public bool Execute(string commandId, int pageRows)
@@ -901,6 +1095,11 @@ public sealed partial class FilePanel : IDisposable
             case "Panel.SortBySize": ToggleSort(SortColumn.Size); break;
             case "Panel.Refresh": _ = RefreshAsync(); break;
             case "Panel.ToggleHidden": SetShowHidden(!ShowHidden); break;
+            case "Panel.FilterOff": ClearFilter(); break;
+            case "Panel.HideSelectedNames": HideNames(selected: true); break;
+            case "Panel.HideUnselectedNames": HideNames(selected: false); break;
+            case "Panel.ShowHiddenNames": ShowHiddenNames(); break;
+            case "View.Mode1" or "View.Mode2" or "View.Mode3" or "View.Mode4" or "View.Mode5" or "View.Mode6" or "View.Mode7": SetView(PanelViews.FromCommand(commandId)!.Value); break;
 
             default:
                 return false;
@@ -940,7 +1139,16 @@ public sealed partial class FilePanel : IDisposable
         SelectWhere(e => !e.IsDirectory && e.BaseName.Equals(baseName, StringComparison.OrdinalIgnoreCase), select);
     }
 
-    private bool Matches(int index, string pattern) => !IsUp(index) && QuickSearchPattern.IsMatch(_items[index].Name, pattern);
+    private bool Matches(int index, string pattern)
+    {
+        if (IsUp(index) || IsHeading(index))
+        {
+            return false;
+        }
+
+        var name = Results is not null ? SplitResult(_items[index].Name).Name : _items[index].Name;
+        return QuickFilterMode ? QuickFilterMatch(name, pattern) : QuickSearchPattern.IsMatch(name, pattern);
+    }
 
     private int FindMatch(int start, int direction, string pattern)
     {
@@ -957,6 +1165,11 @@ public sealed partial class FilePanel : IDisposable
 
     public bool QuickSearchType(char c)
     {
+        if (QuickSearchText is null)
+        {
+            QuickFilterMode = QuickFilterFirst && (Results is null || IsFlat);
+        }
+
         var pattern = (QuickSearchText ?? "") + c;
         var index = QuickSearchText is not null && Matches(Focus, pattern) ? Focus : FindMatch(0, 1, pattern);
         if (index < 0)
@@ -967,6 +1180,11 @@ public sealed partial class FilePanel : IDisposable
         QuickSearchText = pattern;
         Focus = index;
         _extendState = null;
+        if (QuickFilterMode)
+        {
+            Refilter(firstIfGone: true);
+        }
+
         Changed?.Invoke(this, PanelChange.QuickSearch | PanelChange.Focus);
         return true;
     }
@@ -979,12 +1197,17 @@ public sealed partial class FilePanel : IDisposable
         }
 
         QuickSearchText = QuickSearchText.Length > 1 ? QuickSearchText[..^1] : null;
+        if (QuickFilterMode)
+        {
+            Refilter();
+        }
+
         Changed?.Invoke(this, PanelChange.QuickSearch);
     }
 
     public void QuickSearchExtend()
     {
-        if (QuickSearchText is not { } text || QuickSearchPattern.HasWildcard(text) || FocusedEntry is not { } focused || focused.Name.Length <= text.Length)
+        if (QuickSearchText is not { } text || QuickFilterMode || QuickSearchPattern.HasWildcard(text) || FocusedEntry is not { } focused || focused.Name.Length <= text.Length)
         {
             return;
         }
@@ -993,14 +1216,27 @@ public sealed partial class FilePanel : IDisposable
         Changed?.Invoke(this, PanelChange.QuickSearch);
     }
 
-    public void EndQuickSearch()
+    public void EndQuickSearch(bool keepFilter = false)
     {
-        if (QuickSearchText is not null)
+        if (QuickSearchText is not { } text)
         {
-            QuickSearchText = null;
-            _extendState = null;
-            Changed?.Invoke(this, PanelChange.QuickSearch);
+            return;
         }
+
+        var filtering = IsQuickFiltering;
+        QuickSearchText = null;
+        _extendState = null;
+        if (filtering)
+        {
+            if (keepFilter)
+            {
+                (_keptQuickFilters ??= []).Add(text);
+            }
+
+            Refilter();
+        }
+
+        Changed?.Invoke(this, PanelChange.QuickSearch);
     }
 
     public void QuickSearchMove(int steps, bool select = false, bool selectedOnly = false)
@@ -1056,6 +1292,7 @@ public sealed partial class FilePanel : IDisposable
     {
         _loadCts?.Cancel();
         _sizeCts?.Cancel();
+        _flatCts?.Cancel();
         _watch?.Dispose();
     }
 }

@@ -129,7 +129,7 @@ public static class ImageDecoder
         return _wicFirst.Contains(ext) ? [wic, magick] : [magick, wic];
     }
 
-    private static bool IsDecodeFailure(Exception e) => e is not OperationCanceledException and not OutOfMemoryException
+    internal static bool IsDecodeFailure(Exception e) => e is not OperationCanceledException and not OutOfMemoryException
         && e is COMException or ImageMagick.MagickException or IOException or InvalidDataException or NotSupportedException or ArgumentException
             or UnauthorizedAccessException or ImageDecodeException or IndexOutOfRangeException or InvalidOperationException or FormatException or OverflowException;
 

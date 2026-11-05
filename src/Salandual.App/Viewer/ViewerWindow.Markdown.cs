@@ -188,6 +188,7 @@ internal sealed partial class ViewerWindow
         _treeMode = false;
         _imageMode = false;
         _mediaMode = false;
+        _torrentPage = TorrentPage.None;
         _horizontal.IsVisible = false;
         _vertical.IsVisible = false;
         _content.IsVisible = false;

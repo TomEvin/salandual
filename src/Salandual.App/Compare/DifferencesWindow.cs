@@ -796,7 +796,7 @@ internal sealed class DifferencesWindow : Window
             var item = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
             foreach (var k in key)
             {
-                item.Children.Add(new Border { BorderThickness = new Thickness(1, 1, 1, 2), CornerRadius = new CornerRadius(3), Padding = new Thickness(4, 0), Child = new TextBlock { Text = k, FontSize = 11, FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace") } }
+                item.Children.Add(new Border { BorderThickness = new Thickness(1, 1, 1, 2), CornerRadius = new CornerRadius(3), Padding = new Thickness(4, 0), Child = new TextBlock { Text = k, FontSize = 11, FontFamily = Salandual.App.Options.OptionsUi.MonoFamily } }
                     .Res(Border.BorderBrushProperty, "Brush.BorderStrong"));
             }
 

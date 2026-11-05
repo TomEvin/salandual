@@ -20,6 +20,7 @@ using Salandual.App.Options;
 using Salandual.App.Resources;
 using Salandual.App.Theme;
 using Salandual.Core;
+using Salandual.Core.Resources;
 using Salandual.Core.Settings;
 using static Salandual.App.Options.OptionsUi;
 
@@ -29,9 +30,9 @@ internal sealed record FirstStepsResult(FirstStepsChoices Choices, SettingsImpor
 
 public sealed partial class FirstStepsWindow : Window
 {
-    internal enum Step { Welcome, Theme, Keyboard, Bars, Panels, FileManager, Ready }
+    internal enum Step { Welcome, Salamander, Theme, Keyboard, Bars, Panels, FileManager, Ready }
 
-    private static readonly Step[] _steps = Enum.GetValues<Step>();
+    private readonly Step[] _steps;
 
     private readonly AppServices _services;
     private readonly ThemeService? _theme;
@@ -45,6 +46,8 @@ public sealed partial class FirstStepsWindow : Window
     public FirstStepsWindow(AppServices services, bool fromHelp)
     {
         _services = services;
+        Salamanders = services.Salamander.Find();
+        _steps = [.. Enum.GetValues<Step>().Where(s => s != Step.Salamander || Salamanders.Count > 0)];
         _theme = (Application.Current as App)?.Theme;
         FromHelp = fromHelp;
         WindowsDark = _theme?.WindowsDark ?? false;
@@ -82,6 +85,7 @@ public sealed partial class FirstStepsWindow : Window
         root.Children.Add(footer);
         root.Children.Add(_scroll.Res(BackgroundProperty, "Brush.PanelBackground"));
         Content = TitleBarParts.ForDialog(this, root);
+        Classes.Add("page");
 
         KeyDown += (_, e) =>
         {
@@ -97,6 +101,11 @@ public sealed partial class FirstStepsWindow : Window
             {
                 _theme?.Apply(_services.Settings.Current.Appearance);
             }
+
+            if (!_finished && TextLanguage.Current.Id != _services.Language.Id)
+            {
+                AppServices.SwitchLanguage(_services.Language);
+            }
         };
         Opened += (_, _) => _next.Focus();
         Show(Step.Welcome);
@@ -109,6 +118,12 @@ public sealed partial class FirstStepsWindow : Window
     internal FirstStepsChoices Choices { get; private set; }
 
     internal Step Current { get; private set; }
+
+    internal IReadOnlyList<Core.Settings.Salamander.SalamanderInstall> Salamanders { get; }
+
+    internal IReadOnlyList<Step> Steps => _steps;
+
+    internal Grid StepsBar => _stepsBar;
 
     internal (SettingsImport Import, IReadOnlySet<SettingsPart> Parts)? Imported { get; private set; }
 
@@ -133,14 +148,14 @@ public sealed partial class FirstStepsWindow : Window
             return;
         }
 
-        Show(Imported is not null ? Step.Ready : Current + 1);
+        Show(Imported is not null ? Step.Ready : _steps[Math.Min(Array.IndexOf(_steps, Current) + 1, _steps.Length - 1)]);
     }
 
     internal void GoBack()
     {
         if (Current > Step.Welcome)
         {
-            Show(Imported is not null ? Step.Welcome : Current - 1);
+            Show(Imported is not null ? Step.Welcome : _steps[Math.Max(Array.IndexOf(_steps, Current) - 1, 0)]);
         }
     }
 
@@ -155,6 +170,7 @@ public sealed partial class FirstStepsWindow : Window
             Child = step switch
             {
                 Step.Welcome => Welcome(),
+                Step.Salamander => SalamanderPage(),
                 Step.Theme => ThemePage(),
                 Step.Keyboard => KeyboardPage(),
                 Step.Bars => BarsPage(),
@@ -184,6 +200,18 @@ public sealed partial class FirstStepsWindow : Window
         Show(Current, focus);
     }
 
+    private void ChooseLanguage(string id)
+    {
+        Choices = Choices with { Language = id };
+        AppServices.SwitchLanguage(TextLanguage.Choose(id, _services.LanguageFolders, AppServices.Originals));
+        Title = AppStrings.Wizard_Title;
+        _skip.Content = FromHelp ? AppStrings.Common_Cancel : AppStrings.Wizard_Skip;
+        _back.Content = AppStrings.Wizard_Back;
+        Show(Current, "language");
+    }
+
+    internal bool LanguageChanged => Choices.Language != _services.Language.Id;
+
     private void BuildStepsBar()
     {
         _stepsBar.Children.Clear();
@@ -191,7 +219,7 @@ public sealed partial class FirstStepsWindow : Window
         var imported = Imported is not null;
         foreach (var step in _steps)
         {
-            var i = (int)step;
+            var i = Array.IndexOf(_steps, step);
             var skipped = Skipped(step, imported);
             var on = step == Current;
             var done = step < Current && !skipped;
@@ -210,7 +238,7 @@ public sealed partial class FirstStepsWindow : Window
                 BorderThickness = new Thickness(on ? 0 : 1),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Child = mark,
-            }.Res(Border.BackgroundProperty, on ? "Brush.Accent" : "Brush.WindowBackground").Res(Border.BorderBrushProperty, done ? "Brush.Accent" : "Brush.BorderStrong");
+            }.Res(Border.BackgroundProperty, on ? "Brush.AccentFill" : "Brush.WindowBackground").Res(Border.BorderBrushProperty, done ? "Brush.Accent" : "Brush.BorderStrong");
             var name = new TextBlock
             {
                 Text = StepName(step),
@@ -218,6 +246,10 @@ public sealed partial class FirstStepsWindow : Window
                 FontWeight = on ? FontWeight.SemiBold : FontWeight.Normal,
                 FontStyle = later ? FontStyle.Italic : FontStyle.Normal,
                 HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                MaxLines = 2,
+                Margin = new Thickness(2, 0),
                 TextTrimming = TextTrimming.CharacterEllipsis,
             }.Res(TextBlock.ForegroundProperty, on ? "Brush.Text" : later || skipped ? "Brush.TertiaryText" : "Brush.SecondaryText");
             var cell = new StackPanel { Spacing = 4, Children = { dot, name } };
@@ -229,6 +261,7 @@ public sealed partial class FirstStepsWindow : Window
     internal static string StepName(Step step) => step switch
     {
         Step.Welcome => AppStrings.Wizard_Step_Welcome,
+        Step.Salamander => AppStrings.Wizard_Step_Salamander,
         Step.Theme => AppStrings.Wizard_Step_Theme,
         Step.Keyboard => AppStrings.Wizard_Step_Keyboard,
         Step.Bars => AppStrings.Wizard_Step_Bars,

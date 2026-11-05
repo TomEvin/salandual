@@ -43,7 +43,7 @@ public sealed class LocalFileSystemProvider : IFileSystemProvider
                 cancellationToken.ThrowIfCancellationRequested();
             }
 
-            return new FileEntry(e.FileName.ToString(), e.IsDirectory ? 0 : e.Length, e.LastWriteTimeUtc.UtcTicks, e.Attributes);
+            return new FileEntry(e.FileName.ToString(), e.IsDirectory ? 0 : e.Length, e.LastWriteTimeUtc.UtcTicks, e.Attributes, e.CreationTimeUtc.UtcTicks, e.LastAccessTimeUtc.UtcTicks);
         }, _options);
 
         var entries = enumerable.ToArray();
@@ -60,6 +60,88 @@ public sealed class LocalFileSystemProvider : IFileSystemProvider
 
     public IDisposable Watch(string path, Action<DirectoryChange> onChange, Action<Exception> onError)
         => new LocalDirectoryWatcher(WindowsPath.FromExtended(path), onChange, onError);
+
+    public IDisposable? WatchTree(string path, Action<IReadOnlyCollection<string>?> onChange, Action<Exception> onError)
+        => new LocalTreeWatcher(WindowsPath.FromExtended(path), onChange, onError);
+}
+
+internal sealed class LocalTreeWatcher : IDisposable
+{
+    private readonly FileSystemWatcher _watcher;
+    private readonly ChangeCoalescer _coalescer;
+    private readonly object _gate = new();
+    private HashSet<string> _changed = new(StringComparer.OrdinalIgnoreCase);
+
+    public LocalTreeWatcher(string path, Action<IReadOnlyCollection<string>?> onChange, Action<Exception> onError)
+    {
+        _coalescer = new ChangeCoalescer(ChangeCoalescer.DefaultQuiet, ChangeCoalescer.DefaultMaxDelay, (_, overflowed) =>
+        {
+            HashSet<string> changed;
+            lock (_gate)
+            {
+                changed = _changed;
+                _changed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            onChange(overflowed ? null : changed);
+        });
+
+        _watcher = new FileSystemWatcher(WindowsPath.ToExtended(path))
+        {
+            IncludeSubdirectories = true,
+            InternalBufferSize = 64 * 1024,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size
+                | NotifyFilters.LastWrite | NotifyFilters.Attributes | NotifyFilters.CreationTime,
+        };
+
+        _watcher.Created += (_, e) => Add(e.FullPath, itself: true);
+        _watcher.Deleted += (_, e) => Add(e.FullPath, itself: true);
+        _watcher.Changed += (_, e) => Add(e.FullPath, itself: false);
+        _watcher.Renamed += (_, e) =>
+        {
+            Add(e.OldFullPath, itself: true);
+            Add(e.FullPath, itself: true);
+        };
+        _watcher.Error += (_, e) =>
+        {
+            var ex = e.GetException();
+            if (ex is InternalBufferOverflowException)
+            {
+                _coalescer.Add(overflowed: true);
+            }
+            else
+            {
+                onError(ex);
+            }
+        };
+        _watcher.EnableRaisingEvents = true;
+    }
+
+    private void Add(string fullPath, bool itself)
+    {
+        var path = WindowsPath.FromExtended(fullPath);
+        lock (_gate)
+        {
+            if (Path.GetDirectoryName(path) is { } folder)
+            {
+                _changed.Add(folder);
+            }
+
+            if (itself)
+            {
+                _changed.Add(path);
+            }
+        }
+
+        _coalescer.Add();
+    }
+
+    public void Dispose()
+    {
+        _watcher.EnableRaisingEvents = false;
+        _watcher.Dispose();
+        _coalescer.Dispose();
+    }
 }
 
 internal sealed class LocalDirectoryWatcher : IDisposable

@@ -16,6 +16,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Salandual.App.Controls;
 using Salandual.App.Resources;
 using Salandual.Core.Resources;
 using Salandual.Core.Settings;
@@ -26,7 +27,7 @@ namespace Salandual.App.Options;
 internal sealed record OptionsCategory(string Id, string Title, string Description, string? Milestone = null, string? Later = null);
 
 internal sealed record SettingItem(string Category, string Section, string? Title, string? Description, Func<Control> Build,
-    bool Wide = false, string Keywords = "", bool SearchOnly = false, string? Badge = null, Func<Control>? Below = null);
+    bool Wide = false, string Keywords = "", bool SearchOnly = false, string? Badge = null, Func<Control>? Below = null, bool Sub = false);
 
 public sealed partial class OptionsWindow : Window
 {
@@ -34,6 +35,9 @@ public sealed partial class OptionsWindow : Window
 
     private readonly AppServices _services;
     private readonly IReadOnlyList<OptionsCategory> _categories;
+
+    internal IEnumerable<string> Categories => _categories.Select(c => c.Id);
+
     private readonly List<SettingItem> _items = [];
     private readonly Dictionary<(string Category, string Section), Func<Control>> _asides = [];
     private readonly TextBox _search;
@@ -65,6 +69,7 @@ public sealed partial class OptionsWindow : Window
         MinHeight = 480;
         ShowInTaskbar = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        WindowMemory.Remember(this, services.Settings, WindowSettings.Options);
         this.Res(BackgroundProperty, "Brush.WindowBackground");
 
         _categories =
@@ -74,10 +79,15 @@ public sealed partial class OptionsWindow : Window
             new("themes", AppStrings.OptCat_Themes, AppStrings.OptCat_Themes_Desc),
             new("layout", AppStrings.OptCat_Layout, AppStrings.OptCat_Layout_Desc),
             new("panels", AppStrings.OptCat_Panels, AppStrings.OptCat_Panels_Desc),
+            new(HighlightPage, AppStrings.OptCat_Highlighting, AppStrings.OptCat_Highlighting_Desc),
+            new(MainWindow.ViewsPage, AppStrings.OptCat_Views, AppStrings.OptCat_Views_Desc),
             new("keyboard", AppStrings.OptCat_Keyboard, AppStrings.OptCat_Keyboard_Desc),
             new("confirm", AppStrings.OptCat_Confirm, AppStrings.OptCat_Confirm_Desc),
             new("hotpaths", AppStrings.OptCat_HotPaths, AppStrings.OptCat_HotPaths_Desc),
+            new(MainWindow.UserMenuPage, AppStrings.OptCat_UserMenu, AppStrings.OptCat_UserMenu_Desc),
+            new(MainWindow.CommandLinePage, AppStrings.OptCat_CommandLine, AppStrings.OptCat_CommandLine_Desc),
             new("operations", AppStrings.OptCat_Operations, AppStrings.OptCat_Operations_Desc),
+            new(ServersPage, AppStrings.OptCat_Servers, AppStrings.OptCat_Servers_Desc),
             new("viewers", AppStrings.OptCat_Viewers, AppStrings.OptCat_Viewers_Desc),
             new("editors", AppStrings.OptCat_Editors, AppStrings.OptCat_Editors_Desc),
             new("compare", AppStrings.OptCat_Compare, AppStrings.OptCat_Compare_Desc),
@@ -98,7 +108,7 @@ public sealed partial class OptionsWindow : Window
         _nav = new ListBox { Margin = new Thickness(6, 0, 6, 12), Background = Brushes.Transparent };
         foreach (var c in _categories)
         {
-            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto") };
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto") };
             var brush = c.Milestone is null ? "Brush.Text" : "Brush.SecondaryText";
             var title = Text(c.Title, 14, brush: brush);
             row.Children.Add(title);
@@ -121,6 +131,7 @@ public sealed partial class OptionsWindow : Window
             }.Res(Border.BorderBrushProperty, "Brush.BorderStrong");
             Grid.SetColumn(count, 2);
             row.Children.Add(count);
+            row.Children.Add(NavDot(c.Id).Also(d => Grid.SetColumn(d, 3)));
             _navRows[c.Id] = (title, count, brush);
 
             _nav.Items.Add(new ListBoxItem { Content = row, Tag = c.Id, Padding = new Thickness(10, 7) });
@@ -164,7 +175,7 @@ public sealed partial class OptionsWindow : Window
         _reset.Flyout = ResetFlyout();
         var close = new Button { Content = AppStrings.Common_Close, Padding = new Thickness(20, 5) };
         close.Classes.Add("accent");
-        close.Click += (_, _) => Close();
+        close.Click += (_, _) => CloseAsking();
         var footer = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), Margin = new Thickness(16, 10) };
         footer.Children.Add(_reset);
         var applies = Text(AppStrings.Opt_AppliesNow, 12, brush: "Brush.SecondaryText");
@@ -175,11 +186,15 @@ public sealed partial class OptionsWindow : Window
         footer.Children.Add(close);
         var footerBar = new Border { BorderThickness = new Thickness(0, 1, 0, 0), Child = footer }.Res(Border.BorderBrushProperty, "Brush.Border");
 
+        var lookBar = BuildLookBar();
         var root = new DockPanel();
         DockPanel.SetDock(footerBar, Dock.Bottom);
+        DockPanel.SetDock(lookBar, Dock.Bottom);
         root.Children.Add(footerBar);
+        root.Children.Add(lookBar);
         root.Children.Add(body);
         Content = Controls.TitleBarParts.ForDialog(this, root);
+        Classes.Add("page");
 
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         ShowCategory(_category);
@@ -201,6 +216,14 @@ public sealed partial class OptionsWindow : Window
     internal ScrollViewer PageScroll => _scroll;
 
     internal IReadOnlyList<SettingItem> Items => _items;
+
+    internal string CategoryTitle(string id) => _categories.FirstOrDefault(c => c.Id == id)?.Title ?? id;
+
+    internal void ShowSetting(string category, string title)
+    {
+        _search.Text = "";
+        ShowCategory(category, _items.FirstOrDefault(i => i.Category == category && i.Title == title));
+    }
 
     internal const string ColorsPage = "themes";
 
@@ -261,7 +284,7 @@ public sealed partial class OptionsWindow : Window
 
     private Control BuildRow(SettingItem item)
     {
-        var row = Row(item.Title, item.Description, item.Build(), item.Wide, badge: item.Badge, below: item.Below?.Invoke());
+        var row = Row(item.Title, item.Description, item.Build(), item.Wide, badge: item.Badge, below: item.Below?.Invoke(), sub: item.Sub);
         _built[item] = row;
         return row;
     }
@@ -409,8 +432,12 @@ public sealed partial class OptionsWindow : Window
             return;
         }
 
-        if (e.Key == Key.F && e.KeyModifiers == KeyModifiers.Control)
-
+        if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.Control && TryingLook)
+        {
+            KeepLook();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F && e.KeyModifiers == KeyModifiers.Control)
         {
             _search.Focus();
             _search.SelectAll();
@@ -430,7 +457,15 @@ public sealed partial class OptionsWindow : Window
         base.OnKeyDown(e);
         if (!e.Handled && e.Key == Key.Escape)
         {
-            Close();
+            if (TryingLook)
+            {
+                RevertLook();
+            }
+            else
+            {
+                Close();
+            }
+
             e.Handled = true;
         }
     }
@@ -441,13 +476,16 @@ public sealed partial class OptionsWindow : Window
         "themes" => s => s with { Appearance = s.Appearance with { Schedule = new() } },
         "layout" => s => s with { Layout = new() { PanelSplit = s.Layout.PanelSplit } },
         "panels" => s => s with { Panels = new() },
+        HighlightPage => s => s with { Highlighting = s.Highlighting with { Rules = null } },
         "operations" => s => s with { Operations = new() },
+        ServersPage => s => s with { Servers = s.Servers with { CloseConnecting = false, ReadKnownHosts = true, Defaults = new() } },
         "confirm" => s => s with { Confirmations = new() },
         "general" => s => s with { General = new() },
         "viewers" => s => s with { Viewers = new() },
         "compare" => s => s with { Find = new() { Named = s.Find.Named, LookIn = s.Find.LookIn, Texts = s.Find.Texts, WindowWidth = s.Find.WindowWidth, WindowHeight = s.Find.WindowHeight, WindowMaximized = s.Find.WindowMaximized } },
         "hotpaths" => s => s with { HotPaths = new() { Paths = s.HotPaths.Paths }, DriveMenu = new() },
         "advanced" => s => s with { Advanced = new() },
+        MainWindow.CommandLinePage => s => s with { CommandLine = new(), Layout = s.Layout with { Bars = s.Layout.Bars with { CommandLine = true } } },
         _ => null,
     };
 
@@ -478,9 +516,14 @@ public sealed partial class OptionsWindow : Window
         AddThemes();
         AddLayout();
         AddPanels();
+        AddHighlighting();
+        AddViews();
         AddKeyboard();
         AddHotPaths();
+        AddUserMenu();
+        AddCommandLine();
         AddOperations();
+        AddServers();
         AddConfirmations();
         AddViewers();
         AddEditors();
@@ -515,8 +558,8 @@ public sealed partial class OptionsWindow : Window
         return control;
     }
 
-    private void Add(string category, string section, string? title, string? description, Func<Control> build, bool wide = false, string keywords = "", bool searchOnly = false, string? badge = null, Func<Control>? below = null)
-        => _items.Add(new SettingItem(category, section, title, description, build, wide, keywords, searchOnly, badge, below));
+    private void Add(string category, string section, string? title, string? description, Func<Control> build, bool wide = false, string keywords = "", bool searchOnly = false, string? badge = null, Func<Control>? below = null, bool sub = false)
+        => _items.Add(new SettingItem(category, section, title, description, build, wide, keywords, searchOnly, badge, below, sub));
 
 
     private void Aside(string category, string section, Func<Control> build) => _asides[(category, section)] = build;

@@ -38,9 +38,36 @@ public sealed record ConfirmationSettings
 
     public bool DeleteLeftoverTemp { get; set; } = true;
 
+    public bool EnterCreate { get; set; } = true;
+
+    public bool EnterSave { get; set; } = true;
+
+    public bool EnterDelete { get; set; }
+
+    public bool EnterClose { get; set; } = true;
+
+    public bool EnterActs(ConfirmGroup group) => group switch
+    {
+        ConfirmGroup.Create => EnterCreate,
+        ConfirmGroup.Save => EnterSave,
+        ConfirmGroup.Delete => EnterDelete,
+        _ => EnterClose,
+    };
+
     public DeleteChecks DeleteChecks => new(DeleteNonEmptyFolder, DeleteHiddenOrSystem);
 
     public TransferOptions Apply(TransferOptions options) => options with { ConfirmMerge = MergeFolders, ConfirmReplaceHiddenOrSystem = ReplaceHiddenOrSystem };
+}
+
+public enum ConfirmGroup
+{
+    Create,
+
+    Save,
+
+    Delete,
+
+    Close,
 }
 
 public enum StartFolders
@@ -61,6 +88,10 @@ public sealed record GeneralSettings
     public string StartLeft { get; set; } = "";
 
     public string StartRight { get; set; } = "";
+
+    public const string English = "en";
+
+    public string Language { get; set; } = English;
 
     public static (string Left, string Right) FoldersAtStart(StartFolders choice, string startLeft, string startRight, string? lastLeft, string? lastRight, (string Left, string Right) defaults, string home)
     {

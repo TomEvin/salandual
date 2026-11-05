@@ -92,7 +92,7 @@ internal sealed partial class FindWindow
         UpdateHeader();
         _flush.Start();
 
-        var search = new FileSearch(_request.Files, _request.Open);
+        var search = new FileSearch(_request.Files, _request.Open, _request.Archives);
         var callbacks = new SearchCallbacks { Progress = p => _lastProgress = p, Log = entry => _logIncoming.Enqueue(entry) };
         var work = Task.Run(() => Duplicates.FindAsync(search, criteria, keys, callbacks, p => _comparing = p, stop.Token));
         return Searching = Finish();

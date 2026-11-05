@@ -13,6 +13,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Salandual.App.Controls;
 using Salandual.App.Options;
+using Salandual.Core.Settings;
 
 namespace Salandual.App.Dialogs;
 
@@ -22,10 +23,16 @@ internal sealed class ChoiceDialog : Window
 {
     private readonly string _cancel;
     private readonly IReadOnlyList<Choice> _choices;
-    private readonly List<Button> _order;
 
-    public ChoiceDialog(string title, IReadOnlyList<string> paragraphs, IReadOnlyList<Choice> choices, string cancel, double width = 480)
+    public ChoiceDialog(string title, IReadOnlyList<string> paragraphs, IReadOnlyList<Choice> choices, string cancel, double width = 480, ConfirmGroup? group = null)
     {
+        if (group is { } g && !App.EnterActs(g) && choices.Any(c => c.Id == cancel))
+        {
+            choices = [.. choices.Select(c => c.Primary
+                ? c with { Primary = false, KeyHint = c.KeyHint == "Enter" ? null : c.KeyHint, Key = c.Key == Key.Enter ? null : c.Key }
+                : c.Id == cancel ? c with { Primary = true } : c)];
+        }
+
         _cancel = cancel;
         _choices = choices;
         Title = title;
@@ -75,23 +82,15 @@ internal sealed class ChoiceDialog : Window
         root.Children.Add(footer);
         root.Children.Add(body);
         Content = TitleBarParts.ForDialog(this, root);
-        _order = [.. left.Children.OfType<Button>(), .. right.Children.OfType<Button>()];
-        AddHandler(KeyDownEvent, OnArrow, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-        Opened += (_, _) => (Buttons.FirstOrDefault(b => b.IsDefault) ?? Buttons.FirstOrDefault())?.Focus();
-    }
-
-    private void OnArrow(object? sender, KeyEventArgs e)
-    {
-        var step = e.Key switch { Key.Left or Key.Up => -1, Key.Right or Key.Down => 1, _ => 0 };
-        if (step == 0 || e.KeyModifiers != KeyModifiers.None || _order.Count == 0)
+        List<Button> order = [.. left.Children.OfType<Button>(), .. right.Children.OfType<Button>()];
+        DialogButtons.ArrowsAcross(this, () => order);
+        Opened += (_, _) =>
         {
-            return;
-        }
-
-        var at = _order.FindIndex(b => b.IsFocused);
-        var next = at < 0 ? _order.FindIndex(b => b.IsDefault) : Math.Clamp(at + step, 0, _order.Count - 1);
-        _order[Math.Max(next, 0)].Focus(NavigationMethod.Directional);
-        e.Handled = true;
+            if ((Buttons.FirstOrDefault(b => b.IsDefault) ?? Buttons.FirstOrDefault()) is { } first)
+            {
+                DialogButtons.FocusShown(first);
+            }
+        };
     }
 
     internal List<Button> Buttons { get; } = [];

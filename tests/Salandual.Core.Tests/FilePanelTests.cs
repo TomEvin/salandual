@@ -337,6 +337,45 @@ public sealed class FilePanelTests
     }
 
     [Fact]
+    public async Task ASlowRefresh_KeepsTheCursorWhereItIsWhenItEnds()
+    {
+        await OpenData();
+        Focus("Docs");
+        var slow = new TaskCompletionSource();
+        _fs.Hold = slow.Task;
+        var refresh = _panel.RefreshAsync();
+        Focus("notes.md");
+        slow.SetResult();
+
+        Assert.True(await refresh);
+        Assert.Equal("notes.md", _panel.FocusedEntry?.Name);
+    }
+
+    [Fact]
+    public async Task AFolderBeingRead_IsKnown_AndStopping_LeavesThePanelWhereItWasAtOnce()
+    {
+        await OpenData();
+        Assert.Null(_panel.LoadingSince);
+        var changes = new List<PanelChange>();
+        _panel.Changed += (_, c) => changes.Add(c);
+        var never = new TaskCompletionSource();
+        _fs.Hold = never.Task;
+
+        var open = _panel.NavigateAsync(@"C:\Data\Photos");
+        Assert.NotNull(_panel.LoadingSince);
+        Assert.Equal(@"C:\Data\Photos", _panel.LoadingPath);
+        Assert.Contains(PanelChange.Loading, changes);
+
+        _panel.CancelLoading();
+        Assert.False(await open.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        Assert.Null(_panel.LoadingSince);
+        Assert.Null(_panel.LoadingPath);
+        Assert.Equal(@"C:\Data", _panel.Path);
+        Assert.Equal(2, changes.Count(c => c == PanelChange.Loading));
+        never.SetResult();
+    }
+
+    [Fact]
     public async Task ToggleHidden_ListsAgain()
     {
         await OpenData();
@@ -537,5 +576,47 @@ public sealed class SearchResultsPanelTests
         Assert.True(await _panel.GoBackAsync());
         Assert.Null(_panel.Results);
         Assert.Equal(@"C:\Data", _panel.Path);
+    }
+
+    private static Salandual.Core.Vfs.FileEntry Heading(string title) => new(title, 0, 0, FileAttributes.Directory);
+
+    [Fact]
+    public async Task Git_changes_keep_their_groups_their_headings_are_no_folders_and_reading_again_keeps_focus_and_selection()
+    {
+        await OpenData();
+        IReadOnlyList<Salandual.Core.Vfs.FileEntry> items = [Heading("Staged · 1"), Found(@"src\b.cs"), Heading("Changed · 2"), Found(@"src\z.cs"), Found("a.cs")];
+        var changes = new PanelChanges(@"C:\Data", 1, 2);
+        var reads = 0;
+        _panel.ShowChanges("Data › Changes", items, changes, () =>
+        {
+            reads++;
+            IReadOnlyList<Salandual.Core.Vfs.FileEntry> again = [Heading("Staged · 2"), Found(@"src\b.cs"), Found("a.cs"), Heading("Changed · 1"), Found(@"src\z.cs")];
+            return Task.FromResult<(IReadOnlyList<Salandual.Core.Vfs.FileEntry>, PanelChanges)?>((again, new PanelChanges(@"C:\Data", 2, 1)));
+        });
+        Assert.True(_panel.IsChanges);
+        Assert.Equal(@"C:\Data", _panel.Path);
+        Assert.Equal([ "Staged · 1", @"src\b.cs", "Changed · 2", @"src\z.cs", "a.cs"], Names);
+        Assert.Equal(1, _panel.Focus);
+        Assert.True(_panel.IsHeading(0));
+        Assert.False(_panel.IsHeading(1));
+
+        _panel.ToggleSort(SortColumn.Name);
+        Assert.Equal([ "Staged · 1", @"src\b.cs", "Changed · 2", @"src\z.cs", "a.cs"], Names);
+        _panel.SetFocus(0);
+        await _panel.OpenFocusedAsync();
+        Assert.True(_panel.IsChanges);
+        Focus(@"src\z.cs");
+        _panel.Toggle(_panel.Focus);
+        Focus("a.cs");
+
+        Assert.True(await _panel.RefreshAsync());
+        Assert.Equal(1, reads);
+        Assert.Equal([ "Staged · 2", @"src\b.cs", "a.cs", "Changed · 1", @"src\z.cs"], Names);
+        Assert.Equal("a.cs", _panel.FocusedEntry!.Value.Name);
+        Assert.Equal([@"src\z.cs"], SelectedNames);
+        Assert.Equal(2, _panel.Results!.Changes!.Staged);
+
+        Assert.True(await _panel.LeaveResultsAsync());
+        Assert.False(_panel.IsChanges);
     }
 }

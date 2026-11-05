@@ -46,9 +46,23 @@ internal sealed record FirstStepsChoices
 
     public BarVisibility Bars { get; init; } = new();
 
+    public bool BackForwardBar { get; init; } = true;
+
+    public bool DiskActivity { get; init; } = true;
+
+    public bool FreeSpace { get; init; } = true;
+
     public int RowHeight { get; init; } = 24;
 
+    public BarHeight BarHeight { get; init; } = BarHeight.Normal;
+
     public SizeUnits Units { get; init; }
+
+    public bool RowStripes { get; init; }
+
+    public bool SelectionNameOnly { get; init; }
+
+    public bool HideDotFiles { get; init; }
 
     public string DateFormat { get; init; } = PanelSettings.DateFormatIso;
 
@@ -61,6 +75,8 @@ internal sealed record FirstStepsChoices
     public string StartRight { get; init; } = "";
 
     public bool StartWithWindows { get; init; }
+
+    public string Language { get; init; } = GeneralSettings.English;
 
     public IEnumerable<string> ThemeIds => FollowWindows ? [Light, Dark] : [One];
 
@@ -85,14 +101,22 @@ internal sealed record FirstStepsChoices
             Colour = accent == AccentChoice.Colour && ColorMath.TryParseHex(onScreen.CustomAccent, out var c) ? c : Colours[0],
             Keys = s.Keyboard.KeyMap,
             Bars = s.Layout.Bars,
+            BackForwardBar = s.Layout.BackForward.InBar,
+            DiskActivity = s.DriveMenu.ActivityInLine,
+            FreeSpace = s.DriveMenu.FreeSpaceInLine,
             RowHeight = s.Layout.RowHeight,
-            Units = s.Panels.SizeUnits,
+            BarHeight = s.Layout.BarHeight,
+            Units = s.Panels.SizeStyle == SizeStyle.Bytes ? SizeUnits.Bytes : s.Panels.SizeUnits,
+            RowStripes = s.Panels.RowStripes,
+            SelectionNameOnly = s.Panels.SelectionLook == MarkLook.NameOnly,
+            HideDotFiles = s.Panels.HideDotFiles,
             DateFormat = s.Panels.DateFormat,
             Time = s.Panels.TimeFormat,
             Start = s.General.StartFolders,
             StartLeft = s.General.StartLeft,
             StartRight = s.General.StartRight,
             StartWithWindows = startsWithWindows,
+            Language = s.General.Language,
         };
     }
 
@@ -102,9 +126,19 @@ internal sealed record FirstStepsChoices
         s = s with
         {
             Keyboard = s.Keyboard with { KeyMap = Keys },
-            Layout = s.Layout with { Bars = Bars, RowHeight = RowHeight },
-            Panels = s.Panels with { SizeUnits = Units, DateFormat = DateFormat, TimeFormat = Time },
-            General = s.General with { StartFolders = Start, StartLeft = StartLeft.Trim(), StartRight = StartRight.Trim() },
+            Layout = s.Layout with { Bars = Bars, RowHeight = RowHeight, BarHeight = BarHeight, BackForward = s.Layout.BackForward.WithBar(BackForwardBar) },
+            DriveMenu = s.DriveMenu with { ActivityInLine = DiskActivity, FreeSpaceInLine = FreeSpace },
+            Panels = s.Panels with
+            {
+                SizeUnits = Units == SizeUnits.Bytes ? SizeUnits.Windows : Units,
+                SizeStyle = Units == SizeUnits.Bytes ? SizeStyle.Bytes : s.Panels.SizeStyle == SizeStyle.Bytes ? SizeStyle.Short : s.Panels.SizeStyle,
+                DateFormat = DateFormat,
+                TimeFormat = Time,
+                RowStripes = RowStripes,
+                SelectionLook = SelectionNameOnly ? MarkLook.NameOnly : MarkLook.WholeRow,
+                HideDotFiles = HideDotFiles,
+            },
+            General = s.General with { StartFolders = Start, StartLeft = StartLeft.Trim(), StartRight = StartRight.Trim(), Language = Language },
         };
 
         if (Keys == KeyMapName.TotalCommander || before == KeyMapName.TotalCommander)

@@ -101,9 +101,11 @@ internal sealed partial class FileCompareWindow : Window
     private CancellationTokenSource? _comparing;
     private string? _note;
     private bool _closeConfirmed;
+    private readonly GitCompare? _git;
 
-    public FileCompareWindow(SettingsService settings, string left, string right)
+    public FileCompareWindow(SettingsService settings, string left, string right, GitCompare? git = null)
     {
+        _git = git;
         _settings = settings;
         _format = DisplayFormat.From(settings.Current.Panels, CultureInfo.CurrentCulture);
         var files = settings.Current.Compare.Files;
@@ -118,6 +120,8 @@ internal sealed partial class FileCompareWindow : Window
         this.Res(BackgroundProperty, "Brush.WindowBackground");
         Styles.Add(FindStyles.Create());
         SetFiles(left, right);
+        _view.CopyToLeft = git is null;
+        _view.CopyToRight = git is null || !git.RightReadOnly;
 
         var dock = new DockPanel();
         var tools = BuildTools();
@@ -209,11 +213,11 @@ internal sealed partial class FileCompareWindow : Window
     {
         LeftPath = left;
         RightPath = right;
-        Title = _titleText.Text = Loc.Format(AppStrings.FileCompare_Title, Path.GetFileName(left), Path.GetFileName(right));
-        _leftPath.Text = left;
-        _rightPath.Text = right;
-        ToolTip.SetTip(_leftPath, left);
-        ToolTip.SetTip(_rightPath, right);
+        Title = _titleText.Text = _git?.Title ?? Loc.Format(AppStrings.FileCompare_Title, Path.GetFileName(left), Path.GetFileName(right));
+        _leftPath.Text = _git?.LeftLabel ?? left;
+        _rightPath.Text = _git?.RightLabel ?? right;
+        ToolTip.SetTip(_leftPath, _git?.LeftLabel ?? left);
+        ToolTip.SetTip(_rightPath, _git?.RightLabel ?? right);
     }
 
     internal async Task CompareAsync()
@@ -340,6 +344,11 @@ internal sealed partial class FileCompareWindow : Window
             return;
         }
 
+        if (RefusedAsGits(toRight ? 1 : 0))
+        {
+            return;
+        }
+
         var (row, count) = _view.TargetRows(block);
         var (source, target) = toRight ? (_sides[0], _sides[1]) : (_sides[1], _sides[0]);
         target.Undo.Push(([.. target.Lines], [.. target.Copied], target.Pending));
@@ -385,7 +394,7 @@ internal sealed partial class FileCompareWindow : Window
         var name = Path.GetFileName(path);
         if (EditorFiles.Check(path, read.Length, read.LastWriteUtc) != DiskState.Same)
         {
-            var over = await Ask(Loc.Format(AppStrings.FileCompare_ChangedOnDisk_Title, name), [AppStrings.FileCompare_ChangedOnDisk_Text], [new("save", AppStrings.FileCompare_SaveOver, "Enter", Primary: true), new("cancel", AppStrings.Common_Cancel, "Esc")]);
+            var over = await Ask(Loc.Format(AppStrings.FileCompare_ChangedOnDisk_Title, name), [AppStrings.FileCompare_ChangedOnDisk_Text], [new("save", AppStrings.FileCompare_SaveOver, "Enter", Primary: true), new("cancel", AppStrings.Common_Cancel, "Esc")], group: Core.Settings.ConfirmGroup.Save);
             if (over != "save")
             {
                 return false;
@@ -436,9 +445,9 @@ internal sealed partial class FileCompareWindow : Window
         }
     }
 
-    private async Task<string?> Ask(string title, IReadOnlyList<string> text, IReadOnlyList<Choice> choices, Action<ChoiceDialog>? shown = null)
+    private async Task<string?> Ask(string title, IReadOnlyList<string> text, IReadOnlyList<Choice> choices, Action<ChoiceDialog>? shown = null, Core.Settings.ConfirmGroup? group = null)
     {
-        var dialog = new ChoiceDialog(title, text, choices, cancel: "cancel");
+        var dialog = new ChoiceDialog(title, text, choices, cancel: "cancel", group: group);
         shown?.Invoke(dialog);
         return await dialog.ShowDialog<string?>(this);
     }
@@ -466,7 +475,7 @@ internal sealed partial class FileCompareWindow : Window
             Loc.Format(AppStrings.FileCompare_Close_Title, names),
             [AppStrings.FileCompare_Close_Text],
             [new("save", AppStrings.Common_Save, "Enter", Primary: true), new("discard", AppStrings.Editor_DontSave, "N", Key.N), new("cancel", AppStrings.Common_Cancel, "Esc")],
-            question => CloseQuestion = question);
+            question => CloseQuestion = question, Core.Settings.ConfirmGroup.Save);
         CloseQuestion = null;
         if (answer == "discard" || (answer == "save" && await SaveAllSucceededAsync()))
         {
@@ -522,8 +531,8 @@ internal sealed partial class FileCompareWindow : Window
             return;
         }
 
-        _leftInfo.Text = Info(_sides[0].File!);
-        _rightInfo.Text = Info(_sides[1].File!);
+        _leftInfo.Text = _git is null ? Info(_sides[0].File!) : _format.Size(_sides[0].File!.Length);
+        _rightInfo.Text = _git is { RightReadOnly: true } ? _format.Size(_sides[1].File!.Length) : Info(_sides[1].File!);
 
         for (var side = 0; side < 2; side++)
         {
@@ -663,7 +672,8 @@ internal sealed partial class FileCompareWindow : Window
             : _view.IsBinary ? Loc.Format(AppStrings.FileCompare_Offset, line.ToString("X8", CultureInfo.InvariantCulture))
             : Loc.Format(AppStrings.FileCompare_Line, line);
         _hint.IsVisible = _view.Text is not null && blocks.Count > 0;
-        _hint.Text = _view.Selection is { } s
+        _hint.Text = _git is not null && _view.Selection is null ? _git.Keys
+            : _view.Selection is { } s
             ? Loc.Format(AppStrings.FileCompare_Selected, s.To - s.From + 1, blocks[s.Block].Count)
             : AppStrings.FileCompare_ClickHint;
         var extent = _view.HorizontalExtent;
@@ -699,6 +709,11 @@ internal sealed partial class FileCompareWindow : Window
 
     internal void Swap()
     {
+        if (_git is not null)
+        {
+            return;
+        }
+
         SetFiles(RightPath, LeftPath);
         if (_view.Text is not null && _sides[0].File is not null)
         {
@@ -716,8 +731,48 @@ internal sealed partial class FileCompareWindow : Window
         }
     }
 
+    private bool RefusedAsGits(int target)
+    {
+        if (_git is null || (target == 1 && !_git.RightReadOnly))
+        {
+            return false;
+        }
+
+        _hint.Text = AppStrings.Git_Diff_ReadOnly;
+        _hint.IsVisible = true;
+        return true;
+    }
+
+    private bool OnGitKey(KeyEventArgs e)
+    {
+        if (_git is null || _findBar.IsKeyboardFocusWithin)
+        {
+            return false;
+        }
+
+        if (e.Key == Key.F7 && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift)
+        {
+            _view.GoToDifference(e.KeyModifiers == KeyModifiers.Shift ? -1 : 1);
+            return true;
+        }
+
+        if (_git.Stage is { } stage && _git.StageChord is { } chord && Input.KeyMapping.TryGetChord(e.Key, e.KeyModifiers, out var pressed) && pressed == chord)
+        {
+            _ = stage();
+            return true;
+        }
+
+        return false;
+    }
+
     private void OnKey(object? sender, KeyEventArgs e)
     {
+        if (OnGitKey(e))
+        {
+            e.Handled = true;
+            return;
+        }
+
         var plain = e.KeyModifiers == KeyModifiers.None;
         var ctrl = e.KeyModifiers == KeyModifiers.Control;
         var alt = e.KeyModifiers == KeyModifiers.Alt;
@@ -874,6 +929,7 @@ internal sealed partial class FileCompareWindow : Window
         Tool(_findButton, "Icon.Find", null, AppStrings.FileCompare_FindTip, ToggleFind);
         Tool(_more, "Icon.More", null, AppStrings.FileCompare_MoreTip, () => { });
         _more.Flyout = BuildMoreMenu();
+        _swap.IsVisible = _git is null;
         var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center, Children = { _swap, _refresh, _findButton, _more } };
         var dock = new DockPanel { Margin = new Thickness(8, 6) };
         DockPanel.SetDock(right, Dock.Right);

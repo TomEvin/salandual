@@ -53,7 +53,7 @@ public sealed class SettingsFilesTests : IDisposable
         w.Show();
         w.ShowCategory("advanced");
         var titles = w.Items.Where(i => i.Category == "advanced" && i.Section == "Your settings").Select(i => i.Title);
-        Assert.Equal(["Export settings", "Import settings", "Reset all settings"], titles);
+        Assert.Equal(["Share with your other PCs", "Export settings", "Import settings", "Import from Altap Salamander", "Reset all settings"], titles);
         Assert.Contains(w.Find("backup"), i => i.Title == "Export settings");
         Assert.Contains(w.Find("time 12-hour"), i => i.Title == "Time");
         w.Close();
@@ -64,9 +64,9 @@ public sealed class SettingsFilesTests : IDisposable
     {
         var options = MainMenu.Create().First(n => n.Children?.Any(c => c.CommandId == "App.Options") == true);
         var ids = MainMenu.Flatten(options.Children!).Select(n => n.CommandId).OfType<string>().ToList();
-        Assert.Equal(["App.Options", "Options.ExportSettings", "Options.ImportSettings", "Options.ResetAllSettings"], ids.Take(4));
+        Assert.Equal(["App.Options", "Options.ExportSettings", "Options.ImportSettings", "Options.ImportSalamander", "Options.ResetAllSettings"], ids.Take(5));
         var commands = CommandRegistry.CreateDefault();
-        foreach (var id in ids.Skip(1).Take(3))
+        foreach (var id in ids.Skip(1).Take(4))
         {
             Assert.Empty(commands.ChordsFor(id));
         }

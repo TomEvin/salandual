@@ -70,7 +70,7 @@ internal sealed partial class FindWindow
         var single = hits.Count == 1 ? hits[0] : null;
         var local = hits.Where(h => h.Archive is null).ToList();
         var allLocal = local.Count == hits.Count;
-        var fileHere = single is { IsDirectory: false, Archive: null };
+        var fileHere = single is { IsDirectory: false };
 
         MenuItem Cmd(string header, string? icon, string? key, Action run, bool enabled = true)
         {
@@ -97,8 +97,8 @@ internal sealed partial class FindWindow
         }
         else
         {
-            Cmd(AppStrings.QuickMenu_Open, "Navigation.Execute", "Enter", () => OpenItem(single), single.Archive is null).FontWeight = FontWeight.SemiBold;
-            if (fileHere)
+            Cmd(AppStrings.QuickMenu_Open, "Navigation.Execute", "Enter", () => OpenItem(single)).FontWeight = FontWeight.SemiBold;
+            if (fileHere && single.Archive is null)
             {
                 Cmd(AppStrings.QuickMenu_OpenWith, "Icon.OpenWith", null, () => _request.OpenWith(single.FullPath));
             }
@@ -169,6 +169,7 @@ internal sealed partial class FindWindow
 
     internal void CopyOrMove(OperationKind kind)
     {
+        SayInArchive(Selected);
         var hits = Selected.Where(h => h.Archive is null).ToList();
         if (hits.Count > 0)
         {
@@ -178,6 +179,7 @@ internal sealed partial class FindWindow
 
     internal void DeleteSelected(bool inverted)
     {
+        SayInArchive(Selected);
         var hits = Selected.Where(h => h.Archive is null).ToList();
         if (hits.Count > 0)
         {
@@ -201,6 +203,7 @@ internal sealed partial class FindWindow
     {
         if (hit is null || hit.Archive is not null)
         {
+            SayInArchive(hit is null ? [] : [hit]);
             return;
         }
 

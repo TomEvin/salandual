@@ -203,6 +203,35 @@ public sealed class LocalFileSystemProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task WatchTree_TellsWhichFoldersChanged_DeepDown_AndWhatCameOrWent()
+    {
+        var deep = CreateDir(Path.Join("tree", "a", "b ő"));
+        var root = WindowsPath.Join(_dir, "tree");
+        var changed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seen = new SemaphoreSlim(0);
+        using var watch = _provider.WatchTree(root, c =>
+        {
+            lock (changed)
+            {
+                changed.UnionWith(c ?? []);
+            }
+
+            seen.Release();
+        }, _ => { })!;
+
+        Create("new.txt", inDir: deep);
+        Directory.CreateDirectory(WindowsPath.ToExtended(WindowsPath.Join(root, "c")));
+        Assert.True(await seen.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        await Task.Delay(400, TestContext.Current.CancellationToken);
+        lock (changed)
+        {
+            Assert.Contains(deep, changed);
+            Assert.Contains(WindowsPath.Join(root, "c"), changed);
+            Assert.DoesNotContain(changed, p => p.StartsWith(@"\\?\", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
     public async Task Watch_ReportsError_WhenFolderIsDeleted()
     {
         var gone = CreateDir("to be deleted");

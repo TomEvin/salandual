@@ -75,8 +75,8 @@ internal static class FindStyles
             Own<ToggleButton>("opt", [.. flat, (TemplatedControl.BorderThicknessProperty, new Thickness(1)), (TemplatedControl.PaddingProperty, new Thickness(10, 3)), (Layoutable.MinHeightProperty, 28.0)]),
             Presenter<ToggleButton>(s => s.Class("opt"), (ContentPresenter.BorderBrushProperty, "Brush.BorderStrong"), (ContentPresenter.ForegroundProperty, "Brush.Text")),
             Presenter<ToggleButton>(s => s.Class("opt").Class(":pointerover"), (ContentPresenter.BackgroundProperty, "Brush.Hover"), (ContentPresenter.ForegroundProperty, "Brush.Text")),
-            Presenter<ToggleButton>(s => s.Class("opt").Class(":checked"), (ContentPresenter.BackgroundProperty, "Brush.Accent"), (ContentPresenter.ForegroundProperty, "Brush.OnAccent"), (ContentPresenter.BorderBrushProperty, "Brush.Accent")),
-            Presenter<ToggleButton>(s => s.Class("opt").Class(":checked").Class(":pointerover"), (ContentPresenter.BackgroundProperty, "Brush.Accent"), (ContentPresenter.ForegroundProperty, "Brush.OnAccent"), (ContentPresenter.BorderBrushProperty, "Brush.Accent")),
+            Presenter<ToggleButton>(s => s.Class("opt").Class(":checked"), (ContentPresenter.BackgroundProperty, "Brush.AccentFill"), (ContentPresenter.ForegroundProperty, "Brush.OnAccent"), (ContentPresenter.BorderBrushProperty, "Brush.AccentFill")),
+            Presenter<ToggleButton>(s => s.Class("opt").Class(":checked").Class(":pointerover"), (ContentPresenter.BackgroundProperty, "Brush.AccentFill"), (ContentPresenter.ForegroundProperty, "Brush.OnAccent"), (ContentPresenter.BorderBrushProperty, "Brush.AccentFill")),
             new Style(x => x.OfType<FlyoutPresenter>().Class("compact"))
             {
                 Setters = { new Setter(TemplatedControl.PaddingProperty, new Thickness(6)), new Setter(TemplatedControl.FontSizeProperty, 13.0) },
@@ -108,7 +108,7 @@ internal static class FindStyles
             },
             new Style(x => x.OfType<CalendarDayButton>().Class(":selected").Template().OfType<Border>().Name("Root"))
             {
-                Setters = { new Setter(Border.BackgroundProperty, new DynamicResourceExtension("Brush.Accent")) },
+                Setters = { new Setter(Border.BackgroundProperty, new DynamicResourceExtension("Brush.AccentFill")) },
             },
             new Style(x => x.OfType<CalendarDayButton>().Class(":selected").Template().OfType<ContentPresenter>().Name("PART_ContentPresenter"))
             {
@@ -123,7 +123,7 @@ internal static class FindStyles
                 Setters = { new Setter(Border.BorderBrushProperty, new DynamicResourceExtension("Brush.Text")) },
             },
             Presenter<ToggleButton>(s => s.Class("seg").Class(":pointerover"), (ContentPresenter.BackgroundProperty, "Brush.Hover"), (ContentPresenter.ForegroundProperty, "Brush.Text")),
-            Presenter<ToggleButton>(s => s.Class("seg").Class(":checked"), (ContentPresenter.BackgroundProperty, "Brush.Accent"), (ContentPresenter.ForegroundProperty, "Brush.OnAccent")),
+            Presenter<ToggleButton>(s => s.Class("seg").Class(":checked"), (ContentPresenter.BackgroundProperty, "Brush.AccentFill"), (ContentPresenter.ForegroundProperty, "Brush.OnAccent")),
 
             Own<Button>("ftool", flat),
 
@@ -140,9 +140,9 @@ internal static class FindStyles
                 Setters = { new Setter(Avalonia.Controls.Shapes.Shape.StrokeProperty, new DynamicResourceExtension("Brush.PanelBackground")) },
             },
 
-            Presenter<Button>(s => s.Class("fstop"), (ContentPresenter.BackgroundProperty, "Brush.Danger"), (ContentPresenter.ForegroundProperty, "Brush.PanelBackground"), (ContentPresenter.BorderBrushProperty, "Brush.Danger")),
-            Presenter<Button>(s => s.Class("fstop").Class(":pointerover"), (ContentPresenter.BackgroundProperty, "Brush.Danger"), (ContentPresenter.ForegroundProperty, "Brush.PanelBackground"), (ContentPresenter.BorderBrushProperty, "Brush.Text")),
-            Presenter<Button>(s => s.Class("fstop").Class(":pressed"), (ContentPresenter.BackgroundProperty, "Brush.Danger"), (ContentPresenter.ForegroundProperty, "Brush.PanelBackground"), (ContentPresenter.BorderBrushProperty, "Brush.Text")),
+            Presenter<Button>(s => s.Class("fstop"), (ContentPresenter.BackgroundProperty, "Brush.DangerFill"), (ContentPresenter.ForegroundProperty, "Brush.OnDanger"), (ContentPresenter.BorderBrushProperty, "Brush.DangerFill")),
+            Presenter<Button>(s => s.Class("fstop").Class(":pointerover"), (ContentPresenter.BackgroundProperty, "Brush.DangerFill"), (ContentPresenter.ForegroundProperty, "Brush.OnDanger"), (ContentPresenter.BorderBrushProperty, "Brush.Text")),
+            Presenter<Button>(s => s.Class("fstop").Class(":pressed"), (ContentPresenter.BackgroundProperty, "Brush.DangerFill"), (ContentPresenter.ForegroundProperty, "Brush.OnDanger"), (ContentPresenter.BorderBrushProperty, "Brush.Text")),
 
             new Style(x => x.OfType<Border>().Class("fcriteria").Descendant().OfType<Button>().Class(":disabled")) { Setters = { new Setter(Visual.OpacityProperty, 0.45) } },
             new Style(x => x.OfType<Border>().Class("fcriteria").Descendant().OfType<ToggleButton>().Class(":disabled")) { Setters = { new Setter(Visual.OpacityProperty, 0.45) } },

@@ -55,13 +55,31 @@ public partial class MainWindow
 
         foreach (var place in menu.Places.Where(p => p.InStrip))
         {
-            if (Drives.KnownFolder(place.Id) is { } path)
+            if (place.Id == DriveMenuSettings.Ftp)
             {
-                items.Add(new StripItem(StripItemKind.Place, PlaceLabel(place.Id), path, Tip: path));
+                AddServerChips(items, menu.PlaceIconsOnly);
+                continue;
+            }
+
+            if ((Core.Vfs.ShellPlace.OfSetting(place.Id) ?? Drives.KnownFolder(place.Id)) is { } path)
+            {
+                var tip = Core.Vfs.ShellPlace.IsPlace(path) ? Core.Vfs.ShellPlace.Label(path) : path;
+                items.Add(new StripItem(StripItemKind.Place, menu.PlaceIconsOnly ? "" : PlaceLabel(place.Id), path, Tip: tip, Glyph: PlaceGlyph(place.Id), Setting: place.Id));
             }
         }
 
         return items;
+    }
+
+    private void AddServerChips(List<StripItem> items, bool iconsOnly)
+    {
+        items.Add(new StripItem(StripItemKind.Place, iconsOnly ? "" : PlaceLabel(DriveMenuSettings.Ftp), DriveMenuSettings.Ftp, Tip: AppStrings.Strip_FtpTip, Glyph: ServerGlyph, Setting: DriveMenuSettings.Ftp));
+        foreach (var open in Servers.OpenServers)
+        {
+            var name = open.Bookmark ?? open.Server.Host;
+            var home = open.Server.WithPath(open.Home).ToString();
+            items.Add(new StripItem(StripItemKind.Place, iconsOnly ? "" : name, home, Tip: Loc.Format(AppStrings.Strip_ServerTip, name, home, open.Security), Glyph: ServerGlyph));
+        }
     }
 
     internal IReadOnlyList<StripItem> HotPathBarItems()
@@ -91,6 +109,10 @@ public partial class MainWindow
         SharedStrip.Items = drives;
         SharedStrip.ShowAdd = false;
         HotPathBar.Items = HotPathBarItems();
+        UserMenuBar.Items = UserMenuBarItems();
+        UserMenuBar.ShowAdd = false;
+        ArrangeBars();
+        UpdateActivity();
     }
 
     private void OnStripItem(PanelHost host, StripItem item, bool otherPanel = false)
@@ -101,11 +123,20 @@ public partial class MainWindow
             return;
         }
 
+        if (item.Kind == StripItemKind.UserMenu || item is { Kind: StripItemKind.More, Target: nameof(StripItemKind.UserMenu) })
+        {
+            OnUserMenuBarItem(host, item);
+            return;
+        }
+
         SetActive(Array.IndexOf(_panels, host), focus: true);
         switch (item.Kind)
         {
             case StripItemKind.Drive:
                 GoToDrive(host, item.Target);
+                break;
+            case StripItemKind.Place when item.Setting == DriveMenuSettings.Ftp:
+                _ = ConnectServerAsync(host);
                 break;
             case StripItemKind.Place:
                 _ = host.Panel.NavigateAsync(item.Target);
@@ -125,6 +156,11 @@ public partial class MainWindow
     internal ContextMenu ShowStripMenu(PanelHost host, DriveStrip strip, StripItem? item)
     {
         SetActive(Array.IndexOf(_panels, host), focus: false);
+        if (strip == UserMenuBar)
+        {
+            return ShowUserMenuBarMenu(host, item);
+        }
+
         var menu = new ContextMenu();
         MenuItem Item(string header, Action run, string? gesture = null, bool enabled = true)
         {
@@ -160,6 +196,12 @@ public partial class MainWindow
         }
         else
         {
+            if (item is { Kind: StripItemKind.Place, Setting: { } placeId })
+            {
+                Item(AppStrings.Hot_HideFromBar, () => UpdatePlaceInStrip(placeId, false));
+                menu.Items.Add(new Separator());
+            }
+
             var free = HotPaths.NextFreeSlot();
             Item(free is { } n ? Loc.Format(AppStrings.Hot_AddAs, n) : AppStrings.Hot_AllTaken, () => AddHotPath(host), "Ctrl+Shift+OemPlus", enabled: free is not null);
             Item(AppStrings.Hot_ListMenu, () => _ = ShowHotPathListAsync(), "Shift+F9");
@@ -171,6 +213,13 @@ public partial class MainWindow
             var hot = Item(AppStrings.Hot_HotPathsBarMenu, () => UpdateBars(b => b with { HotPathBar = !b.HotPathBar }));
             hot.ToggleType = MenuItemToggleType.CheckBox;
             hot.IsChecked = bars.HotPathBar;
+            menu.Items.Add(PlacesInStripMenu(bars.DriveStrip));
+        }
+
+        if (strip == HotPathBar)
+        {
+            menu.Items.Add(WhereMenu(BarBlock.HotPaths));
+            menu.Items.Add(LockMenuItem());
         }
 
         Item(AppStrings.Hot_OptionsMenu, () => _ = OpenOptionsAsync("hotpaths"));
@@ -179,7 +228,49 @@ public partial class MainWindow
         return menu;
     }
 
-    private static string PlaceLabel(string id) => AppStrings.ResourceManager.GetString("Place_" + id, AppStrings.Culture) ?? id;
+    private MenuItem PlacesInStripMenu(bool stripShown)
+    {
+        var sub = new MenuItem { Header = AppStrings.Hot_PlacesInStrip, IsEnabled = stripShown };
+        foreach (var place in DriveMenu.Places.Where(p => p.Id != DriveMenuSettings.OtherPanel))
+        {
+            var id = place.Id;
+            var later = id == DriveMenuSettings.Registry;
+            var label = PlaceLabel(id);
+            var mi = new MenuItem
+            {
+                Header = later ? Loc.Format(AppStrings.Hot_PlaceLater, label, AppStrings.Hot_RegistryLater) : label,
+                ToggleType = MenuItemToggleType.CheckBox,
+                IsChecked = place.InStrip && !later,
+                IsEnabled = !later,
+                Icon = MenuIcon(PlaceGlyph(id)),
+            };
+            mi.Click += (_, _) => UpdatePlaceInStrip(id, !place.InStrip);
+            sub.Items.Add(mi);
+        }
+
+        sub.Items.Add(new Separator());
+        var iconsOnly = new MenuItem { Header = AppStrings.Hot_PlaceIconsOnly, ToggleType = MenuItemToggleType.CheckBox, IsChecked = DriveMenu.PlaceIconsOnly };
+        iconsOnly.Click += (_, _) => _services.Settings.Update(s => s with { DriveMenu = s.DriveMenu with { PlaceIconsOnly = !s.DriveMenu.PlaceIconsOnly } });
+        sub.Items.Add(iconsOnly);
+        return sub;
+    }
+
+    private void UpdatePlaceInStrip(string id, bool on)
+        => _services.Settings.Update(s => s with { DriveMenu = s.DriveMenu with { Places = [.. s.DriveMenu.Places.Select(p => p.Id == id ? p with { InStrip = on } : p)] } });
+
+    internal static string PlaceGlyph(string id) => id switch
+    {
+        DriveMenuSettings.ThisPc => "Icon.StripPc",
+        DriveMenuSettings.Home => "Icon.StripHome",
+        DriveMenuSettings.RecycleBin => "Icon.Bin",
+        DriveMenuSettings.Network => "Icon.StripNetwork",
+        DriveMenuSettings.Registry => RegistryGlyph,
+        DriveMenuSettings.Ftp => ServerGlyph,
+        _ => "Icon.StripFolder",
+    };
+
+    internal static string PlaceLabel(string id)
+        => Core.Vfs.ShellPlace.OfSetting(id) is { } place ? Core.Vfs.ShellPlace.Label(place) : AppStrings.ResourceManager.GetString("Place_" + id, AppStrings.Culture) ?? id;
 
     private bool RunHotPathCommand(string id, PanelHost host, KeyChord? chord)
     {
@@ -311,6 +402,7 @@ public partial class MainWindow
         _hotPathList = new Dialogs.HotPathListDialog(_services.Settings, removed => ShowNotice(
             Loc.Format(AppStrings.Hot_Cleared, removed.Slot, removed.Name),
             (AppStrings.Common_Undo, () => _services.Settings.Update(s => s with { HotPaths = s.HotPaths.With(removed) }))));
+        Controls.WindowMemory.Remember(_hotPathList, _services.Settings, WindowSettings.HotPaths);
         Dialogs.HotPathListResult? result;
         try
         {
@@ -379,6 +471,11 @@ public partial class MainWindow
             }
         };
         var menu = new ContextMenu { Items = { add, copy } };
+        if (OnServer(host))
+        {
+            AddServerPart(menu.Items, host, withAddress: false);
+        }
+
         menu.Closed += (_, _) => host.View.Focus();
         menu.Open(host.DirectoryLine);
     }
@@ -413,7 +510,7 @@ public partial class MainWindow
         SetActive(Array.IndexOf(_panels, host), focus: false);
         _driveMenuHost = host;
         var current = WindowsPath.GetRoot(host.Panel.Path);
-        var flyout = _driveMenu = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedLeft, HorizontalOffset = host.DirectoryLine.DriveButtonBounds.X };
+        var flyout = _driveMenu = new DriveMenuFlyout { Placement = PlacementMode.BottomEdgeAlignedLeft, HorizontalOffset = host.DirectoryLine.DriveButtonBounds.X, MaxMenuHeight = RoomForMenu(host.DirectoryLine) };
         FillDriveMenu(flyout, host);
         flyout.Closed += (_, _) =>
         {
@@ -437,17 +534,44 @@ public partial class MainWindow
             var items = flyout.Items.OfType<MenuItem>().Where(i => i.IsEnabled && i.Focusable).ToList();
             var start = items.FirstOrDefault(i => i.Tag is char c && current is { } root && char.ToUpperInvariant(root[0]) == c) ?? items.FirstOrDefault();
             start?.Focus(NavigationMethod.Directional);
+            start?.BringIntoView();
         }, DispatcherPriority.Loaded);
 
         _ = RefreshDriveDetailsAsync(flyout, host);
     }
 
+    private double RoomForMenu(Control anchor)
+    {
+        if (Screens.ScreenFromVisual(anchor) is not { } screen)
+        {
+            return double.PositiveInfinity;
+        }
+
+        var top = anchor.PointToScreen(new Point(0, 0));
+        var bottom = anchor.PointToScreen(new Point(0, anchor.Bounds.Height));
+        var below = (screen.WorkingArea.Bottom - bottom.Y) / screen.Scaling;
+        var above = (top.Y - screen.WorkingArea.Y) / screen.Scaling;
+        return Math.Max(160, Math.Max(below, above) - 12);
+    }
+
     private async Task RefreshDriveDetailsAsync(MenuFlyout flyout, PanelHost host)
     {
         var details = await Drives.ReadAsync(TimeSpan.FromSeconds(1.5)).ConfigureAwait(false);
+        Func<IReadOnlyList<DriveDetails>, IReadOnlyList<CloudFolder>> find = FindClouds ?? (_services.IsIsolated ? static _ => [] : Clouds.OnThisPc);
+        IReadOnlyList<CloudFolder> clouds;
+        try
+        {
+            clouds = find(details);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            clouds = _clouds;
+        }
+
         Dispatcher.UIThread.Post(() =>
         {
             _driveDetails = details;
+            _clouds = clouds;
             if (flyout.IsOpen)
             {
                 FillDriveMenu(flyout, host);
@@ -460,15 +584,31 @@ public partial class MainWindow
         flyout.Items.Clear();
         var menu = DriveMenu;
         var current = WindowsPath.GetRoot(host.Panel.Path);
+        var closer = menu.RowSpacing == MenuRowSpacing.Closer;
 
-        void Header(string text)
+        void Heading(string text, Func<DriveMenuSettings, DriveMenuSettings>? hide)
         {
             var header = Text(text.ToUpperInvariant(), 11, FontWeight.SemiBold, "Brush.TertiaryText");
-            flyout.Items.Add(new MenuItem { Header = header, IsEnabled = false, Focusable = false, Padding = new Thickness(10, 6, 10, 0), MinHeight = 0 });
+            flyout.Items.Add(GroupHeading(header, closer, hide is null ? null : () =>
+            {
+                _services.Settings.Update(s => s with { DriveMenu = hide(s.DriveMenu) });
+                if (flyout.IsOpen)
+                {
+                    FillDriveMenu(flyout, host);
+                }
+            }));
         }
+
+        void Header(string text) => Heading(text, null);
 
         void Add(MenuItem item, Action run, char? accessKey)
         {
+            if (closer)
+            {
+                item.Padding = new Thickness(11, 2, 11, 2);
+                item.MinHeight = 0;
+            }
+
             item.Click += (_, _) => run();
             if (accessKey is { } key)
             {
@@ -490,7 +630,9 @@ public partial class MainWindow
             var details = _driveDetails.FirstOrDefault(d => string.Equals(d.Root, drive.Root, StringComparison.OrdinalIgnoreCase));
             var root = drive.Root;
             var isCurrent = string.Equals(root, current, StringComparison.OrdinalIgnoreCase);
-            Add(new MenuItem { Header = DriveRow(drive, details, menu.FreeSpace, isCurrent), Icon = MenuIcon(drive.IsNetwork ? NetworkGlyph : DriveGlyph) }, () =>
+            var item = new MenuItem { Header = DriveRow(drive, details, menu.SpaceShown, isCurrent), Icon = DriveIcon(drive.IsNetwork, details, menu.DriveListIcon) };
+            item.Classes.Set("drivePicture", menu.DriveListIcon != DriveIconLook.Plain);
+            Add(item, () =>
             {
                 if (details is { Ready: false } && drive.IsNetwork)
                 {
@@ -506,11 +648,11 @@ public partial class MainWindow
             }
         }
 
-        var places = menu.Places.Where(p => p.InMenu).ToList();
+        var places = menu.FoldersInMenu ? menu.Places.Where(p => p.InMenu && p.Id is not (DriveMenuSettings.Cloud or DriveMenuSettings.Ftp)).ToList() : [];
         if (places.Count > 0)
         {
             flyout.Items.Add(new Separator());
-            Header(AppStrings.Copy_Group_Folders);
+            Heading(AppStrings.Copy_Group_Folders, d => d with { FoldersInMenu = false });
         }
 
         foreach (var place in places)
@@ -522,10 +664,16 @@ public partial class MainWindow
                     Add(new MenuItem { Header = Row(AppStrings.Place_OtherPanel, other), Icon = MenuIcon(SwapGlyph) }, () => _ = host.Panel.NavigateAsync(other), null);
                     break;
                 case DriveMenuSettings.Network:
-                    flyout.Items.Add(new MenuItem { Header = Row(AppStrings.Place_Network, AppStrings.Hot_NetworkLater), Icon = MenuIcon(NetworkGlyph), IsEnabled = false });
+                    Add(new MenuItem { Header = Row(Core.Resources.Strings.Place_Network, null), Icon = MenuIcon(NetworkGlyph) }, () => _ = host.Panel.NavigateAsync(Core.Vfs.ShellPlace.Network), null);
+                    break;
+                case DriveMenuSettings.Ftp:
                     break;
                 case DriveMenuSettings.Registry:
                     flyout.Items.Add(new MenuItem { Header = Row(AppStrings.Place_Registry, AppStrings.Hot_RegistryLater), Icon = MenuIcon(RegistryGlyph), IsEnabled = false });
+                    break;
+                case DriveMenuSettings.ThisPc or DriveMenuSettings.Home or DriveMenuSettings.Libraries or DriveMenuSettings.RecycleBin:
+                    var shellPlace = Core.Vfs.ShellPlace.OfSetting(place.Id)!;
+                    Add(new MenuItem { Header = Row(PlaceLabel(place.Id), null), Icon = MenuIcon(place.Id switch { DriveMenuSettings.RecycleBin => "File.Delete", DriveMenuSettings.ThisPc => DriveGlyph, _ => FolderGlyph }) }, () => _ = host.Panel.NavigateAsync(shellPlace), null);
                     break;
                 default:
                     if (Drives.KnownFolder(place.Id) is { } path)
@@ -537,20 +685,79 @@ public partial class MainWindow
             }
         }
 
-        var hot = HotPaths.Paths.Where(p => p.InMenu).ToList();
+        if (menu.Place(DriveMenuSettings.Cloud).InMenu)
+        {
+            var clouds = _clouds.Where(c => !c.IsDrive && menu.IsCloudShown(c.Path)).Select(c => (c.Name, c.Path))
+                .Concat(menu.AddedClouds.Where(a => !_clouds.Any(c => string.Equals(c.Path, a.Path, StringComparison.OrdinalIgnoreCase))).Select(a => (a.Name, a.Path)))
+                .ToList();
+            if (clouds.Count > 0)
+            {
+                flyout.Items.Add(new Separator());
+                Heading(AppStrings.DriveMenu_Cloud, d => d with { Places = [.. d.Places.Select(p => p.Id == DriveMenuSettings.Cloud ? p with { InMenu = false } : p)] });
+            }
+
+            foreach (var (name, path) in clouds)
+            {
+                Add(new MenuItem { Header = Row(name, AppStrings.Hot_CloudHint), Icon = MenuIcon(CloudGlyph) }, () => _ = host.Panel.NavigateAsync(path), null);
+            }
+        }
+
+        if (menu.Place(DriveMenuSettings.Ftp).InMenu)
+        {
+            AddServerItems(flyout, host, text => Heading(text, d => d with { Places = [.. d.Places.Select(p => p.Id == DriveMenuSettings.Ftp ? p with { InMenu = false } : p)] }), Add);
+        }
+
+        var hot = menu.HotPathsInMenu ? HotPaths.Paths.Where(p => p.InMenu).ToList() : [];
         if (hot.Count > 0)
         {
             flyout.Items.Add(new Separator());
-            Header(AppStrings.Copy_Group_HotPaths);
+            Heading(AppStrings.Copy_Group_HotPaths, d => d with { HotPathsInMenu = false });
         }
 
         foreach (var hp in hot)
         {
             var slot = hp.Slot;
             var row = Row(hp.Name, hp.Path);
-            ((StackPanel)((Grid)row).Children[0]).Children.Insert(0, new TextBlock { Text = (slot <= 10 ? slot % 10 : slot).ToString(CultureInfo.InvariantCulture), MinWidth = 18, TextAlignment = TextAlignment.Right }.Res(TextBlock.ForegroundProperty, "Brush.TertiaryText"));
-            Add(new MenuItem { Header = row }, () => GoHotPath(host, slot), slot <= 10 ? (char)('0' + (slot % 10)) : null);
+            if (slot <= 10)
+            {
+                var left = (StackPanel)((Grid)row).Children[0];
+                left.Spacing = 6;
+                left.Children.Insert(0, new TextBlock { Text = (slot % 10).ToString(CultureInfo.InvariantCulture), FontSize = 12, VerticalAlignment = VerticalAlignment.Center }.Res(TextBlock.ForegroundProperty, "Brush.TertiaryText"));
+            }
+
+            Control icon = _services.FolderLooks.Of(hp.Path) is { } look ? new Options.FolderLookIcon(look, _services.FolderLooks) { Width = 18, Height = 16 } : MenuIcon(FolderGlyph);
+            Add(new MenuItem { Header = row, Icon = icon }, () => GoHotPath(host, slot), slot <= 10 ? (char)('0' + (slot % 10)) : null);
         }
+    }
+
+    private IReadOnlyList<CloudFolder> _clouds = [];
+
+    internal Func<IReadOnlyList<DriveDetails>, IReadOnlyList<CloudFolder>>? FindClouds { get; set; }
+
+    internal static MenuItem GroupHeading(Control header, bool closer, Action? hide)
+    {
+        var item = new MenuItem { Header = header, Focusable = false, StaysOpenOnClick = true, Padding = new Thickness(10, closer ? 4 : 6, 10, 0), MinHeight = 0 };
+        item.Classes.Add("groupHead");
+        item.TemplateApplied += (_, e) =>
+        {
+            if (e.NameScope.Find<Control>("PART_HeaderPresenter") is { } presenter)
+            {
+                Grid.SetColumn(presenter, 0);
+                Grid.SetColumnSpan(presenter, 3);
+            }
+        };
+        if (hide is null)
+        {
+            item.IsEnabled = false;
+        }
+        else
+        {
+            var hideItem = new MenuItem { Header = AppStrings.DriveMenu_HideGroup };
+            hideItem.Click += (_, _) => hide();
+            item.ContextMenu = new ContextMenu { Items = { hideItem } };
+        }
+
+        return item;
     }
 
     private void OnDriveMenuKey(object? sender, KeyEventArgs e) => PickFromDriveMenu(e);
@@ -620,8 +827,9 @@ public partial class MainWindow
         return true;
     }
 
-    private Control DriveRow(DriveChip drive, DriveDetails? details, bool freeSpace, bool isCurrent)
+    private Control DriveRow(DriveChip drive, DriveDetails? details, DriveSpaceShown shown, bool isCurrent)
     {
+        var freeSpace = shown != DriveSpaceShown.Nothing;
         var letter = Text(drive.Root.TrimEnd('\\'), 13, isCurrent ? FontWeight.SemiBold : FontWeight.Normal);
         var label = Text(details?.Share ?? details?.Label ?? "", 13, brush: "Brush.SecondaryText");
         var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { letter, label } };
@@ -640,8 +848,14 @@ public partial class MainWindow
             var used = 1 - ((double)d.Free / d.Total);
             var meter = new Border { Width = 56, Height = 4, CornerRadius = new CornerRadius(2), VerticalAlignment = VerticalAlignment.Center, ClipToBounds = true }.Res(Border.BackgroundProperty, "Brush.Pressed");
             meter.Child = new Border { Width = 56 * Math.Clamp(used, 0, 1), HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(2) }.Res(Border.BackgroundProperty, "Brush.Accent");
-            var amount = Text(Loc.Format(AppStrings.Drive_FreeOf, format.Size(d.Free), format.Size(d.Total)), 12, brush: "Brush.SecondaryText");
-            amount.MinWidth = 140;
+            var text = shown switch
+            {
+                DriveSpaceShown.Free => Loc.Format(AppStrings.Dir_Free, format.Size(d.Free)),
+                DriveSpaceShown.Total => format.Size(d.Total),
+                _ => Loc.Format(AppStrings.Drive_FreeOf, format.Size(d.Free), format.Size(d.Total)),
+            };
+            var amount = Text(text, 12, brush: "Brush.SecondaryText");
+            amount.MinWidth = shown == DriveSpaceShown.FreeOfTotal ? 140 : 72;
             amount.TextAlignment = TextAlignment.Right;
             right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { meter, amount } };
         }
@@ -673,5 +887,15 @@ public partial class MainWindow
     private const string SwapGlyph = "Panel.Swap";
     private const string RegistryGlyph = "Icon.Registry";
 
+    private const string ServerGlyph = "Icon.StripServer";
+    private const string CloudGlyph = "Icon.QuickCloud";
+
     private static Control MenuIcon(string name) => AppIcons.Glyph(name, 16, 16, 1.2);
+
+    internal static Control DriveIcon(bool network, DriveDetails? details, DriveIconLook look) => (look, details?.Medium ?? DriveMedium.Unknown) switch
+    {
+        (DriveIconLook.Picture, var m) when DrivePicture.CanDraw(m) => new DrivePicture { Medium = m, Width = 32, Height = 21 },
+        (DriveIconLook.Picture3D, var m) when DrivePicture3D.CanDraw(m) => new DrivePicture3D { Medium = m, Width = 32, Height = 24, Animate = false, IsHitTestVisible = false },
+        _ => MenuIcon(network ? NetworkGlyph : DriveGlyph),
+    };
 }

@@ -24,6 +24,7 @@ using Salandual.Core.Listing;
 using Salandual.Core.Operations;
 using Salandual.Core.Resources;
 using Salandual.Core.Search;
+using Salandual.Core.Settings;
 using Salandual.Core.Vfs;
 
 namespace Salandual.App.Find;
@@ -184,7 +185,7 @@ internal sealed partial class FindWindow
             var item = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
             foreach (var k in key)
             {
-                item.Children.Add(new Border { BorderThickness = new Thickness(1, 1, 1, 2), CornerRadius = new CornerRadius(3), Padding = new Thickness(4, 0), Child = new TextBlock { Text = k, FontSize = 11, FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace") } }
+                item.Children.Add(new Border { BorderThickness = new Thickness(1, 1, 1, 2), CornerRadius = new CornerRadius(3), Padding = new Thickness(4, 0), Child = new TextBlock { Text = k, FontSize = 11, FontFamily = Salandual.App.Options.OptionsUi.MonoFamily } }
                     .Res(Border.BorderBrushProperty, "Brush.BorderStrong"));
             }
 
@@ -259,7 +260,7 @@ internal sealed partial class FindWindow
 
         if (hit.Line is { } line)
         {
-            var text = new TextBlock { FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"), FontSize = 12, Margin = new Thickness(36, 0, 8, 3), TextTrimming = TextTrimming.CharacterEllipsis };
+            var text = new TextBlock { FontFamily = Salandual.App.Options.OptionsUi.MonoFamily, FontSize = 12, Margin = new Thickness(36, 0, 8, 3), TextTrimming = TextTrimming.CharacterEllipsis };
             text.Res(TextBlock.ForegroundProperty, "Brush.SecondaryText");
             if (line.Offset is { } offset)
             {
@@ -520,26 +521,27 @@ internal sealed partial class FindWindow
         }
     }
 
-    private bool InArchive(SearchHit? hit)
+    private void SayInArchive(IEnumerable<SearchHit> hits)
     {
-        if (hit?.Archive is null)
+        if (hits.Any(h => h.Archive is not null))
         {
-            return false;
+            _notice.Text = AppStrings.Find_InArchiveNotice;
         }
-
-        _notice.Text = AppStrings.Find_InArchiveNotice;
-        return true;
     }
 
     internal void OpenItem(SearchHit? hit)
     {
         _notice.Text = "";
-        if (hit is null || InArchive(hit))
+        if (hit is null)
         {
             return;
         }
 
-        if (hit.IsDirectory)
+        if (hit is { Archive: not null, IsDirectory: false })
+        {
+            _request.OpenInArchive(hit.FullPath);
+        }
+        else if (hit.IsDirectory)
         {
             _request.OpenFolder(hit.FullPath);
         }
@@ -557,20 +559,20 @@ internal sealed partial class FindWindow
             return;
         }
 
-        if (hit.Archive is { } archive)
-        {
-            var slash = archive.LastIndexOf('\\');
-            hit = new SearchHit(slash < 0 ? "" : archive[..slash], archive[(slash + 1)..], 0, 0, FileAttributes.Archive);
-        }
-
         _request.ShowInPanel(hit);
     }
 
     internal void ViewItem(SearchHit? hit)
     {
         _notice.Text = "";
-        if (hit is null || hit.IsDirectory || InArchive(hit))
+        if (hit is null || hit.IsDirectory)
         {
+            return;
+        }
+
+        if (hit.Archive is not null)
+        {
+            _request.ViewInArchive(hit.FullPath, _viewQuery);
             return;
         }
 
@@ -581,8 +583,14 @@ internal sealed partial class FindWindow
     internal void EditItem(SearchHit? hit)
     {
         _notice.Text = "";
-        if (hit is null || hit.IsDirectory || InArchive(hit))
+        if (hit is null || hit.IsDirectory)
         {
+            return;
+        }
+
+        if (hit.Archive is not null)
+        {
+            _request.EditInArchive(hit.FullPath);
             return;
         }
 
@@ -614,6 +622,7 @@ internal sealed partial class FindWindow
 
     private void ShowProperties(bool windows)
     {
+        SayInArchive(Selected);
         if (Focused is not { Archive: null } focused)
         {
             return;
@@ -639,6 +648,7 @@ internal sealed partial class FindWindow
 
     private void CopyFiles(bool cut)
     {
+        SayInArchive(Selected);
         var paths = Selected.Where(h => h.Archive is null).Select(h => h.FullPath).ToList();
         if (paths.Count > 0)
         {
@@ -664,6 +674,7 @@ internal sealed partial class FindWindow
         }
 
         LogWindow = new FindLogWindow();
+        Controls.WindowMemory.Remember(LogWindow, _settings, WindowSettings.FindLog);
         LogWindow.Show(_log);
         LogWindow.Show(this);
     }

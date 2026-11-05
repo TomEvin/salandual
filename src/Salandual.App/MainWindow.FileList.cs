@@ -171,7 +171,7 @@ public partial class MainWindow
 
         viewer.Activate();
         var dialog = ListCloseQuestion = new ChoiceDialog(AppStrings.FileList_CloseTitle, [AppStrings.FileList_CloseText],
-            [new("save", AppStrings.FileList_SaveAs, "Enter", Primary: true), new("discard", AppStrings.Editor_DontSave, "N", Avalonia.Input.Key.N), new("cancel", AppStrings.Common_Cancel, "Esc")], cancel: "cancel");
+            [new("save", AppStrings.FileList_SaveAs, "Enter", Primary: true), new("discard", AppStrings.Editor_DontSave, "N", Avalonia.Input.Key.N), new("cancel", AppStrings.Common_Cancel, "Esc")], cancel: "cancel", group: Core.Settings.ConfirmGroup.Save);
         var answer = await dialog.ShowDialog<string?>(viewer);
         ListCloseQuestion = null;
         if (answer == "save")

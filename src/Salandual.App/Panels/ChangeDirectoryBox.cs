@@ -22,6 +22,7 @@ using Salandual.App.Options;
 using Salandual.App.Resources;
 using Salandual.App.Theme;
 using Salandual.Core.Resources;
+using Salandual.Core.Vfs;
 using Salandual.Core.Settings;
 using Salandual.Platform.Windows.FileSystem;
 
@@ -257,7 +258,7 @@ public sealed class ChangeDirectoryBox
         }
         else
         {
-            path.Text = row.Path;
+            path.Text = ShellPlace.Display(row.Path);
         }
 
         var icon = AppIcons.Glyph(row.Kind == RowKind.Folder ? "Icon.Folder" : "Icon.History", 14, 14, 1.2);
@@ -371,6 +372,12 @@ public sealed class ChangeDirectoryBox
         if (target is null)
         {
             ShowError(AppStrings.Cd_TypeAFolder);
+            return;
+        }
+
+        if (Core.Vfs.ShellPlace.IsServer(target))
+        {
+            Accepted?.Invoke(this, new ChangeDirectoryTarget(target.TrimEnd('\\'), null));
             return;
         }
 

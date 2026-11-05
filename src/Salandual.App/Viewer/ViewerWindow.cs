@@ -56,6 +56,10 @@ internal sealed record ViewerRequest(string Path, ViewerKind Kind)
     public bool GoToFirstMatch { get; init; }
 
     public bool KeepFindText { get; init; }
+
+    public Func<string, string>? TorrentFolder { get; init; }
+
+    public ViewerBlame? Blame { get; init; }
 }
 
 internal sealed partial class ViewerWindow : Window
@@ -152,7 +156,7 @@ internal sealed partial class ViewerWindow : Window
         {
             if (!_syncingScroll)
             {
-                Current.ScrollFraction = e.NewValue;
+                Current.ScrollFraction = e.NewValue > 0 && e.NewValue >= _vertical.Maximum - 1e-9 ? 1 : e.NewValue;
             }
         };
         _horizontal.ValueChanged += (_, e) =>
@@ -187,6 +191,7 @@ internal sealed partial class ViewerWindow : Window
             _statusTimer.Stop();
             CancelFind();
             _closing.Cancel();
+            StopAnimation();
             _imageView.Clear();
             _cover?.Dispose();
             _page?.Dispose();
@@ -205,6 +210,8 @@ internal sealed partial class ViewerWindow : Window
     internal TextContentView TextView => _text;
 
     internal HexContentView HexView => _hex;
+
+    internal ScrollBar VerticalBar => _vertical;
 
     internal ViewerDocument? Document => _document;
 
@@ -235,7 +242,8 @@ internal sealed partial class ViewerWindow : Window
         var markdown = !image && !media && _request.PageView is not null && (kind is ViewerKind.Markdown or ViewerKind.Notebook or ViewerKind.Html || (keepPlace && _isMarkdown));
         var notebook = markdown && (kind == ViewerKind.Notebook || (keepPlace && _isNotebook));
         var html = markdown && !notebook && (kind == ViewerKind.Html || (keepPlace && _isHtml));
-        var treeFormat = !image && !media && !markdown ? TreeFormat(path) : null;
+        var torrent = !image && !media && !markdown && (kind == ViewerKind.Torrent || (keepPlace && _isTorrent));
+        var treeFormat = !image && !media && !markdown && !torrent ? TreeFormat(path) : null;
         var tree = treeFormat is not null && (kind == ViewerKind.Tree || (keepPlace && _treeMode));
         if (!string.Equals(path, _path, StringComparison.Ordinal))
         {
@@ -246,11 +254,11 @@ internal sealed partial class ViewerWindow : Window
         }
 
         HideLimitBar();
-        if ((image && !imageBytes) || ((markdown || tree) && !keepPlace))
+        if ((image && !imageBytes) || ((markdown || tree || torrent) && !keepPlace))
         {
-            if (await OverLimit(path, image ? ViewerKind.Image : notebook ? ViewerKind.Notebook : html ? ViewerKind.Html : tree ? ViewerKind.Tree : ViewerKind.Markdown) is { } instead)
+            if (await OverLimit(path, image ? ViewerKind.Image : notebook ? ViewerKind.Notebook : html ? ViewerKind.Html : tree ? ViewerKind.Tree : torrent ? ViewerKind.Torrent : ViewerKind.Markdown) is { } instead)
             {
-                image = markdown = notebook = html = tree = false;
+                image = markdown = notebook = html = tree = torrent = false;
                 kind = instead;
             }
         }
@@ -261,14 +269,19 @@ internal sealed partial class ViewerWindow : Window
         _isMarkdown = markdown;
         _isNotebook = notebook;
         _isHtml = html;
-        _isTree = treeFormat is not null;
+        _isTree = treeFormat is not null || (torrent && _isTorrent && string.Equals(path, _torrent?.Path, StringComparison.Ordinal));
+        _isTorrent = torrent;
+        if (!string.Equals(path, _torrent?.Path, StringComparison.Ordinal))
+        {
+            _torrent = null;
+        }
         if (!string.Equals(path, _treeRead?.Path, StringComparison.Ordinal))
         {
             _treeRead = null;
             TreeProblem = null;
         }
 
-        if (!tree)
+        if (!tree && !torrent)
         {
             _treeMode = false;
         }
@@ -307,6 +320,13 @@ internal sealed partial class ViewerWindow : Window
             ShowPageMode();
             RenderPage(keepScroll: keepPlace);
             await PageRendering;
+            return;
+        }
+
+        if (torrent)
+        {
+            _statusTimer.Start();
+            await LoadTorrent(path, keepPlace);
             return;
         }
 
@@ -356,6 +376,7 @@ internal sealed partial class ViewerWindow : Window
         _content.IsVisible = true;
         _text.SetColors(ColorsFor(path), ExactColorsBytes, now: false);
         _text.Document = document;
+        ApplyBlame();
         _hex.Document = document;
         _hex.Characters = document.Encoding;
         old?.Dispose();
@@ -383,9 +404,9 @@ internal sealed partial class ViewerWindow : Window
         _hexMode = hex;
         _imageMode = false;
         _mediaMode = false;
+        _torrentPage = TorrentPage.None;
         _treeMode = false;
         LeavePage();
-        _vertical.IsVisible = true;
         _content.Content = Current;
         Current.Select(anchor, caret);
         Current.SelectionIsMatch = match;
@@ -407,10 +428,14 @@ internal sealed partial class ViewerWindow : Window
         try
         {
             var view = Current;
-            _vertical.ViewportSize = view.ViewportFraction;
-            _vertical.LargeChange = view.ViewportFraction;
-            _vertical.SmallChange = view.ViewportFraction / 20;
-            _vertical.Value = view.ScrollFraction;
+            var shown = view.ViewportFraction;
+            var visible = ReferenceEquals(_content.Content, view) ? shown < 1 : _vertical.IsVisible;
+            _vertical.Maximum = Math.Max(0, 1 - shown);
+            _vertical.ViewportSize = shown;
+            _vertical.LargeChange = shown;
+            _vertical.SmallChange = shown / 20;
+            _vertical.Value = Math.Min(view.ScrollFraction, _vertical.Maximum);
+            _vertical.IsVisible = visible;
             if (!_hexMode && !_text.Wrap)
             {
                 _horizontal.Maximum = _text.HorizontalExtent;
@@ -530,7 +555,19 @@ internal sealed partial class ViewerWindow : Window
             return;
         }
 
-        if ((_imageMode && !inText && ImageKey(e.Key, mods)) || (_mediaMode && !inText && MediaKey(e.Key, mods)) || (_pageMode && !inText && PageKey(e.Key, mods)) || (_treeMode && !inText && TreeKey(e.Key, mods)))
+        if (ReferenceEquals(e.Source, _filesFilter) && FilterKey(e.Key, mods))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (!inText && !_imageMode && !_mediaMode && !_pageMode && !_treeMode && BlameKey(e.Key, mods))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if ((_imageMode && !inText && ImageKey(e.Key, mods)) || (_mediaMode && !inText && MediaKey(e.Key, mods)) || (_pageMode && !inText && PageKey(e.Key, mods)) || (_treeMode && !inText && TreeKey(e.Key, mods)) || (_torrentPage != TorrentPage.None && !inText && TorrentKey(e.Key, mods)))
         {
             e.Handled = true;
             return;
@@ -661,9 +698,8 @@ internal sealed partial class ViewerWindow : Window
             case Key.Down: _text.ScrollRows(1); return true;
             case Key.PageUp: _text.ScrollRows(-page); return true;
             case Key.PageDown: _text.ScrollRows(page); return true;
-            case Key.Home when ctrl: _text.ScrollToTop(); return true;
-            case Key.End when ctrl: _text.ScrollToEnd(); return true;
-            case Key.Home: _text.HorizontalOffset = 0; return true;
+            case Key.Home: _text.ScrollToTop(); return true;
+            case Key.End: _text.ScrollToEnd(); return true;
             case Key.Left: _text.ScrollColumns(-4); return true;
             case Key.Right: _text.ScrollColumns(4); return true;
             default: return false;
@@ -688,6 +724,11 @@ internal sealed partial class ViewerWindow : Window
         var list = _request.Siblings;
         var next = _siblingIndex + direction;
         if (_siblingIndex < 0 || next < 0 || next >= list.Count)
+        {
+            return;
+        }
+
+        if (TorrentCheckRunning && !await StopCheckToStepAsync())
         {
             return;
         }
@@ -734,6 +775,12 @@ internal sealed partial class ViewerWindow : Window
 
     private void UpdateStatus()
     {
+        if (_torrentPage != TorrentPage.None || _torrentReading)
+        {
+            UpdateTorrentStatus();
+            return;
+        }
+
         if (_imageMode)
         {
             UpdateImageStatus();
@@ -796,6 +843,10 @@ internal sealed partial class ViewerWindow : Window
 
         var line = d.Index.NumberOf(_text.CaretLineStart);
         Status(left, Loc.Format(AppStrings.Viewer_LnCol, line is { } n ? (n + 1).ToString("N0", CultureInfo.CurrentCulture) : "…", _text.CaretColumn));
+        if (BlameWords() is { } blamed)
+        {
+            Status(left, blamed);
+        }
         if (view.HasSelection)
         {
             var bytes = view.SelectionEnd - view.SelectionStart;

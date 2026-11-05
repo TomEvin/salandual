@@ -36,8 +36,39 @@ public sealed partial class OptionsWindow
         Add(Appearance, AppStrings.OptSec_Preview, null, null, () => new PreviewPanel(Settings), wide: true, keywords: AppStrings.Opt_Preview_Kw);
 
         Add(Appearance, AppStrings.OptSec_Fonts, AppStrings.Opt_PanelFont, AppStrings.Opt_PanelFont_Desc, () => FontPicker(Current.Appearance.PanelFont, mono: false,
-            f => UpdateAppearance(a => a with { PanelFont = f })), keywords: AppStrings.Opt_PanelFont_Kw);
+            f => TryAppearance(a => a with { PanelFont = f })), keywords: AppStrings.Opt_PanelFont_Kw);
         Add(Appearance, AppStrings.OptSec_Fonts, AppStrings.Opt_MonoFont, AppStrings.Opt_MonoFont_Desc, MonoFontPicker, wide: true, keywords: AppStrings.Opt_MonoFont_Kw);
+        var windows = AppInstance?.Theme.WindowsTextSize ?? 1;
+        Add(Appearance, AppStrings.OptSec_Fonts, AppStrings.Opt_TextSize, Loc.Format(AppStrings.Opt_TextSize_Desc, Percent(windows)),
+            () => Toggle(Current.Appearance.FollowTextSize, on => Settings.Update(s => s with { Appearance = s.Appearance with { FollowTextSize = on } })),
+            keywords: AppStrings.Opt_TextSize_Kw);
+        Add(Appearance, AppStrings.OptSec_Fonts, null, null, () => TextSizePreview(windows), wide: true, keywords: AppStrings.Opt_TextSize_Kw);
+    }
+
+    private static Control TextSizePreview(double windows)
+    {
+        Control Pane(string caption, double size)
+        {
+            var rows = new StackPanel();
+            foreach (var row in AppStrings.Sample_TextSize_Rows.Split('|'))
+            {
+                var cells = row.Split(';');
+                var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(8, 2) };
+                grid.Children.Add(new TextBlock { Text = cells[0], FontSize = size / TextScale.Factor }.Res(TextBlock.ForegroundProperty, "Brush.Text"));
+                grid.Children.Add(new TextBlock { Text = cells.ElementAtOrDefault(1) ?? "", FontSize = size / TextScale.Factor }
+                    .Res(TextBlock.ForegroundProperty, "Brush.SecondaryText").Also(t => Grid.SetColumn(t, 1)));
+                rows.Children.Add(grid);
+            }
+
+            var pane = new Border { BorderThickness = new Thickness(1), CornerRadius = Corners.Chip, Padding = new Thickness(0, 4), Child = rows }
+                .Res(Border.BorderBrushProperty, "Brush.Border").Res(Border.BackgroundProperty, "Brush.PanelBackground");
+            return new StackPanel { Spacing = 4, Children = { Text(caption, 12, brush: "Brush.SecondaryText"), pane } };
+        }
+
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 12 };
+        grid.Children.Add(Pane(AppStrings.TextSize_At100, FontSetting.DefaultPanelSize));
+        grid.Children.Add(Pane(Loc.Format(AppStrings.TextSize_AtNow, Percent(windows)), FontSetting.DefaultPanelSize * windows).Also(p => Grid.SetColumn(p, 1)));
+        return grid;
     }
 
     private static string Percent(double value) => string.Create(CultureInfo.CurrentCulture, $"{Math.Round(value * 100)} %");
@@ -80,7 +111,7 @@ public sealed partial class OptionsWindow
         var sample = new TextBlock { Text = AppStrings.Sample_MonoFont, Margin = new Thickness(0, 4, 0, 0) }
             .Res(TextBlock.FontFamilyProperty, "Font.Mono").Res(TextBlock.FontSizeProperty, "Font.MonoSize").Res(TextBlock.ForegroundProperty, "Brush.Text");
         var panel = new StackPanel { Spacing = 8 };
-        panel.Children.Add(FontPicker(Current.Appearance.MonoFont, mono: true, f => UpdateAppearance(a => a with { MonoFont = f })));
+        panel.Children.Add(FontPicker(Current.Appearance.MonoFont, mono: true, f => TryAppearance(a => a with { MonoFont = f })));
         panel.Children.Add(sample);
         return panel;
     }

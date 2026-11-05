@@ -45,15 +45,15 @@ public sealed class ConflictDialog : Window
         this.Res(BackgroundProperty, "Brush.PanelBackground");
 
         var newer = question.SourceInfo.LastWriteUtc > question.TargetInfo.LastWriteUtc;
-        _primary = newer ? AnswerKind.Overwrite : AnswerKind.Skip;
-        var targetFolder = Path.GetDirectoryName(question.Target) ?? question.Target;
-        var sourceFolder = Path.GetDirectoryName(question.Source) ?? question.Source;
+        _primary = question.CanResume ? AnswerKind.Resume : newer && App.EnterActs(Core.Settings.ConfirmGroup.Create) ? AnswerKind.Overwrite : AnswerKind.Skip;
+        var targetFolder = FolderOf(question.Target);
+        var sourceFolder = FolderOf(question.Source);
 
         var heading = OptionsUi.Text(AppStrings.Conflict_Heading, 17, FontWeight.SemiBold);
         var purpose = new TextBlock { FontSize = 13, TextWrapping = TextWrapping.Wrap };
         purpose.Res(TextBlock.ForegroundProperty, "Brush.SecondaryText");
         Rich.Add(purpose.Inlines!, job.Kind == OperationKind.Move ? AppStrings.Conflict_MovingInto : AppStrings.Conflict_CopyingInto, null,
-            new Run(Path.GetFileName(targetFolder) is { Length: > 0 } n ? n : targetFolder) { FontWeight = FontWeight.SemiBold },
+            new Run(NameOf(targetFolder) is { Length: > 0 } n ? n : targetFolder) { FontWeight = FontWeight.SemiBold },
             new Run(Root(targetFolder)));
 
         var name = new Border
@@ -64,22 +64,27 @@ public sealed class ConflictDialog : Window
         }.Res(Border.BackgroundProperty, "Brush.Hover");
 
         var cards = new Grid { ColumnDefinitions = new ColumnDefinitions("*,10,*") };
-        var left = Card(job.Kind == OperationKind.Move ? AppStrings.Conflict_Card_Moving : AppStrings.Conflict_Card_Copying, question.SourceInfo, Loc.Format(AppStrings.Conflict_FolderOn, Path.GetFileName(sourceFolder), Root(sourceFolder)), TagFor(question.SourceInfo, question.TargetInfo), format);
-        var right = Card(AppStrings.Conflict_Card_There, question.TargetInfo, Loc.Format(AppStrings.Conflict_FolderOn, Path.GetFileName(targetFolder), Root(targetFolder)), TagFor(question.TargetInfo, question.SourceInfo), format);
+        var left = Card(job.Kind == OperationKind.Move ? AppStrings.Conflict_Card_Moving : AppStrings.Conflict_Card_Copying, question.SourceInfo, Loc.Format(AppStrings.Conflict_FolderOn, NameOf(sourceFolder), Root(sourceFolder)), TagFor(question.SourceInfo, question.TargetInfo), format);
+        var right = Card(AppStrings.Conflict_Card_There, question.TargetInfo, Loc.Format(AppStrings.Conflict_FolderOn, NameOf(targetFolder), Root(targetFolder)), TagFor(question.TargetInfo, question.SourceInfo), format);
         Grid.SetColumn(right, 2);
         cards.Children.Add(left);
         cards.Children.Add(right);
 
-        var choices = new Grid { ColumnDefinitions = new ColumnDefinitions("*,8,*,8,*,8,*") };
         var dot = Path.GetFileNameWithoutExtension(question.Target) + " (2)" + Path.GetExtension(question.Target);
-        (AnswerKind Kind, string Label, string Help)[] options =
+        List<(AnswerKind Kind, string Label, string Help)> options =
         [
             (AnswerKind.Overwrite, AppStrings.Conflict_Choice_Overwrite, job.Kind == OperationKind.Move ? AppStrings.Conflict_Overwrite_Moving : AppStrings.Conflict_Overwrite_Copying),
             (AnswerKind.Skip, AppStrings.Conflict_Choice_Skip, AppStrings.Conflict_Skip_Help),
             (AnswerKind.KeepBoth, AppStrings.Conflict_Choice_KeepBoth, Loc.Format(AppStrings.Conflict_KeepBoth_Help, dot)),
             (AnswerKind.OverwriteOlder, AppStrings.Conflict_Choice_IfNewer, AppStrings.Conflict_IfNewer_Help),
         ];
-        for (var i = 0; i < options.Length; i++)
+        if (question.CanResume)
+        {
+            options.Insert(0, (AnswerKind.Resume, AppStrings.Conflict_Choice_Resume, Loc.Format(AppStrings.Conflict_Resume_Help, format.Size(question.SourceInfo.Size - question.TargetInfo.Size))));
+        }
+
+        var choices = new Grid { ColumnDefinitions = new ColumnDefinitions(string.Join(",8,", Enumerable.Repeat("*", options.Count))) };
+        for (var i = 0; i < options.Count; i++)
         {
             var (kind, label, help) = options[i];
 
@@ -143,7 +148,8 @@ public sealed class ConflictDialog : Window
         titleMinimize.Width = 40;
         titleMinimize.Click += (_, _) => Close(ConflictChoice.Minimized);
         Content = TitleBarParts.ForDialog(this, root, titleMinimize);
-        Opened += (_, _) => Choices[_primary].Focus();
+        DialogButtons.ArrowsAcross(this, () => [.. Choices.Values]);
+        Opened += (_, _) => DialogButtons.FocusShown(Choices[_primary]);
     }
 
     internal Dictionary<AnswerKind, Button> Choices { get; } = [];
@@ -177,7 +183,11 @@ public sealed class ConflictDialog : Window
         }
     }
 
-    private static string Root(string path) => (Platform.Windows.FileSystem.WindowsPath.GetRoot(path) ?? path).TrimEnd('\\');
+    private static string Root(string path) => Remote.ServerAddress.Parse(path) is { } server ? server.Host : (Platform.Windows.FileSystem.WindowsPath.GetRoot(path) ?? path).TrimEnd('\\');
+
+    private static string FolderOf(string path) => Remote.ServerAddress.Parse(path) is { } server ? server.Parent()?.ToString() ?? path : Path.GetDirectoryName(path) ?? path;
+
+    private static string NameOf(string folder) => Remote.ServerAddress.Parse(folder) is { } server ? server.Name : Path.GetFileName(folder);
 
     private static string? TagFor(ItemInfo a, ItemInfo b)
         => a.LastWriteUtc > b.LastWriteUtc ? AppStrings.Conflict_Newer
@@ -202,13 +212,13 @@ public sealed class ConflictDialog : Window
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(0, 0, 10, 0),
             VerticalAlignment = VerticalAlignment.Top,
-            Child = AppIcons.Glyph("Icon.File", 22, 22).Also(g => g.HorizontalAlignment = HorizontalAlignment.Center),
+            Child = new Viewbox { Width = 22, Height = 22, Child = AppIcons.Glyph("Icon.File", 16, 16) },
         }.Res(Border.BackgroundProperty, "Brush.Hover");
         var row = new DockPanel();
         DockPanel.SetDock(icon, Dock.Left);
         row.Children.Add(icon);
         row.Children.Add(text);
-        return new Border { Padding = new Thickness(11, 9), CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), Child = row }
+        return new Border { Padding = new Thickness(11, 9), CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), Child = row }
             .Res(Border.BorderBrushProperty, "Brush.Border");
     }
 

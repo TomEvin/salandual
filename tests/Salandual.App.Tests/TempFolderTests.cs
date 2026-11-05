@@ -17,6 +17,7 @@ public sealed class TempFolderTests
 {
     private static string Crashed(MainWindow w)
     {
+        w.Services.Temp.Delete(w.Services.Temp.FindLeftovers());
         var folder = Path.Combine(w.Services.Temp.Root, "run-9-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(folder);
         File.WriteAllBytes(Path.Combine(folder, "page-1.html"), new byte[2048]);

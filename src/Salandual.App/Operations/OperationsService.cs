@@ -37,6 +37,10 @@ public sealed class OperationsService : IDisposable
 
     public event EventHandler<OperationJob>? DialogQuestion;
 
+    public event EventHandler<OperationJob>? Started;
+
+    public event EventHandler<OperationJob>? WindowWanted;
+
     public event EventHandler<OperationJob>? Finished;
 
     public WhenDone WhenDone { get; set; }
@@ -61,7 +65,13 @@ public sealed class OperationsService : IDisposable
             }
         };
         Queue.Add(job, toQueue);
+        if (!toQueue)
+        {
+            Started?.Invoke(this, job);
+        }
     }
+
+    public void ShowWindow(OperationJob job) => WindowWanted?.Invoke(this, job);
 
     public void Minimize(OperationJob job)
     {

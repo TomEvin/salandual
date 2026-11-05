@@ -73,7 +73,7 @@ internal static class MagickDecoder
         return ext.Length > 0 && Enum.TryParse<MagickFormat>(ext, ignoreCase: true, out var format) && format != MagickFormat.Unknown ? format : null;
     }
 
-    private static void Configure()
+    internal static void Configure()
     {
         if (Interlocked.Exchange(ref _configured, 1) == 0)
         {

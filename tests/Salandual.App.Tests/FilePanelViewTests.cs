@@ -167,7 +167,7 @@ public sealed class FilePanelViewTests : IDisposable
         Assert.InRange(withExt.ExtWidth, 30, 60);
 
 
-        view.ExtensionColumn = false;
+        view.ViewColumns = Core.Panels.ColumnViews.With([], Core.Panels.ColumnViews.Toggle(Core.Panels.ColumnViews.Default(Core.Panels.PanelView.Detailed), Core.Panels.PanelColumn.Extension));
         var together = view.RowLayout(row);
         Assert.Equal(0, together.ExtWidth);
         Assert.True(together.NameRight > withExt.NameRight);
